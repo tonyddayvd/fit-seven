@@ -16,7 +16,8 @@ export const MOCK_USERS = [
   { id: 'u4', name: 'Mariana Lima (Estabelec.)', email: 'admin@pulse.com', tenantId: 't2', role: 'estabelecimento', password: '123' },
   { id: 'u5', name: 'Prof. Pedro Souza', email: 'pedro@pulse.com', tenantId: 't2', role: 'professor', password: '123' },
   { id: 'u6', name: 'Juliana Aluna', email: 'juliana@pulse.com', tenantId: 't2', role: 'aluno', password: '123' },
-  { id: 'u7', name: 'Suporte Master System', email: 'master@fitseven.com', tenantId: 'master', role: 'master', password: '123' }
+  { id: 'u7', name: 'Suporte Master System', email: 'master@fitseven.com', tenantId: 'master', role: 'master', password: '123' },
+  { id: 'u8', name: 'Tony (MASTER)', email: 'tony@fitseven.com', tenantId: 'master', role: 'master', password: '123' }
 ];
 
 const DEFAULT_WORKOUTS = [
