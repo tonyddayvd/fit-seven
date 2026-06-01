@@ -153,6 +153,9 @@ const Aluno = () => {
   const [activeTooltip, setActiveTooltip] = useState(null);
   const timerRef = useRef(null);
 
+  const currentTabInfo = TABS.find(t => t.id === activeTab) || TABS[0];
+  const IconComponent = currentTabInfo.icon;
+
   // Handlers para o Form de Medidas
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
