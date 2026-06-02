@@ -1001,7 +1001,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     minHeight: '80vh',
-    paddingBottom: '90px',
+    paddingBottom: '140px',
     position: 'relative',
   },
   contentArea: {
@@ -1756,16 +1756,15 @@ const styles = {
   // Menu Inferior
   bottomNav: {
     position: 'fixed',
-    bottom: '16px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: 'calc(100% - 32px)',
-    maxWidth: '800px',
-    borderRadius: 'var(--radius-lg)',
-    border: '1px solid var(--border-color)',
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    backgroundColor: 'var(--glass-bg)',
+    backdropFilter: 'blur(16px)',
+    borderTop: '1px solid var(--border-color)',
     boxShadow: 'var(--shadow-lg)',
-    padding: '8px 12px',
-    zIndex: 999,
+    padding: '12px 16px',
+    zIndex: 9999,
   },
   scrollWrapper: {
     display: 'flex',

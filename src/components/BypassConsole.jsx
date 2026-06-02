@@ -70,8 +70,8 @@ const BypassConsole = () => {
 const styles = {
   container: {
     position: 'fixed',
-    bottom: '24px',
-    right: '24px',
+    bottom: '100px',
+    right: '16px',
     zIndex: 9999,
     borderRadius: 'var(--radius-lg)',
     padding: '8px',
