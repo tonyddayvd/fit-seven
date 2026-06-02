@@ -105,9 +105,9 @@ const Aluno = () => {
   const [activeVideoEx, setActiveVideoEx] = useState(null);
   const [tempCustomUrl, setTempCustomUrl] = useState('');
 
-  // Estados do Assistente em Tempo Real
-  const [assistantActive, setAssistantActive] = useState(false);
-  const [assistantPhase, setAssistantPhase] = useState('preparacao');
+  // Estados do Assistente em Tempo Real (Ativado por Exercício)
+  const [activeAssistantExId, setActiveAssistantExId] = useState(null); // armazena o id do exercício ativo
+  const [assistantPhase, setAssistantPhase] = useState('preparacao'); // 'execucao' ou 'descanso'
   const [assistantTimer, setAssistantTimer] = useState(0);
   const [assistantRunning, setAssistantRunning] = useState(false);
 
@@ -218,7 +218,7 @@ const Aluno = () => {
   };
 
   useEffect(() => {
-    if (assistantActive && assistantRunning && assistantTimer > 0) {
+    if (activeAssistantExId && assistantRunning && assistantTimer > 0) {
       timerRef.current = setInterval(() => {
         setAssistantTimer(prev => {
           const next = prev - 1;
@@ -236,7 +236,7 @@ const Aluno = () => {
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
-  }, [assistantActive, assistantRunning, assistantTimer, assistantPhase]);
+  }, [activeAssistantExId, assistantRunning, assistantTimer, assistantPhase]);
 
   const handlePhaseTransition = () => {
     if (assistantPhase === 'execucao') {
@@ -250,7 +250,8 @@ const Aluno = () => {
     }
   };
 
-  const startAssistant = () => {
+  const startAssistant = (exId) => {
+    setActiveAssistantExId(exId);
     setAssistantPhase('execucao');
     setAssistantTimer(45);
     setAssistantRunning(true);
@@ -346,7 +347,7 @@ const Aluno = () => {
     updateStudentExercises(reseted);
     setWorkoutSessionFinished(false);
     setAuditLog([]);
-    setAssistantActive(false);
+    setActiveAssistantExId(null);
     setAssistantRunning(false);
   };
 
@@ -434,52 +435,6 @@ const Aluno = () => {
                 ) : (
                   /* Tela de Execução */
                   <div style={styles.workoutContainer}>
-                    <div style={styles.assistToggleRow} className="glass">
-                      <div style={styles.toggleInfo}>
-                        <h4 style={styles.toggleTitle}>Assistente em Tempo Real (Timer & Voz)</h4>
-                        <p style={styles.toggleDesc}>Ativa áudio, bipes de contagem e instrução motivacional via sintetizador de voz do navegador.</p>
-                      </div>
-                      <label style={styles.switch}>
-                        <input 
-                          type="checkbox" 
-                          checked={assistantActive} 
-                          onChange={(e) => {
-                            setAssistantActive(e.target.checked);
-                            if (e.target.checked) {
-                              startAssistant();
-                            } else {
-                              setAssistantRunning(false);
-                            }
-                          }}
-                        />
-                        <span style={styles.slider} />
-                      </label>
-                    </div>
-
-                    {assistantActive && (
-                      <div style={styles.assistantPanel} className="glass">
-                        <div style={styles.panelLeft}>
-                          <Volume2 size={24} className="text-gradient" />
-                          <div>
-                            <span style={styles.phaseLabel}>
-                              FASE ATUAL: {assistantPhase === 'execucao' ? 'EXECUÇÃO (FORÇA)' : 'DESCANSO (RECUPERAÇÃO)'}
-                            </span>
-                            <div style={styles.timerDisplay}>
-                              {assistantTimer}s
-                            </div>
-                          </div>
-                        </div>
-                        <div style={styles.panelRight}>
-                          <button onClick={togglePauseAssistant} style={styles.assistBtn} className="btn-secondary">
-                            {assistantRunning ? <Pause size={16} /> : <Play size={16} />}
-                          </button>
-                          <button onClick={handlePhaseTransition} style={styles.assistBtn} className="btn-secondary">
-                            <FastForward size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
                     <div style={styles.progressBox}>
                       <div style={styles.progressTextRow}>
                         <span style={styles.progressLabel}>Progresso da Ficha de Hoje</span>
@@ -535,13 +490,58 @@ const Aluno = () => {
                             </div>
                           </div>
 
+                          {/* Assistente em Tempo Real Integrado no Card */}
+                          {ex.status === 'pendente' && (
+                            <div style={styles.cardAssistantBox}>
+                              {activeAssistantExId === ex.id ? (
+                                <div style={styles.miniAssistantPanel}>
+                                  <div style={styles.miniPanelLeft}>
+                                    <Volume2 size={16} className="text-gradient" />
+                                    <div>
+                                      <span style={styles.miniPhaseLabel}>
+                                        {assistantPhase === 'execucao' ? 'EXECUÇÃO (45s)' : 'DESCANSO (30s)'}
+                                      </span>
+                                      <div style={styles.miniTimerDisplay}>
+                                        {assistantTimer}s
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div style={styles.miniPanelRight}>
+                                    <button onClick={togglePauseAssistant} style={styles.miniAssistBtn} title="Play/Pause">
+                                      {assistantRunning ? <Pause size={12} /> : <Play size={12} />}
+                                    </button>
+                                    <button onClick={handlePhaseTransition} style={styles.miniAssistBtn} title="Pular Fase">
+                                      <FastForward size={12} />
+                                    </button>
+                                    <button onClick={() => setActiveAssistantExId(null)} style={{ ...styles.miniAssistBtn, color: 'var(--status-danger)' }} title="Desativar">
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => startAssistant(ex.id)} 
+                                  style={styles.activateAssistBtn}
+                                >
+                                  <Timer size={14} /> Ativar Assistente de Série (Voz + Timer)
+                                </button>
+                              )}
+                            </div>
+                          )}
+
                           <div style={styles.exActions}>
                             {ex.status === 'pendente' ? (
                               <>
-                                <button onClick={() => handleCompleteExercise(ex.id)} style={styles.btnDone}>
+                                <button onClick={() => {
+                                  if (activeAssistantExId === ex.id) setActiveAssistantExId(null);
+                                  handleCompleteExercise(ex.id);
+                                }} style={styles.btnDone}>
                                   <Check size={16} /> Concluído
                                 </button>
-                                <button onClick={() => handleSkipExercise(ex.id)} style={styles.btnSkip}>
+                                <button onClick={() => {
+                                  if (activeAssistantExId === ex.id) setActiveAssistantExId(null);
+                                  handleSkipExercise(ex.id);
+                                }} style={styles.btnSkip}>
                                   <X size={16} /> Pular
                                 </button>
                               </>
@@ -1406,6 +1406,73 @@ const styles = {
     border: '1px solid var(--primary)',
     backgroundColor: 'rgba(139, 92, 246, 0.04)',
     animation: 'fadeIn 0.3s ease-out',
+  },
+  cardAssistantBox: {
+    marginTop: '12px',
+    marginBottom: '8px',
+    paddingTop: '10px',
+    borderTop: '1px dashed var(--border-color)',
+  },
+  activateAssistBtn: {
+    width: '100%',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    padding: '8px 12px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--primary)',
+    backgroundColor: 'rgba(139, 92, 246, 0.05)',
+    color: 'var(--primary)',
+    fontSize: '0.75rem',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all var(--transition-fast)',
+  },
+  miniAssistantPanel: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 14px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--primary)',
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+    animation: 'fadeIn 0.2s ease-out',
+  },
+  miniPanelLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  miniPhaseLabel: {
+    fontSize: '0.65rem',
+    fontWeight: '800',
+    color: 'var(--text-secondary)',
+    textTransform: 'uppercase',
+    display: 'block',
+  },
+  miniTimerDisplay: {
+    fontSize: '1.2rem',
+    fontWeight: '800',
+    fontFamily: 'monospace',
+    color: 'var(--primary)',
+  },
+  miniPanelRight: {
+    display: 'flex',
+    gap: '6px',
+  },
+  miniAssistBtn: {
+    width: '28px',
+    height: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '4px',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    cursor: 'pointer',
+    padding: 0,
   },
   panelLeft: {
     display: 'flex',
