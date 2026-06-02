@@ -190,12 +190,44 @@ const Aluno = () => {
     setMedidasSubmitted(true);
   };
 
-  const speakText = (text) => {
+  const speakText = (text, onEndCallback) => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'pt-BR';
+      
+      // Filtra e escolhe uma voz premium ou mais natural em pt-BR
+      const voices = window.speechSynthesis.getVoices();
+      const ptVoices = voices.filter(v => v.lang.startsWith('pt'));
+      
+      // Procura por vozes que contenham 'google', 'natural', 'premium', 'microsoft' ou 'neural'
+      const premiumVoice = ptVoices.find(v => 
+        v.name.toLowerCase().includes('google') || 
+        v.name.toLowerCase().includes('natural') || 
+        v.name.toLowerCase().includes('premium') || 
+        v.name.toLowerCase().includes('neural') ||
+        v.name.toLowerCase().includes('microsoft') ||
+        v.name.toLowerCase().includes('daniel') ||
+        v.name.toLowerCase().includes('maria')
+      );
+      
+      if (premiumVoice) {
+        utterance.voice = premiumVoice;
+      } else if (ptVoices.length > 0) {
+        utterance.voice = ptVoices[0];
+      }
+      
+      // Ajuste fino de entonação e velocidade para soar mais humano
+      utterance.pitch = 1.05; // Levemente mais agudo/natural
+      utterance.rate = 1.0;   // Velocidade ideal (sem pressa)
+      
+      if (onEndCallback) {
+        utterance.onend = onEndCallback;
+      }
+      
       window.speechSynthesis.speak(utterance);
+    } else {
+      if (onEndCallback) onEndCallback();
     }
   };
 
@@ -239,14 +271,19 @@ const Aluno = () => {
   }, [activeAssistantExId, assistantRunning, assistantTimer, assistantPhase]);
 
   const handlePhaseTransition = () => {
+    setAssistantRunning(false); // Pausa temporariamente para a fala rodar
     if (assistantPhase === 'execucao') {
       setAssistantPhase('descanso');
       setAssistantTimer(30);
-      speakText('Série concluída! Aproveite para descansar por trinta segundos.');
+      speakText('Série concluída! Aproveite para descansar por trinta segundos.', () => {
+        setAssistantRunning(true);
+      });
     } else if (assistantPhase === 'descanso') {
       setAssistantPhase('execucao');
       setAssistantTimer(45);
-      speakText('Descanso finalizado. Força, inicie a próxima série agora!');
+      speakText('Descanso finalizado. Força, inicie a próxima série agora!', () => {
+        setAssistantRunning(true);
+      });
     }
   };
 
@@ -254,13 +291,16 @@ const Aluno = () => {
     setActiveAssistantExId(exId);
     setAssistantPhase('execucao');
     setAssistantTimer(45);
-    setAssistantRunning(true);
-    speakText('Assistente ativado! Prepare-se para começar. Três, dois, um, força!');
+    setAssistantRunning(false); // Mantém pausado até acabar de falar
+    speakText('Assistente ativado! Prepare-se para começar. Três, dois, um, força!', () => {
+      setAssistantRunning(true);
+    });
   };
 
   const togglePauseAssistant = () => {
-    setAssistantRunning(!assistantRunning);
-    speakText(assistantRunning ? 'Assistente pausado.' : 'Assistente retomado.');
+    const nextRunning = !assistantRunning;
+    setAssistantRunning(nextRunning);
+    speakText(nextRunning ? 'Assistente retomado.' : 'Assistente pausado.');
   };
 
   const openVideoModal = (ex) => {
