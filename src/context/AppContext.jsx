@@ -21,46 +21,25 @@ export const MOCK_USERS = [
 ];
 
 const DEFAULT_WORKOUTS = [
-  { 
-    id: 'ex1', 
-    name: 'Supino Reto com Barra', 
-    category: 'Peito', 
-    load: '30kg cada lado', 
-    reps: '4 séries de 10', 
-    status: 'pendente',
-    video_oficial_url: 'https://www.youtube.com/embed/sqOw2Y6u9Xs',
-    video_personalizado_url: '' 
-  },
-  { 
-    id: 'ex2', 
-    name: 'Puxada Alta na Polia', 
-    category: 'Costas', 
-    load: '45kg total', 
-    reps: '4 séries de 12', 
-    status: 'pendente',
-    video_oficial_url: 'https://www.youtube.com/embed/H6x4yY9_u2w',
-    video_personalizado_url: ''
-  },
-  { 
-    id: 'ex3', 
-    name: 'Agachamento Livre', 
-    category: 'Pernas', 
-    load: '20kg cada lado', 
-    reps: '4 séries de 12', 
-    status: 'pendente',
-    video_oficial_url: 'https://www.youtube.com/embed/Vn83S-A-9yU',
-    video_personalizado_url: ''
-  },
-  { 
-    id: 'ex4', 
-    name: 'Rosca Direta com Barra W', 
-    category: 'Bíceps', 
-    load: '10kg cada lado', 
-    reps: '3 séries de 12', 
-    status: 'pendente',
-    video_oficial_url: 'https://www.youtube.com/embed/ly7TepL4pco',
-    video_personalizado_url: ''
-  }
+  // Treino A (Peito)
+  { id: 'ex1', split: 'A', name: 'Supino Reto com Barra', category: 'Peito', load: '30kg cada lado', reps: '4 séries de 10', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/sqOw2Y6u9Xs', video_personalizado_url: '' },
+  { id: 'ex2', split: 'A', name: 'Crossover na Polia Média', category: 'Peito', load: '15kg cada lado', reps: '3 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/l5MhN6l3s88', video_personalizado_url: '' },
+  
+  // Treino B (Costas)
+  { id: 'ex3', split: 'B', name: 'Puxada Alta na Polia', category: 'Costas', load: '45kg total', reps: '4 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/H6x4yY9_u2w', video_personalizado_url: '' },
+  { id: 'ex4', split: 'B', name: 'Remada Curvada Pronada', category: 'Costas', load: '20kg cada lado', reps: '4 séries de 8', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/H5_p5r8K9H8', video_personalizado_url: '' },
+  
+  // Treino C (Pernas)
+  { id: 'ex5', split: 'C', name: 'Agachamento Livre', category: 'Pernas', load: '20kg cada lado', reps: '4 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/Vn83S-A-9yU', video_personalizado_url: '' },
+  { id: 'ex6', split: 'C', name: 'Leg Press 45 Graus', category: 'Pernas', load: '160kg', reps: '4 séries de 10', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/vO-FwS1YhNA', video_personalizado_url: '' },
+  
+  // Treino D (Braços)
+  { id: 'ex7', split: 'D', name: 'Rosca Direta com Barra W', category: 'Bíceps', load: '10kg cada lado', reps: '3 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/ly7TepL4pco', video_personalizado_url: '' },
+  { id: 'ex8', split: 'D', name: 'Tríceps Testa com Halter', category: 'Tríceps', load: '12kg cada', reps: '3 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/HlJ_nKpxJg8', video_personalizado_url: '' },
+  
+  // Treino E (Cardio / Core)
+  { id: 'ex9', split: 'E', name: 'Corrida na Esteira', category: 'Cardio', load: 'Velocidade 7/11', reps: '15 minutos', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/sqOw2Y6u9Xs', video_personalizado_url: '' },
+  { id: 'ex10', split: 'E', name: 'Burpee Completo', category: 'Cardio', load: 'Peso Corporal', reps: '4 séries de 45s', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk', video_personalizado_url: '' }
 ];
 
 // Dicionário de Exercícios por Categoria da "IA"
@@ -156,9 +135,9 @@ export const AppProvider = ({ children }) => {
     const pool = AI_EXERCISE_POOL[goal] || AI_EXERCISE_POOL.hipertrofia;
 
     const workoutSplits = [];
-    const splitNames = ['Treino A - Superior Foco Tração', 'Treino B - Membros Inferiores', 'Treino C - Superior Foco Empurrar', 'Treino D - Cardio & Core'];
+    const splitNames = ['Treino A - Superior Foco Tração', 'Treino B - Membros Inferiores', 'Treino C - Superior Foco Empurrar', 'Treino D - Cardio & Core', 'Treino E - Mobilidade & Funcional'];
 
-    for (let i = 0; i < Math.min(frequency, 4); i++) {
+    for (let i = 0; i < Math.min(frequency, 5); i++) {
       // Coleta alguns exercícios baseados no loop
       let selectedExs = [];
       if (goal === 'emagrecimento') {
@@ -167,7 +146,7 @@ export const AppProvider = ({ children }) => {
           ...(pool.costas || []),
           ...(pool.pernas || []),
           ...(pool.cardio || [])
-        ].slice(i * 2, (i * 2) + 4);
+        ].slice(i * 2, (i * 2) + 2);
       } else {
         // Hipertrofia
         if (i % 2 === 0) {
@@ -178,8 +157,10 @@ export const AppProvider = ({ children }) => {
       }
 
       // Converte para a estrutura final aceita pelo Aluno
+      const splitLetter = ['A', 'B', 'C', 'D', 'E'][i];
       const mappedExs = selectedExs.map((e, idx) => ({
         id: `ai-ex-${i}-${idx}-${Date.now()}`,
+        split: splitLetter,
         name: e.name,
         category: i % 2 === 0 ? 'Superior' : 'Inferior/Cardio',
         load: e.load,
@@ -190,7 +171,7 @@ export const AppProvider = ({ children }) => {
       }));
 
       workoutSplits.push({
-        title: splitNames[i] || `Treino Complementar ${i+1}`,
+        title: splitNames[i] || `Treino Complementar ${splitLetter}`,
         exercises: mappedExs
       });
     }
@@ -220,14 +201,14 @@ export const AppProvider = ({ children }) => {
     const evaluation = pendingEvaluations.find(ev => ev.id === evalId);
     if (!evaluation) return false;
 
-    // Achatamos os treinos da sugestão de IA em uma lista linear para a visualização atual simplificada do Aluno
-    // (Em um cenário real, estruturaríamos em tabelas relacionais com chaves de bloco)
+    // Achatamos os treinos da sugestão de IA em uma lista linear para a visualização atual do Aluno
     const allExercises = [];
     evaluation.aiSuggestedWorkout.forEach((block, bIdx) => {
+      const splitLetter = ['A', 'B', 'C', 'D', 'E'][bIdx];
       block.exercises.forEach(ex => {
         allExercises.push({
           ...ex,
-          name: `[${block.title.split(' - ')[0]}] ${ex.name}` // Identifica o bloco no nome do exercício
+          split: splitLetter
         });
       });
     });

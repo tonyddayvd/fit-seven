@@ -90,6 +90,7 @@ const INITIAL_WORKOUT_EXERCISES = [
 const Aluno = () => {
   const { activeTenant, user, currentStudentExercises, updateStudentExercises, submitEvaluation } = useApp();
   const [activeTab, setActiveTab] = useState('treinos');
+  const [activeSplit, setActiveSplit] = useState('A');
   
   // Estado de exercícios sincronizado com o contexto global (Fluxo Híbrido)
   const [exercises, setExercises] = useState([]);
@@ -311,14 +312,14 @@ const Aluno = () => {
   };
 
   const handleFinishWorkout = () => {
-    const pending = exercises.filter(ex => ex.status === 'pendente');
+    const pending = exercisesForActiveSplit.filter(ex => ex.status === 'pendente');
     if (pending.length > 0) {
       alert('Marque todos os exercícios como Concluídos ou Pulados antes de finalizar.');
       return;
     }
 
-    const skipped = exercises.filter(ex => ex.status === 'pulado').map(ex => ex.name);
-    const completed = exercises.filter(ex => ex.status === 'concluido').map(ex => ex.name);
+    const skipped = exercisesForActiveSplit.filter(ex => ex.status === 'pulado').map(ex => ex.name);
+    const completed = exercisesForActiveSplit.filter(ex => ex.status === 'concluido').map(ex => ex.name);
     const is100Percent = skipped.length === 0;
 
     setAuditLog({
@@ -349,9 +350,10 @@ const Aluno = () => {
     setAssistantRunning(false);
   };
 
-  const totalExercises = exercises.length;
-  const processedExercises = exercises.filter(ex => ex.status !== 'pendente').length;
-  const percentDone = Math.round((processedExercises / totalExercises) * 100);
+  const exercisesForActiveSplit = exercises.filter(ex => (ex.split || 'A') === activeSplit);
+  const totalExercises = exercisesForActiveSplit.length;
+  const processedExercises = exercisesForActiveSplit.filter(ex => ex.status !== 'pendente').length;
+  const percentDone = totalExercises > 0 ? Math.round((processedExercises / totalExercises) * 100) : 0;
 
   const toggleAccordion = (name) => {
     setActiveAccordion(prev => prev === name ? '' : name);
@@ -488,8 +490,36 @@ const Aluno = () => {
                       </div>
                     </div>
 
+                    {/* Seletor Horizontal de Splits */}
+                    <div style={styles.splitSelector}>
+                      {['A', 'B', 'C', 'D', 'E'].map(letter => {
+                        const count = exercises.filter(ex => (ex.split || 'A') === letter).length;
+                        if (count === 0) return null; // Só renderiza splits que possuem exercícios cadastrados
+                        return (
+                          <button
+                            key={letter}
+                            type="button"
+                            onClick={() => {
+                              setActiveSplit(letter);
+                              setWorkoutSessionFinished(false);
+                            }}
+                            style={{
+                              ...styles.splitBtn,
+                              ...(activeSplit === letter ? styles.splitBtnActive : {})
+                            }}
+                          >
+                            Treino {letter}
+                            <span style={{
+                              ...styles.splitCountBadge,
+                              ...(activeSplit === letter ? styles.splitCountBadgeActive : {})
+                            }}>{count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
                     <div style={styles.exercisesGrid}>
-                      {exercises.map((ex) => (
+                      {exercisesForActiveSplit.map((ex) => (
                         <div key={ex.id} style={{ ...styles.exerciseCard, ...(ex.status === 'concluido' ? styles.exConcluido : {}), ...(ex.status === 'pulado' ? styles.exPulado : {}) }} className="glass">
                           <div style={styles.exInfo}>
                             <div style={styles.nameVideoRow}>
@@ -1003,6 +1033,51 @@ const styles = {
     minHeight: '80vh',
     paddingBottom: '140px',
     position: 'relative',
+  },
+  splitSelector: {
+    display: 'flex',
+    gap: '10px',
+    overflowX: 'auto',
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none',
+    WebkitOverflowScrolling: 'touch',
+    padding: '4px 0 12px 0',
+    borderBottom: '1px solid var(--border-color)',
+    marginBottom: '16px',
+  },
+  splitBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 16px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    fontWeight: '700',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    transition: 'all var(--transition-fast)',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  },
+  splitBtnActive: {
+    backgroundColor: 'var(--primary)',
+    color: '#ffffff',
+    borderColor: 'var(--primary)',
+    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)',
+  },
+  splitCountBadge: {
+    fontSize: '0.65rem',
+    backgroundColor: 'var(--bg-tertiary)',
+    color: 'var(--text-secondary)',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontWeight: '700',
+  },
+  splitCountBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    color: '#ffffff',
   },
   contentArea: {
     flex: 1,
