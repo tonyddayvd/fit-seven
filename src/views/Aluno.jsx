@@ -1031,7 +1031,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     minHeight: '80vh',
-    paddingBottom: '140px',
+    paddingBottom: '160px',
     position: 'relative',
   },
   splitSelector: {
