@@ -254,9 +254,37 @@ const Aluno = () => {
       timerRef.current = setInterval(() => {
         setAssistantTimer(prev => {
           const next = prev - 1;
+
+          // Executa a inteligência apenas se a fase for 'execucao'
+          if (assistantPhase === 'execucao') {
+            // 1. Contagem regressiva por voz nos últimos 5 segundos
+            if (next >= 1 && next <= 5) {
+              speakText(`${next}`);
+            }
+
+            // 2. Estímulo de Reta Final (Aos 8 segundos restantes, que é ~18% de 45s)
+            if (next === 8) {
+              speakText('Reta final, dê o seu máximo agora!');
+            }
+
+            // 3. Lembrete de Ritmo a cada 15 segundos executados (ex: aos 30s e 15s do timer de 45s)
+            if (next === 30 || next === 15) {
+              const frasesMotivacionais = [
+                'Mantenha o ritmo!',
+                'Concentra na execução!',
+                'Postura firme e respira!',
+                'Não para agora, continua!'
+              ];
+              const randomMsg = frasesMotivacionais[Math.floor(Math.random() * frasesMotivacionais.length)];
+              speakText(randomMsg);
+            }
+          }
+
+          // Bipes de aviso finais (3s, 2s, 1s) continuam ocorrendo
           if (next === 3 || next === 2 || next === 1) {
             playBeep(800, 0.08);
           }
+
           if (next === 0) {
             playBeep(1200, 0.3);
             handlePhaseTransition();
