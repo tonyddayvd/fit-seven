@@ -298,6 +298,33 @@ const Aluno = () => {
     return () => clearInterval(timerRef.current);
   }, [activeAssistantExId, assistantRunning, assistantTimer, assistantPhase]);
 
+  // Função auxiliar para obter as repetições e séries padrão de um exercício
+  const getExRepsAndSets = (ex) => {
+    // Prescrição de reps ex: '4 séries de 10', 'Rosca: 3 séries de 12', '4x10'
+    const repsStr = ex.reps || '';
+    let repsNum = 10;
+    let setsNum = 4;
+    
+    // Tenta casar padrões como '4 séries de 12' ou '4x12' ou '12 reps'
+    const matchSériesDe = repsStr.match(/(\d+)\s*s\u00e9ries?\s*de\s*(\d+|\w+)/i);
+    const matchX = repsStr.match(/(\d+)\s*x\s*(\d+|\w+)/i);
+    
+    if (matchSériesDe) {
+      setsNum = parseInt(matchSériesDe[1]) || 4;
+      repsNum = parseInt(matchSériesDe[2]) || 10;
+    } else if (matchX) {
+      setsNum = parseInt(matchX[1]) || 4;
+      repsNum = parseInt(matchX[2]) || 10;
+    } else {
+      // Caso não consiga parsear (ex: '15 minutos' ou 'falha')
+      const matchOnlyNum = repsStr.match(/(\d+)/);
+      if (matchOnlyNum) {
+        repsNum = parseInt(matchOnlyNum[1]) || 10;
+      }
+    }
+    return { reps: repsNum, sets: setsNum };
+  };
+
   const handlePhaseTransition = () => {
     setAssistantRunning(false); // Pausa temporariamente para a fala rodar
     if (assistantPhase === 'execucao') {
@@ -308,17 +335,26 @@ const Aluno = () => {
       });
     } else if (assistantPhase === 'descanso') {
       setAssistantPhase('execucao');
-      setAssistantTimer(45);
-      speakText('Descanso finalizado. Força, inicie a próxima série agora!', () => {
+      // Calcula cadência dinâmica baseada no exercício em foco
+      const currentEx = exercises.find(ex => ex.id === activeAssistantExId);
+      const reps = currentEx ? getExRepsAndSets(currentEx).reps : 10;
+      const dynamicExecutionTime = reps * 3;
+      
+      setAssistantTimer(dynamicExecutionTime);
+      speakText(`Descanso finalizado. Força, inicie a próxima série agora!`, () => {
         setAssistantRunning(true);
       });
     }
   };
 
   const startAssistant = (exId) => {
+    const currentEx = exercises.find(ex => ex.id === exId);
+    const reps = currentEx ? getExRepsAndSets(currentEx).reps : 10;
+    const dynamicExecutionTime = reps * 3;
+
     setActiveAssistantExId(exId);
     setAssistantPhase('execucao');
-    setAssistantTimer(45);
+    setAssistantTimer(dynamicExecutionTime);
     setAssistantRunning(false); // Mantém pausado até acabar de falar
     speakText('Assistente ativado! Prepare-se para começar. Três, dois, um, força!', () => {
       setAssistantRunning(true);
@@ -359,8 +395,15 @@ const Aluno = () => {
     alert('Link do influenciador favorito salvo com sucesso e priorizado!');
   };
 
-  const handleCompleteExercise = (id) => {
-    const updated = exercises.map(ex => ex.id === id ? { ...ex, status: 'concluido' } : ex);
+  const handleCompleteExercise = (id, realSets, realLoad) => {
+    const updated = exercises.map(ex => 
+      ex.id === id ? { 
+        ...ex, 
+        status: 'concluido', 
+        realSets: realSets, 
+        realLoad: realLoad 
+      } : ex
+    );
     setExercises(updated);
     updateStudentExercises(updated);
     playBeep(900, 0.1);
@@ -542,90 +585,152 @@ const Aluno = () => {
                     </div>
 
                     <div style={styles.exercisesGrid}>
-                      {exercisesForActiveSplit.map((ex) => (
-                        <div key={ex.id} style={{ ...styles.exerciseCard, ...(ex.status === 'concluido' ? styles.exConcluido : {}), ...(ex.status === 'pulado' ? styles.exPulado : {}) }} className="glass">
-                          <div style={styles.exInfo}>
-                            <div style={styles.nameVideoRow}>
-                              <span style={styles.exCat}>{ex.category.toUpperCase()}</span>
-                              <button onClick={() => openVideoModal(ex)} style={styles.videoLinkBtn}>
-                                <Tv size={14} /> Vídeo de Auxílio
-                              </button>
-                            </div>
-                            <h4 style={styles.exName}>{ex.name}</h4>
-                            <div style={styles.exMetaRow}>
-                              <span style={styles.exMetaItem}>Séries: <strong>{ex.reps}</strong></span>
-                              <span style={styles.exMetaItem}>Carga: <strong>{ex.load}</strong></span>
-                            </div>
-                          </div>
+                      {exercisesForActiveSplit.map((ex) => {
+                        const defaultRepsSets = getExRepsAndSets(ex);
+                        
+                        // Estados locais ou derivados para carga e séries editáveis por card de exercício
+                        const realSetsKey = `sets-${ex.id}`;
+                        const realLoadKey = `load-${ex.id}`;
+                        
+                        // Inicializa ou recupera valores do estado do formulário se não preenchidos
+                        if (!formData[realSetsKey]) formData[realSetsKey] = defaultRepsSets.sets;
+                        if (!formData[realLoadKey]) formData[realLoadKey] = '';
 
-                          {/* Assistente em Tempo Real Integrado no Card */}
-                          {ex.status === 'pendente' && (
-                            <div style={styles.cardAssistantBox}>
-                              {activeAssistantExId === ex.id ? (
-                                <div style={styles.miniAssistantPanel}>
-                                  <div style={styles.miniPanelLeft}>
-                                    <Volume2 size={16} className="text-gradient" />
-                                    <div>
-                                      <span style={styles.miniPhaseLabel}>
-                                        {assistantPhase === 'execucao' ? 'EXECUÇÃO (45s)' : 'DESCANSO (30s)'}
-                                      </span>
-                                      <div style={styles.miniTimerDisplay}>
-                                        {assistantTimer}s
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div style={styles.miniPanelRight}>
-                                    <button onClick={togglePauseAssistant} style={styles.miniAssistBtn} title="Play/Pause">
-                                      {assistantRunning ? <Pause size={12} /> : <Play size={12} />}
-                                    </button>
-                                    <button onClick={handlePhaseTransition} style={styles.miniAssistBtn} title="Pular Fase">
-                                      <FastForward size={12} />
-                                    </button>
-                                    <button onClick={() => setActiveAssistantExId(null)} style={{ ...styles.miniAssistBtn, color: 'var(--status-danger)' }} title="Desativar">
-                                      <X size={12} />
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <button 
-                                  onClick={() => startAssistant(ex.id)} 
-                                  style={styles.activateAssistBtn}
-                                >
-                                  <Timer size={14} /> Ativar Assistente de Série (Voz + Timer)
-                                </button>
-                              )}
-                            </div>
-                          )}
+                        const currentSetsVal = formData[realSetsKey];
+                        const currentLoadVal = formData[realLoadKey];
+                        const repsCount = defaultRepsSets.reps;
+                        const dynamicTimeText = `${repsCount * 3}s`;
 
-                          <div style={styles.exActions}>
-                            {ex.status === 'pendente' ? (
-                              <>
-                                <button onClick={() => {
-                                  if (activeAssistantExId === ex.id) setActiveAssistantExId(null);
-                                  handleCompleteExercise(ex.id);
-                                }} style={styles.btnDone}>
-                                  <Check size={16} /> Concluído
-                                </button>
-                                <button onClick={() => {
-                                  if (activeAssistantExId === ex.id) setActiveAssistantExId(null);
-                                  handleSkipExercise(ex.id);
-                                }} style={styles.btnSkip}>
-                                  <X size={16} /> Pular
-                                </button>
-                              </>
-                            ) : (
-                              <div style={styles.statusCompletedRow}>
-                                <span style={ex.status === 'concluido' ? styles.statusTextDone : styles.statusTextSkipped}>
-                                  {ex.status === 'concluido' ? '✓ Concluído' : '✗ Pulado'}
-                                </span>
-                                <button onClick={() => setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, status: 'pendente' } : e))} style={styles.btnUndo}>
-                                  Desfazer
+                        return (
+                          <div key={ex.id} style={{ ...styles.exerciseCard, ...(ex.status === 'concluido' ? styles.exConcluido : {}), ...(ex.status === 'pulado' ? styles.exPulado : {}) }} className="glass">
+                            <div style={styles.exInfo}>
+                              <div style={styles.nameVideoRow}>
+                                <span style={styles.exCat}>{ex.category.toUpperCase()}</span>
+                                <button onClick={() => openVideoModal(ex)} style={styles.videoLinkBtn}>
+                                  <Tv size={14} /> Vídeo de Auxílio
                                 </button>
                               </div>
+                              <h4 style={styles.exName}>{ex.name}</h4>
+                              <div style={styles.exMetaRow}>
+                                <span style={styles.exMetaItem}>Meta Prescrita: <strong>{ex.reps}</strong></span>
+                                <span style={styles.exMetaItem}>Cadência (3s/rep): <strong>{dynamicTimeText}</strong></span>
+                              </div>
+
+                              {/* Inputs interativos de Carga e Séries (Se pendente) */}
+                              {ex.status === 'pendente' && (
+                                <div style={styles.metricsFormRow}>
+                                  <div style={styles.metricField}>
+                                    <label style={styles.metricLabel}>Séries Reais Realizadas</label>
+                                    <div style={styles.setsCounter}>
+                                      <button 
+                                        type="button" 
+                                        onClick={() => handleInputChange(realSetsKey, Math.max(1, currentSetsVal - 1))}
+                                        style={styles.setsBtn}
+                                      >-</button>
+                                      <span style={styles.setsValue}>{currentSetsVal}</span>
+                                      <button 
+                                        type="button" 
+                                        onClick={() => handleInputChange(realSetsKey, Math.min(defaultRepsSets.sets + 2, currentSetsVal + 1))}
+                                        style={styles.setsBtn}
+                                      >+</button>
+                                    </div>
+                                  </div>
+                                  <div style={styles.metricField}>
+                                    <label style={styles.metricLabel}>Carga Utilizada (kg)</label>
+                                    <input 
+                                      type="number"
+                                      placeholder="Ex: 25"
+                                      value={currentLoadVal}
+                                      onChange={(e) => handleInputChange(realLoadKey, e.target.value)}
+                                      style={styles.loadInput}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Assistente em Tempo Real Integrado no Card */}
+                            {ex.status === 'pendente' && (
+                              <div style={styles.cardAssistantBox}>
+                                {activeAssistantExId === ex.id ? (
+                                  <div style={styles.miniAssistantPanel}>
+                                    <div style={styles.miniPanelLeft}>
+                                      <Volume2 size={16} className="text-gradient" />
+                                      <div>
+                                        <span style={styles.miniPhaseLabel}>
+                                          {assistantPhase === 'execucao' ? `EXECUÇÃO (${dynamicTimeText})` : 'DESCANSO (30s)'}
+                                        </span>
+                                        <div style={styles.miniTimerDisplay}>
+                                          {assistantTimer}s
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div style={styles.miniPanelRight}>
+                                      <button onClick={togglePauseAssistant} style={styles.miniAssistBtn} title="Play/Pause">
+                                        {assistantRunning ? <Pause size={12} /> : <Play size={12} />}
+                                      </button>
+                                      <button onClick={handlePhaseTransition} style={styles.miniAssistBtn} title="Pular Fase">
+                                        <FastForward size={12} />
+                                      </button>
+                                      <button onClick={() => setActiveAssistantExId(null)} style={{ ...styles.miniAssistBtn, color: 'var(--status-danger)' }} title="Desativar">
+                                        <X size={12} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <button 
+                                    onClick={() => startAssistant(ex.id)} 
+                                    style={styles.activateAssistBtn}
+                                  >
+                                    <Timer size={14} /> Ativar Assistente de Série (Voz + Timer)
+                                  </button>
+                                )}
+                              </div>
                             )}
+
+                            <div style={styles.exActions}>
+                              {ex.status === 'pendente' ? (
+                                <>
+                                  <button onClick={() => {
+                                    if (activeAssistantExId === ex.id) setActiveAssistantExId(null);
+                                    
+                                    // Valida se preencheu a carga antes de completar
+                                    if (!currentLoadVal || isNaN(parseFloat(currentLoadVal))) {
+                                      alert('Por favor, informe a Carga Utilizada (kg) antes de concluir o exercício.');
+                                      return;
+                                    }
+                                    handleCompleteExercise(ex.id, currentSetsVal, `${currentLoadVal} kg`);
+                                  }} style={styles.btnDone}>
+                                    <Check size={16} /> Concluído
+                                  </button>
+                                  <button onClick={() => {
+                                    if (activeAssistantExId === ex.id) setActiveAssistantExId(null);
+                                    handleSkipExercise(ex.id);
+                                  }} style={styles.btnSkip}>
+                                    <X size={16} /> Pular
+                                  </button>
+                                </>
+                              ) : (
+                                <div style={styles.statusCompletedRow}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <span style={ex.status === 'concluido' ? styles.statusTextDone : styles.statusTextSkipped}>
+                                      {ex.status === 'concluido' ? '✓ Concluído' : '✗ Pulado'}
+                                    </span>
+                                    {ex.status === 'concluido' && (
+                                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                        Realizado: {ex.realSets} séries x {ex.realLoad}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <button onClick={() => setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, status: 'pendente' } : e))} style={styles.btnUndo}>
+                                    Desfazer
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     <div style={styles.finishContainer}>
@@ -1100,7 +1205,6 @@ const styles = {
     flexDirection: 'column',
     minHeight: '80vh',
     paddingBottom: '160px',
-    position: 'relative',
   },
   splitSelector: {
     display: 'flex',
@@ -1847,6 +1951,60 @@ const styles = {
     marginTop: '4px',
     fontSize: '0.8rem',
   },
+  metricsFormRow: {
+    display: 'flex',
+    gap: '12px',
+    marginTop: '12px',
+    borderTop: '1px dashed var(--border-color)',
+    paddingTop: '12px',
+    width: '100%',
+    boxSizing: 'border-box'
+  },
+  metricField: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    flex: 1
+  },
+  metricLabel: {
+    fontSize: '0.75rem',
+    color: 'var(--text-secondary)'
+  },
+  setsCounter: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  setsBtn: {
+    width: '28px',
+    height: '28px',
+    cursor: 'pointer',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '1rem',
+    fontWeight: 'bold'
+  },
+  setsValue: {
+    fontSize: '0.9rem',
+    fontWeight: 'bold',
+    minWidth: '20px',
+    textAlign: 'center'
+  },
+  loadInput: {
+    padding: '6px 10px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-tertiary)',
+    color: 'var(--text-primary)',
+    outline: 'none',
+    width: '100%',
+    boxSizing: 'border-box'
+  },
   resetBtn: {
     padding: '10px 20px',
     fontSize: '0.85rem',
@@ -1968,13 +2126,14 @@ const styles = {
     position: 'fixed',
     bottom: 0,
     left: 0,
-    width: '100%',
+    right: 0,
     backgroundColor: 'var(--glass-bg)',
-    backdropFilter: 'blur(16px)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
     borderTop: '1px solid var(--border-color)',
-    boxShadow: 'var(--shadow-lg)',
+    boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.1)',
     padding: '12px 16px',
-    zIndex: 9999,
+    zIndex: 999999,
   },
   scrollWrapper: {
     display: 'flex',

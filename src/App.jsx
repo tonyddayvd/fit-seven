@@ -67,16 +67,21 @@ const styles = {
   },
   layout: {
     minHeight: '100vh',
-    padding: '24px 16px',
     background: 'radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.05) 0%, transparent 35%), radial-gradient(circle at 100% 100%, rgba(6, 182, 212, 0.05) 0%, transparent 35%)',
+    display: 'flex',
+    flexDirection: 'column',
   },
   container: {
     maxWidth: '1200px',
     margin: '0 auto',
     width: '100%',
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
   },
   mainContent: {
-    padding: '8px 4px',
+    padding: '8px 16px 100px 16px',
+    flex: 1,
   },
   errorState: {
     padding: '40px',
