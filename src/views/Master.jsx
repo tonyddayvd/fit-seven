@@ -72,6 +72,18 @@ const Master = () => {
   const [selectedTable, setSelectedTable] = useState(TABLES_SCHEMA[1]); // Inicia em 'users'
   const [selectedEval, setSelectedEval] = useState(null);
 
+  // Monitora alterações nas avaliações pendentes em tempo real (simulação de polling/busca ativa no BD)
+  React.useEffect(() => {
+    if (selectedEval) {
+      const stillPending = pendingEvaluations.find(ev => ev.id === selectedEval.id);
+      if (!stillPending) {
+        setSelectedEval(null);
+      } else {
+        setSelectedEval(stillPending);
+      }
+    }
+  }, [pendingEvaluations, selectedEval]);
+
   const handleApprove = (id) => {
     const success = approveAndPublishWorkout(id);
     if (success) {

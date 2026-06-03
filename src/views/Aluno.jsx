@@ -121,22 +121,38 @@ const Aluno = () => {
     nome: user?.name || '',
     objetivo: 'hipertrofia',
     historicoAtividade: 'moderado',
+    descricaoRotina: '', // Campo de texto livre para rotina
     // Seção 2: Composição Básica
     peso: '',
     altura: '',
     // Seção 3: Circunferências
     pescoco: '',
+    peitoral: '', // Novo
     cintura: '',
     abdomen: '',
+    quadril: '', // Novo
     braçoEsq: '',
     braçoDir: '',
     coxaEsq: '',
     coxaDir: '',
+    panturrilhaEsq: '', // Novo
+    panturrilhaDir: '', // Novo
     // Seção 4: Logística e Hábitos
     frequenciaSemanal: '3',
     nivelExperiencia: 'intermediario',
     horasSono: '7',
     refeicoesDiarias: '4',
+    // Novos campos da seção 4
+    tempoSessao: '',
+    equipamentos: 'completa',
+    lesoes: '',
+    preferencias: '',
+    restricoesAlimentares: '',
+    preferenciasAlimentares: '',
+    qualidadeSono: '5',
+    hidratacaoAtual: '',
+    suplementos: '',
+    nivelAtividade: 'sentado',
     // Seção 5: Triagem de Saúde (PAR-Q) - Mandatórios
     parqCardiaco: null,
     parqDorPeito: null,
@@ -760,9 +776,12 @@ const Aluno = () => {
                       <h4 style={styles.auditTitle}>MOCK DO PAYLOAD ENVIADO (API MULTI-TENANT)</h4>
                       <div style={styles.auditContent}>
                         <p><strong>tenant_id:</strong> <code style={styles.code}>{activeTenant.id}</code></p>
+                        <p><strong>user_id:</strong> <code style={styles.code}>{user?.id || 'u3'}</code></p>
                         <p><strong>Peso / Altura:</strong> {formData.peso} kg / {formData.altura} cm</p>
-                        <p><strong>Cintura:</strong> {formData.cintura} cm</p>
+                        <p><strong>Circunferências (Mandatórias):</strong> Pescoço: {formData.pescoco}cm | Peitoral: {formData.peitoral}cm | Cintura: {formData.cintura}cm | Abdômen: {formData.abdomen}cm | Quadril: {formData.quadril}cm | Coxas (D/E): {formData.coxaDir}cm / {formData.coxaEsq}cm | Braços (D/E): {formData.braçoDir}cm / {formData.braçoEsq}cm | Panturrilhas (D/E): {formData.panturrilhaDir}cm / {formData.panturrilhaEsq}cm</p>
                         <p><strong>Objetivo:</strong> {formData.objetivo.toUpperCase()}</p>
+                        <p><strong>Rotina Relatada:</strong> {formData.descricaoRotina || 'Não informada'}</p>
+                        <p><strong>Logística e Nutrição:</strong> Tempo: {formData.tempoSessao}min | Sono: {formData.horasSono}h (Nota: {formData.qualidadeSono}/10) | Equipamentos: {formData.equipamentos} | Atividade: {formData.nivelAtividade} | Hidratação: {formData.hidratacaoAtual}L | Suplementos: {formData.suplementos} | Restrições Alim.: {formData.restriçõesAlimentares} | Lesões: {formData.lesoes}</p>
                         <p><strong>Triagem PAR-Q:</strong> {formData.parqCardiaco === 'sim' ? '⚠️ HISTÓRICO CARDÍACO' : '✅ APTO'}</p>
                         {formData.laudoFile && <p><strong>Laudo Anexado:</strong> {formData.laudoFile}</p>}
                       </div>
@@ -809,6 +828,35 @@ const Aluno = () => {
                                 <option value="saude">Melhoria de Saúde / Postura</option>
                               </select>
                             </div>
+                          </div>
+                          <div style={{ marginTop: '16px' }}>
+                            <div style={{
+                              padding: '12px',
+                              backgroundColor: 'rgba(139, 92, 246, 0.08)',
+                              borderLeft: '4px solid var(--primary)',
+                              borderRadius: '4px',
+                              fontSize: '0.85rem',
+                              lineHeight: '1.4',
+                              marginBottom: '8px',
+                              color: 'var(--text-primary)'
+                            }}>
+                              Quanto maiores forem os detalhes sobre a sua rotina (horários de sono, se trabalha sentado ou em pé, nível de atividade diária, restrições de tempo), mais preciso e bem elaborado será o seu plano de treino e dieta.
+                            </div>
+                            <label style={styles.formLabel}>Descreva a sua Rotina Diária</label>
+                            <textarea
+                              placeholder="Ex: Trabalho das 8h às 18h sentado, durmo 7h por noite, tenho 1h livre para treinar..."
+                              value={formData.descricaoRotina}
+                              onChange={(e) => handleInputChange('descricaoRotina', e.target.value)}
+                              style={{
+                                ...styles.inputField,
+                                minHeight: '80px',
+                                resize: 'vertical',
+                                width: '100%',
+                                padding: '10px',
+                                boxSizing: 'border-box',
+                                fontFamily: 'inherit'
+                              }}
+                            />
                           </div>
                         </div>
                       )}
@@ -863,28 +911,48 @@ const Aluno = () => {
                         <div style={styles.accordionContent}>
                           <div style={styles.gridMedidas}>
                             <div style={styles.inputGroup}>
-                              <label style={styles.formLabel}>Pescoço (cm)</label>
-                              <input type="number" placeholder="cm" value={formData.pescoco} onChange={(e) => handleInputChange('pescoco', e.target.value)} style={styles.inputField} />
+                              <label style={styles.formLabel}>Pescoço (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.pescoco} onChange={(e) => handleInputChange('pescoco', e.target.value)} style={styles.inputField} required />
                             </div>
                             <div style={styles.inputGroup}>
-                              <label style={styles.formLabel}>Cintura (cm)</label>
-                              <input type="number" placeholder="cm" value={formData.cintura} onChange={(e) => handleInputChange('cintura', e.target.value)} style={styles.inputField} />
+                              <label style={styles.formLabel}>Peitoral (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.peitoral} onChange={(e) => handleInputChange('peitoral', e.target.value)} style={styles.inputField} required />
                             </div>
                             <div style={styles.inputGroup}>
-                              <label style={styles.formLabel}>Abdômen (cm)</label>
-                              <input type="number" placeholder="cm" value={formData.abdomen} onChange={(e) => handleInputChange('abdomen', e.target.value)} style={styles.inputField} />
+                              <label style={styles.formLabel}>Cintura (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.cintura} onChange={(e) => handleInputChange('cintura', e.target.value)} style={styles.inputField} required />
                             </div>
                             <div style={styles.inputGroup}>
-                              <label style={styles.formLabel}>Braço Esq. (cm)</label>
-                              <input type="number" placeholder="cm" value={formData.braçoEsq} onChange={(e) => handleInputChange('braçoEsq', e.target.value)} style={styles.inputField} />
+                              <label style={styles.formLabel}>Abdômen (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.abdomen} onChange={(e) => handleInputChange('abdomen', e.target.value)} style={styles.inputField} required />
                             </div>
                             <div style={styles.inputGroup}>
-                              <label style={styles.formLabel}>Braço Dir. (cm)</label>
-                              <input type="number" placeholder="cm" value={formData.braçoDir} onChange={(e) => handleInputChange('braçoDir', e.target.value)} style={styles.inputField} />
+                              <label style={styles.formLabel}>Quadril (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.quadril} onChange={(e) => handleInputChange('quadril', e.target.value)} style={styles.inputField} required />
                             </div>
                             <div style={styles.inputGroup}>
-                              <label style={styles.formLabel}>Coxa Esq. (cm)</label>
-                              <input type="number" placeholder="cm" value={formData.coxaEsq} onChange={(e) => handleInputChange('coxaEsq', e.target.value)} style={styles.inputField} />
+                              <label style={styles.formLabel}>Braço Esq. (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.braçoEsq} onChange={(e) => handleInputChange('braçoEsq', e.target.value)} style={styles.inputField} required />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Braço Dir. (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.braçoDir} onChange={(e) => handleInputChange('braçoDir', e.target.value)} style={styles.inputField} required />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Coxa Esq. (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.coxaEsq} onChange={(e) => handleInputChange('coxaEsq', e.target.value)} style={styles.inputField} required />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Coxa Dir. (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.coxaDir} onChange={(e) => handleInputChange('coxaDir', e.target.value)} style={styles.inputField} required />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Panturrilha Esq. (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.panturrilhaEsq} onChange={(e) => handleInputChange('panturrilhaEsq', e.target.value)} style={styles.inputField} required />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Panturrilha Dir. (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.panturrilhaDir} onChange={(e) => handleInputChange('panturrilhaDir', e.target.value)} style={styles.inputField} required />
                             </div>
                           </div>
                         </div>
@@ -923,8 +991,56 @@ const Aluno = () => {
                               <input type="number" placeholder="Horas" value={formData.horasSono} onChange={(e) => handleInputChange('horasSono', e.target.value)} style={styles.inputField} />
                             </div>
                             <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Qualidade do Sono (0 a 10) *</label>
+                              <input type="number" min="0" max="10" placeholder="0-10" value={formData.qualidadeSono} onChange={(e) => handleInputChange('qualidadeSono', e.target.value)} style={styles.inputField} required />
+                            </div>
+                            <div style={styles.inputGroup}>
                               <label style={styles.formLabel}>Refeições ao Dia</label>
                               <input type="number" placeholder="Refeições" value={formData.refeicoesDiarias} onChange={(e) => handleInputChange('refeicoesDiarias', e.target.value)} style={styles.inputField} />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Tempo por Sessão (min) *</label>
+                              <input type="number" placeholder="Ex: 60" value={formData.tempoSessao} onChange={(e) => handleInputChange('tempoSessao', e.target.value)} style={styles.inputField} required />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Equipamentos Disponíveis *</label>
+                              <select value={formData.equipamentos} onChange={(e) => handleInputChange('equipamentos', e.target.value)} style={styles.selectField} required>
+                                <option value="completa">Academia Completa</option>
+                                <option value="basica">Academia Básica / Condomínio</option>
+                                <option value="calistenia">Halteres / Peso Corporal</option>
+                              </select>
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Nível de Atividade (Trabalho) *</label>
+                              <select value={formData.nivelAtividade} onChange={(e) => handleInputChange('nivelAtividade', e.target.value)} style={styles.selectField} required>
+                                <option value="sentado">Sentado a maior parte do tempo</option>
+                                <option value="em_pe">Em pé a maior parte do tempo</option>
+                                <option value="pesado">Trabalho braçal / Ativo</option>
+                              </select>
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Hidratação Atual (Liters/dia) *</label>
+                              <input type="number" step="0.1" placeholder="Ex: 2.5" value={formData.hidratacaoAtual} onChange={(e) => handleInputChange('hidratacaoAtual', e.target.value)} style={styles.inputField} required />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Uso de Suplementos *</label>
+                              <input type="text" placeholder="Ex: Creatina, Whey..." value={formData.suplementos} onChange={(e) => handleInputChange('suplementos', e.target.value)} style={styles.inputField} required />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Restrições Alimentares *</label>
+                              <input type="text" placeholder="Ex: Glúten, Lactose ou Nenhuma" value={formData.restriçõesAlimentares} onChange={(e) => handleInputChange('restriçõesAlimentares', e.target.value)} style={styles.inputField} required />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Preferências Alimentares *</label>
+                              <input type="text" placeholder="Ex: Frango, Ovos, Vegetais..." value={formData.preferenciasAlimentares} onChange={(e) => handleInputChange('preferenciasAlimentares', e.target.value)} style={styles.inputField} required />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Lesões ou Limitações *</label>
+                              <input type="text" placeholder="Ex: Joelho esquerdo, coluna ou Nenhuma" value={formData.lesoes} onChange={(e) => handleInputChange('lesoes', e.target.value)} style={styles.inputField} required />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Preferências de Exercício *</label>
+                              <input type="text" placeholder="Ex: Halteres, máquinas ou Nenhuma" value={formData.preferencias} onChange={(e) => handleInputChange('preferencias', e.target.value)} style={styles.inputField} required />
                             </div>
                           </div>
                         </div>

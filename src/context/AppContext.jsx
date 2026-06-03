@@ -187,7 +187,11 @@ export const AppProvider = ({ children }) => {
       userName: user?.name || 'Aluno Desconhecido',
       tenantId: user?.tenantId || 't1',
       date: new Date().toLocaleDateString('pt-BR'),
-      formData,
+      formData: {
+        ...formData,
+        userId: user?.id || 'u3',
+        tenantId: user?.tenantId || 't1'
+      },
       // O motor de IA pré-gera a sugestão de treino para análise do Professor/Master
       aiSuggestedWorkout: mockAIEngine(formData)
     };
