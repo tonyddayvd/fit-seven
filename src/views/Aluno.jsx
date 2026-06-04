@@ -1412,8 +1412,8 @@ const Aluno = () => {
                         const isVip = workoutsByStudent && workoutsByStudent[user?.id]?.isVip;
                         const cooldownDays = isVip ? 30 : 90;
                         
-                        const timeDiff = Math.abs(new Date().getTime() - lastEvalDate.getTime());
-                        const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                        const timeDiff = new Date().getTime() - lastEvalDate.getTime();
+                        const diffDays = Math.floor(timeDiff / (1000 * 3600 * 24));
                         const daysLeft = cooldownDays - diffDays;
                         const isCoolingDown = daysLeft > 0;
 
