@@ -97,6 +97,13 @@ const Aluno = () => {
   const [workoutSessionFinished, setWorkoutSessionFinished] = useState(false);
   const [auditLog, setAuditLog] = useState([]);
 
+  // Data simulada da última avaliação física para fins de cooldown (ex: 20 dias atrás)
+  const [lastEvalDate, setLastEvalDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 20); // 20 dias atrás
+    return d;
+  });
+
   useEffect(() => {
     setExercises(currentStudentExercises);
   }, [currentStudentExercises]);
@@ -165,8 +172,11 @@ const Aluno = () => {
     massaMagra: '',
     gorduraVisceral: '',
     fcRepouso: '',
-    // Arquivos
-    laudoFile: null
+    // Arquivos e Fotos (Novos campos)
+    laudoFile: null,
+    fotoFrente: '',
+    fotoCostas: '',
+    fotoPerfil: ''
   });
 
   const [activeTooltip, setActiveTooltip] = useState(null);
@@ -854,6 +864,7 @@ const Aluno = () => {
                         <p><strong>Rotina Relatada:</strong> {formData.descricaoRotina || 'Não informada'}</p>
                         <p><strong>Logística e Nutrição:</strong> Tempo: {formData.tempoSessao}min | Sono: {formData.horasSono}h (Nota: {formData.qualidadeSono}/10) | Equipamentos: {formData.equipamentos} | Atividade: {formData.nivelAtividade} | Hidratação: {formData.hidratacaoAtual}L | Suplementos: {formData.suplementos} | Restrições Alim.: {formData.restriçõesAlimentares} | Lesões: {formData.lesoes}</p>
                         <p><strong>Triagem PAR-Q:</strong> {formData.parqCardiaco === 'sim' ? '⚠️ HISTÓRICO CARDÍACO' : '✅ APTO'}</p>
+                        <p><strong>Fotos de Evolução:</strong> Frente: {formData.fotoFrente} | Costas: {formData.fotoCostas} | Perfil: {formData.fotoPerfil}</p>
                         {formData.laudoFile && <p><strong>Laudo Anexado:</strong> {formData.laudoFile}</p>}
                       </div>
                     </div>
@@ -1300,11 +1311,166 @@ const Aluno = () => {
                       )}
                     </div>
 
-                    {/* Botão de Gravação de Medidas */}
-                    <div style={{ marginTop: '20px' }}>
-                      <button type="submit" style={styles.submitMedidasBtn} className="btn-primary">
-                        Enviar Medidas com tenant_id
-                      </button>
+                    {/* Acordeão 8: Registro Fotográfico de Evolução */}
+                    <div style={{ ...styles.accordionItem, border: '1px solid var(--primary)' }} className="glass">
+                      <div style={styles.accordionHeader} onClick={() => toggleAccordion('fotos')}>
+                        <h4 style={{ ...styles.accordionTitle, color: 'var(--primary)' }}>8. Registro Fotográfico (Fotos de Evolução) *</h4>
+                        {activeAccordion === 'fotos' ? <ChevronUp size={18} style={{ color: 'var(--primary)' }} /> : <ChevronDown size={18} style={{ color: 'var(--primary)' }} />}
+                      </div>
+
+                      {activeAccordion === 'fotos' && (
+                        <div style={styles.accordionContent}>
+                          <p style={{ ...styles.parqDisclaimer, color: 'var(--text-primary)', fontWeight: 'bold', marginBottom: '12px' }}>
+                            📸 INSTRUÇÕES DE UX: Para garantir o melhor acompanhamento da sua progressão física, tire as fotos de corpo inteiro sob boa iluminação e, preferencialmente, utilizando trajes de banho (sunga/biquíni).
+                          </p>
+
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                            gap: '16px',
+                            marginTop: '16px'
+                          }}>
+                            {/* Foto Frente */}
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              padding: '16px',
+                              border: '1px dashed var(--border-color)',
+                              borderRadius: '8px',
+                              backgroundColor: 'var(--bg-tertiary)'
+                            }}>
+                              <div style={{ fontSize: '2.5rem', marginBottom: '8px', opacity: 0.6 }}>👤</div>
+                              <span style={{ fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '8px' }}>Frente (Posição ereta) *</span>
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={(e) => {
+                                  const file = e.target.files[0];
+                                  if (file) handleInputChange('fotoFrente', file.name);
+                                }}
+                                required
+                              />
+                              {formData.fotoFrente && <span style={{ fontSize: '0.75rem', color: 'var(--status-success)', marginTop: '6px' }}>✓ {formData.fotoFrente}</span>}
+                            </div>
+
+                            {/* Foto Costas */}
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              padding: '16px',
+                              border: '1px dashed var(--border-color)',
+                              borderRadius: '8px',
+                              backgroundColor: 'var(--bg-tertiary)'
+                            }}>
+                              <div style={{ fontSize: '2.5rem', marginBottom: '8px', opacity: 0.6 }}>👤</div>
+                              <span style={{ fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '8px' }}>Costas (De costas) *</span>
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={(e) => {
+                                  const file = e.target.files[0];
+                                  if (file) handleInputChange('fotoCostas', file.name);
+                                }}
+                                required
+                              />
+                              {formData.fotoCostas && <span style={{ fontSize: '0.75rem', color: 'var(--status-success)', marginTop: '6px' }}>✓ {formData.fotoCostas}</span>}
+                            </div>
+
+                            {/* Foto Perfil */}
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              padding: '16px',
+                              border: '1px dashed var(--border-color)',
+                              borderRadius: '8px',
+                              backgroundColor: 'var(--bg-tertiary)'
+                            }}>
+                              <div style={{ fontSize: '2.5rem', marginBottom: '8px', opacity: 0.6 }}>🧍</div>
+                              <span style={{ fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '8px' }}>Perfil (Braços na altura do peito) *</span>
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={(e) => {
+                                  const file = e.target.files[0];
+                                  if (file) handleInputChange('fotoPerfil', file.name);
+                                }}
+                                required
+                              />
+                              {formData.fotoPerfil && <span style={{ fontSize: '0.75rem', color: 'var(--status-success)', marginTop: '6px' }}>✓ {formData.fotoPerfil}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Botão de Gravação de Medidas com Bloqueio de Cooldown */}
+                    <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {(() => {
+                        const isVip = workoutsByStudent && workoutsByStudent[user?.id]?.isVip;
+                        const cooldownDays = isVip ? 30 : 90;
+                        
+                        const timeDiff = Math.abs(new Date().getTime() - lastEvalDate.getTime());
+                        const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                        const daysLeft = cooldownDays - diffDays;
+                        const isCoolingDown = daysLeft > 0;
+
+                        return (
+                          <>
+                            <button 
+                              type="submit" 
+                              disabled={isCoolingDown}
+                              style={{
+                                ...styles.submitMedidasBtn,
+                                ...(isCoolingDown ? { backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-muted)', cursor: 'not-allowed', borderColor: 'var(--border-color)' } : {})
+                              }}
+                              className={isCoolingDown ? "btn-disabled" : "btn-primary"}
+                            >
+                              {isCoolingDown 
+                                ? `Sua próxima avaliação estará liberada em ${daysLeft} dias` 
+                                : "Enviar Medidas com tenant_id"
+                              }
+                            </button>
+                            {isCoolingDown && (
+                              <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', fontSize: '0.8rem', marginTop: '4px' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Quer atualizar mais rápido?</span>
+                                <button 
+                                  type="button" 
+                                  onClick={() => {
+                                    // Simula a ativação do plano VIP do aluno injetando no DB mockado
+                                    const currentData = workoutsByStudent[user?.id];
+                                    const updated = {
+                                      ...workoutsByStudent,
+                                      [user?.id]: (currentData && typeof currentData === 'object' && !Array.isArray(currentData))
+                                        ? { ...currentData, isVip: true }
+                                        : { exercises: currentStudentExercises, isVip: true, vipHtml: '' }
+                                    };
+                                    updateStudentExercises(updated[user?.id]?.exercises || []);
+                                    // Salva diretamente na base de dados
+                                    localStorage.setItem('fitseven-workouts-db', JSON.stringify(updated));
+                                    alert('Parabéns! Você agora é VIP e seu cooldown foi reduzido para 30 dias!');
+                                    // Força reload suave do estado
+                                    window.location.reload();
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--primary)',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    textDecoration: 'underline',
+                                    padding: 0
+                                  }}
+                                >
+                                  Seja VIP
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
 
                   </form>
@@ -1312,8 +1478,214 @@ const Aluno = () => {
               </div>
             )}
 
+            {/* 3. ABA DE EVOLUÇÃO (HISTÓRICO DO ALUNO) */}
+            {activeTab === 'evolucao' && (
+              <div style={{ width: '100%' }} className="animate-fade-in">
+                {/* Navegação no Tempo */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px',
+                  backgroundColor: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  marginBottom: '20px'
+                }}>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>Seletor de Histórico:</span>
+                  <select 
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-tertiary)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.85rem'
+                    }}
+                    defaultValue="jun-2026"
+                  >
+                    <option value="jun-2026">Junho de 2026 (Atual)</option>
+                    <option value="mai-2026">Maio de 2026 (Anterior)</option>
+                    <option value="abr-2026">Abril de 2026</option>
+                    <option value="mar-2026">Março de 2026</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                  {/* Progresso de Carga */}
+                  <div style={{
+                    padding: '20px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)'
+                  }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+                      📈 Progressão de Força (Histórico de Carga)
+                    </h4>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
+                          <th style={{ padding: '8px 0' }}>Exercício</th>
+                          <th>Carga Inicial</th>
+                          <th>Carga Atual</th>
+                          <th style={{ textAlign: 'right' }}>Evolução</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ borderBottom: '1px dashed var(--border-color)' }}>
+                          <td style={{ padding: '8px 0' }}>Supino Reto</td>
+                          <td>20 kg</td>
+                          <td><strong>30 kg</strong></td>
+                          <td style={{ color: 'var(--status-success)', textAlign: 'right', fontWeight: 'bold' }}>+50%</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px dashed var(--border-color)' }}>
+                          <td style={{ padding: '8px 0' }}>Agachamento</td>
+                          <td>15 kg</td>
+                          <td><strong>25 kg</strong></td>
+                          <td style={{ color: 'var(--status-success)', textAlign: 'right', fontWeight: 'bold' }}>+66%</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px dashed var(--border-color)' }}>
+                          <td style={{ padding: '8px 0' }}>Puxada Alta</td>
+                          <td>35 kg</td>
+                          <td><strong>45 kg</strong></td>
+                          <td style={{ color: 'var(--status-success)', textAlign: 'right', fontWeight: 'bold' }}>+28%</td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: '8px 0' }}>Rosca Direta</td>
+                          <td>8 kg</td>
+                          <td><strong>12 kg</strong></td>
+                          <td style={{ color: 'var(--status-success)', textAlign: 'right', fontWeight: 'bold' }}>+50%</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Comparativo de Fotos Antes/Depois */}
+                  <div style={{
+                    padding: '20px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)'
+                  }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+                      📸 Antes e Depois (Registro Fotográfico)
+                    </h4>
+                    <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+                      {/* Antes */}
+                      <div style={{ flex: 1, textAlign: 'center', minWidth: '120px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Anterior (Frente)</span>
+                        <div style={{
+                          height: '140px',
+                          backgroundColor: 'var(--bg-tertiary)',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px solid var(--border-color)',
+                          fontSize: '2.5rem',
+                          opacity: 0.5
+                        }}>
+                          👤
+                        </div>
+                      </div>
+                      {/* Depois */}
+                      <div style={{ flex: 1, textAlign: 'center', minWidth: '120px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--primary)', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Atual (Frente)</span>
+                        <div style={{
+                          height: '140px',
+                          backgroundColor: 'rgba(139, 92, 246, 0.05)',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px solid var(--primary)',
+                          fontSize: '2.5rem'
+                        }}>
+                          👤
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Acervo de PDFs VIPs Antigos */}
+                <div style={{
+                  padding: '20px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  marginTop: '20px'
+                }}>
+                  <h4 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+                    📁 Acervo de Fichas e PDFs VIP Antigos
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 14px',
+                      backgroundColor: 'var(--bg-tertiary)',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      <div>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 'bold', display: 'block' }}>Ficha VIP - Foco Hipertrofia (Lisiane)</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Publicado em 15/05/2026</span>
+                      </div>
+                      <button 
+                        onClick={() => alert('Download do PDF histórico simulado com sucesso!')}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          backgroundColor: 'var(--primary)',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Baixar Ficha
+                      </button>
+                    </div>
+
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 14px',
+                      backgroundColor: 'var(--bg-tertiary)',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      <div>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 'bold', display: 'block' }}>Ficha VIP - Foco Condicionamento (Lisiane)</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Publicado em 12/04/2026</span>
+                      </div>
+                      <button 
+                        onClick={() => alert('Download do PDF histórico simulado com sucesso!')}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          backgroundColor: 'var(--primary)',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Baixar Ficha
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Outras Abas */}
-            {activeTab !== 'treinos' && activeTab !== 'medidas' && (
+            {activeTab !== 'treinos' && activeTab !== 'medidas' && activeTab !== 'evolucao' && (
               <div style={styles.emptyState}>
                 <div style={styles.pulseRing}>
                   <IconComponent size={40} style={{ color: 'var(--primary)' }} />
