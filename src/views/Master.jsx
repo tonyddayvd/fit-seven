@@ -84,11 +84,16 @@ const Master = () => {
     }
   }, [pendingEvaluations, selectedEval]);
 
+  const [isVip, setIsVip] = useState(false);
+  const [vipHtml, setVipHtml] = useState('');
+
   const handleApprove = (id) => {
-    const success = approveAndPublishWorkout(id);
+    const success = approveAndPublishWorkout(id, { isVip, vipHtml });
     if (success) {
-      alert('Treino gerado por IA aprovado, publicado e injetado no BD com sucesso!');
+      alert(isVip ? 'Treino VIP (HTML) aprovado e publicado com sucesso!' : 'Treino gerado por IA aprovado, publicado e injetado no BD com sucesso!');
       setSelectedEval(null);
+      setIsVip(false);
+      setVipHtml('');
     }
   };
 
@@ -158,7 +163,54 @@ const Master = () => {
 
               {/* Informações Fisiológicas da Avaliação */}
               <div style={styles.evalDetailsBox}>
-                <h5 style={styles.detailsBoxTitle}>Fisiologia & Objetivos Coletados:</h5>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h5 style={styles.detailsBoxTitle}>Fisiologia & Objetivos Coletados:</h5>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const data = selectedEval.formData;
+                      const prompt = `Você é um Personal Trainer e Nutricionista VIP. Elabore um programa completo de treinamento e dieta para o seguinte perfil:
+Nome: ${selectedEval.userName}
+Sexo Biológico: ${data.sexoBiologico}
+Idade: ${data.idade} anos
+Peso: ${data.peso} kg
+Altura: ${data.altura} cm
+Objetivo: ${data.objetivo}
+Nível de Experiência: ${data.nivelExperiencia}
+Frequência Semanal: ${data.frequenciaSemanal} dias
+Tempo por Sessão: ${data.tempoSessao} minutos
+Equipamentos: ${data.equipamentos}
+Trabalho (Nível de atividade): ${data.nivelAtividade}
+Qualidade de Sono: ${data.qualidadeSono}/10 (Média de horas: ${data.horasSono}h)
+Hidratação atual: ${data.hidratacaoAtual}L/dia
+Suplementos em uso: ${data.suplementos}
+Lesões ou Limitações: ${data.lesoes}
+Preferências de exercício: ${data.preferencias}
+Restrições Alimentares: ${data.restriçõesAlimentares}
+Preferências Alimentares: ${data.preferenciasAlimentares}
+Descrição da Rotina Diária: ${data.descricaoRotina}
+
+Gere o programa formatado estritamente como um HTML rico usando variáveis e estilos CSS compatíveis com o gabarito "Treino Lisiane". Não use blocos de código externos ou markdown extra.`;
+                      navigator.clipboard.writeText(prompt);
+                      alert('Script VIP copiado para a área de transferência!');
+                    }} 
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      backgroundColor: 'var(--bg-secondary)',
+                      color: 'var(--primary)',
+                      border: '1px solid var(--primary)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    📋 Copiar Script VIP
+                  </button>
+                </div>
                 <div style={styles.detailsGrid}>
                   <span><strong>Objetivo:</strong> {selectedEval.formData.objetivo.toUpperCase()}</span>
                   <span><strong>Frequência:</strong> {selectedEval.formData.frequenciaSemanal}x/semana</span>
@@ -199,6 +251,42 @@ const Master = () => {
 
               {/* Ação de Publicar */}
               <div style={styles.publishBox}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Tipo de Entrega:</span>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input type="radio" name="vipToggle" checked={!isVip} onChange={() => setIsVip(false)} />
+                    Plano Simples
+                  </label>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input type="radio" name="vipToggle" checked={isVip} onChange={() => setIsVip(true)} />
+                    Plano VIP (Personalizado)
+                  </label>
+                </div>
+
+                {isVip && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--secondary)' }}>Cole o HTML do Programa VIP aqui</label>
+                    <textarea 
+                      placeholder="Coloque a estrutura HTML completa aqui..." 
+                      value={vipHtml}
+                      onChange={(e) => setVipHtml(e.target.value)}
+                      style={{
+                        width: '100%',
+                        minHeight: '150px',
+                        padding: '10px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-tertiary)',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'monospace',
+                        fontSize: '0.8rem',
+                        boxSizing: 'border-box',
+                        resize: 'vertical'
+                      }}
+                    />
+                  </div>
+                )}
+
                 <button 
                   onClick={() => handleApprove(selectedEval.id)} 
                   style={styles.approveBtn} 

@@ -88,7 +88,7 @@ const INITIAL_WORKOUT_EXERCISES = [
 ];
 
 const Aluno = () => {
-  const { activeTenant, user, currentStudentExercises, updateStudentExercises, submitEvaluation } = useApp();
+  const { activeTenant, user, currentStudentExercises, updateStudentExercises, submitEvaluation, workoutsByStudent } = useApp();
   const [activeTab, setActiveTab] = useState('treinos');
   const [activeSplit, setActiveSplit] = useState('A');
   
@@ -518,7 +518,75 @@ const Aluno = () => {
             {/* 1. ABA DE TREINOS */}
             {activeTab === 'treinos' && (
               <div style={{ width: '100%' }}>
-                {workoutSessionFinished ? (
+                {workoutsByStudent && workoutsByStudent[user?.id] && workoutsByStudent[user?.id].isVip && workoutsByStudent[user?.id].vipHtml ? (
+                  /* Renderização do Programa VIP */
+                  <div style={{ width: '100%', position: 'relative' }} className="animate-fade-in vip-program-container">
+                    {/* Botão Fixo de Impressão / Baixar PDF */}
+                    <div style={{
+                      position: 'sticky',
+                      top: '12px',
+                      zIndex: 1000,
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      marginBottom: '16px',
+                      padding: '0 8px'
+                    }} className="no-print">
+                      <button 
+                        onClick={() => window.print()} 
+                        style={{
+                          padding: '10px 18px',
+                          fontSize: '0.85rem',
+                          fontWeight: '700',
+                          backgroundColor: 'var(--primary)',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: 'var(--radius-md)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          boxShadow: 'var(--shadow-md)'
+                        }}
+                      >
+                        📄 Baixar Programa Completo em PDF
+                      </button>
+                    </div>
+
+                    {/* CSS do gabarito embutido no escopo VIP */}
+                    <style dangerouslySetInnerHTML={{ __html: `
+                      @media print {
+                        body * {
+                          visibility: hidden;
+                        }
+                        .vip-program-container, .vip-program-container * {
+                          visibility: visible;
+                        }
+                        .vip-program-container {
+                          position: absolute;
+                          left: 0;
+                          top: 0;
+                          width: 100%;
+                        }
+                        .no-print {
+                          display: none !important;
+                        }
+                      }
+                    `}} />
+
+                    {/* HTML do programa VIP */}
+                    <div 
+                      dangerouslySetInnerHTML={{ __html: workoutsByStudent[user?.id].vipHtml }} 
+                      style={{
+                        padding: '12px',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-primary)',
+                        lineHeight: '1.6'
+                      }}
+                    />
+                  </div>
+                ) : workoutSessionFinished ? (
                   /* Tela Conclusão */
                   <div style={styles.resultCard} className="animate-fade-in">
                     {auditLog.is100Percent ? (

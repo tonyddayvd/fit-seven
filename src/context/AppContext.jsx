@@ -205,7 +205,8 @@ export const AppProvider = ({ children }) => {
     const evaluation = pendingEvaluations.find(ev => ev.id === evalId);
     if (!evaluation) return false;
 
-    // Achatamos os treinos da sugestão de IA em uma lista linear para a visualização atual do Aluno
+    // Injeta os dados no banco de dados vinculados ao aluno e tenant correspondente.
+    // Se for VIP, salva as propriedades adicionais isVip e vipHtml
     const allExercises = [];
     evaluation.aiSuggestedWorkout.forEach((block, bIdx) => {
       const splitLetter = ['A', 'B', 'C', 'D', 'E'][bIdx];
@@ -217,10 +218,16 @@ export const AppProvider = ({ children }) => {
       });
     });
 
-    // Injeta os dados no banco de dados vinculados ao aluno e tenant correspondente
+    const isVip = arguments[1] === true || (typeof arguments[1] === 'object' && arguments[1]?.isVip === true);
+    const vipHtml = typeof arguments[1] === 'object' ? arguments[1]?.vipHtml : arguments[2];
+
     const updatedWorkouts = {
       ...workoutsByStudent,
-      [evaluation.userId]: allExercises
+      [evaluation.userId]: {
+        exercises: allExercises,
+        isVip: !!isVip,
+        vipHtml: vipHtml || ''
+      }
     };
 
     saveWorkoutsToStorage(updatedWorkouts);
@@ -277,13 +284,21 @@ export const AppProvider = ({ children }) => {
   const activeTenant = MOCK_TENANTS[Object.keys(MOCK_TENANTS).find(k => MOCK_TENANTS[k].id === activeTenantId)] || { name: 'Fit Seven Platform', subdomain: 'system' };
 
   // Retorna os exercícios ativos do aluno logado
-  const currentStudentExercises = workoutsByStudent[user?.id] || DEFAULT_WORKOUTS;
+  const studentData = workoutsByStudent[user?.id];
+  const currentStudentExercises = (studentData && Array.isArray(studentData)) 
+    ? studentData 
+    : (studentData && studentData.exercises) 
+      ? studentData.exercises 
+      : DEFAULT_WORKOUTS;
 
   const updateStudentExercises = (newExercises) => {
     if (!user) return;
+    const currentData = workoutsByStudent[user.id];
     const updatedWorkouts = {
       ...workoutsByStudent,
-      [user.id]: newExercises
+      [user.id]: (currentData && typeof currentData === 'object' && !Array.isArray(currentData))
+        ? { ...currentData, exercises: newExercises }
+        : newExercises
     };
     saveWorkoutsToStorage(updatedWorkouts);
   };
@@ -306,7 +321,8 @@ export const AppProvider = ({ children }) => {
       submitEvaluation,
       approveAndPublishWorkout,
       currentStudentExercises,
-      updateStudentExercises
+      updateStudentExercises,
+      workoutsByStudent
     }}>
       {children}
     </AppContext.Provider>
