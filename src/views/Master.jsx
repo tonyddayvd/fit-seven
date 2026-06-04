@@ -163,6 +163,8 @@ const Master = () => {
                   <span><strong>Objetivo:</strong> {selectedEval.formData.objetivo.toUpperCase()}</span>
                   <span><strong>Frequência:</strong> {selectedEval.formData.frequenciaSemanal}x/semana</span>
                   <span><strong>Peso/Altura:</strong> {selectedEval.formData.peso}kg / {selectedEval.formData.altura}cm</span>
+                  <span><strong>Idade:</strong> {selectedEval.formData.idade || 'N/I'} anos</span>
+                  <span><strong>Sexo Biológico:</strong> {selectedEval.formData.sexoBiologico === 'masculino' ? 'Masculino' : 'Feminino'}</span>
                   <span><strong>Nível:</strong> {selectedEval.formData.nivelExperiencia}</span>
                 </div>
                 {selectedEval.formData.parqCardiaco === 'sim' && (

@@ -119,6 +119,8 @@ const Aluno = () => {
   const [formData, setFormData] = useState({
     // Seção 1: Identificação/Objetivos
     nome: user?.name || '',
+    sexoBiologico: 'masculino', // Novo campo
+    idade: '', // Novo campo
     objetivo: 'hipertrofia',
     historicoAtividade: 'moderado',
     descricaoRotina: '', // Campo de texto livre para rotina
@@ -777,6 +779,7 @@ const Aluno = () => {
                       <div style={styles.auditContent}>
                         <p><strong>tenant_id:</strong> <code style={styles.code}>{activeTenant.id}</code></p>
                         <p><strong>user_id:</strong> <code style={styles.code}>{user?.id || 'u3'}</code></p>
+                        <p><strong>Sexo / Idade:</strong> {formData.sexoBiologico === 'masculino' ? 'Masculino' : 'Feminino'} / {formData.idade} anos</p>
                         <p><strong>Peso / Altura:</strong> {formData.peso} kg / {formData.altura} cm</p>
                         <p><strong>Circunferências (Mandatórias):</strong> Pescoço: {formData.pescoco}cm | Peitoral: {formData.peitoral}cm | Cintura: {formData.cintura}cm | Abdômen: {formData.abdomen}cm | Quadril: {formData.quadril}cm | Coxas (D/E): {formData.coxaDir}cm / {formData.coxaEsq}cm | Braços (D/E): {formData.braçoDir}cm / {formData.braçoEsq}cm | Panturrilhas (D/E): {formData.panturrilhaDir}cm / {formData.panturrilhaEsq}cm</p>
                         <p><strong>Objetivo:</strong> {formData.objetivo.toUpperCase()}</p>
@@ -827,6 +830,31 @@ const Aluno = () => {
                                 <option value="condicionamento">Condicionamento Físico</option>
                                 <option value="saude">Melhoria de Saúde / Postura</option>
                               </select>
+                            </div>
+                          </div>
+                          <div style={{ ...styles.formRow, marginTop: '16px' }}>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Sexo Biológico *</label>
+                              <select 
+                                value={formData.sexoBiologico} 
+                                onChange={(e) => handleInputChange('sexoBiologico', e.target.value)} 
+                                style={styles.selectField}
+                                required
+                              >
+                                <option value="masculino">Masculino</option>
+                                <option value="feminino">Feminino</option>
+                              </select>
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Idade *</label>
+                              <input 
+                                type="number" 
+                                placeholder="Ex: 24" 
+                                value={formData.idade} 
+                                onChange={(e) => handleInputChange('idade', e.target.value)} 
+                                style={styles.inputField} 
+                                required
+                              />
                             </div>
                           </div>
                           <div style={{ marginTop: '16px' }}>
