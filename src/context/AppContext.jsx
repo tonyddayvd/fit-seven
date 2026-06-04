@@ -198,6 +198,9 @@ export const AppProvider = ({ children }) => {
 
     const updated = [...pendingEvaluations.filter(ev => ev.userId !== newEval.userId), newEval];
     savePendingEvalsToStorage(updated);
+
+    // Salva a data do último envio no localStorage para persistência da regra de negócio de cooldown
+    localStorage.setItem(`fitseven-last-eval-${user?.id || 'u3'}`, new Date().toISOString());
   };
 
   // Aprovar e Publicar o Treino (MASTER/Professor injeta no BD)

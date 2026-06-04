@@ -97,10 +97,12 @@ const Aluno = () => {
   const [workoutSessionFinished, setWorkoutSessionFinished] = useState(false);
   const [auditLog, setAuditLog] = useState([]);
 
-  // Data simulada da última avaliação física para fins de cooldown (ex: 20 dias atrás)
+  // Data simulada da última avaliação física carregada do localStorage ou simulação de 20 dias atrás
   const [lastEvalDate, setLastEvalDate] = useState(() => {
+    const saved = localStorage.getItem(`fitseven-last-eval-${user?.id || 'u3'}`);
+    if (saved) return new Date(saved);
     const d = new Date();
-    d.setDate(d.getDate() - 20); // 20 dias atrás
+    d.setDate(d.getDate() - 20); // Fallback: 20 dias atrás para demonstração inicial
     return d;
   });
 
