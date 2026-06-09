@@ -8,8 +8,10 @@ import Professor from './views/Professor';
 import Aluno from './views/Aluno';
 import Master from './views/Master';
 
+import Planos from './views/Planos';
+
 function App() {
-  const { user, activeRole } = useApp();
+  const { user, activeRole, virtualRoute } = useApp();
 
   // Se não estiver autenticado, exibe a tela de login
   if (!user) {
@@ -22,6 +24,9 @@ function App() {
 
   // Roteamento de acordo com o papel ativo (com suporte a bypass do Master)
   const renderView = () => {
+    if (virtualRoute === '/planos') {
+      return <Planos />;
+    }
     switch (activeRole) {
       case 'estabelecimento':
         return <Estabelecimento />;

@@ -10,14 +10,14 @@ export const MOCK_TENANTS = {
 };
 
 export const MOCK_USERS = [
-  { id: 'u1', name: 'Alice Silva (Estabelec.)', email: 'admin@vibe.com', tenantId: 't1', role: 'estabelecimento', password: '123' },
-  { id: 'u2', name: 'Prof. Carlos Santos', email: 'carlos@vibe.com', tenantId: 't1', role: 'professor', password: '123' },
-  { id: 'u3', name: 'Lucas Aluno', email: 'lucas@vibe.com', tenantId: 't1', role: 'aluno', password: '123' },
-  { id: 'u4', name: 'Mariana Lima (Estabelec.)', email: 'admin@pulse.com', tenantId: 't2', role: 'estabelecimento', password: '123' },
-  { id: 'u5', name: 'Prof. Pedro Souza', email: 'pedro@pulse.com', tenantId: 't2', role: 'professor', password: '123' },
-  { id: 'u6', name: 'Juliana Aluna', email: 'juliana@pulse.com', tenantId: 't2', role: 'aluno', password: '123' },
-  { id: 'u7', name: 'Suporte Master System', email: 'master@fitseven.com', tenantId: 'master', role: 'master', password: '123' },
-  { id: 'u8', name: 'Tony (MASTER)', email: 'tony@fitseven.com', tenantId: 'master', role: 'master', password: '123' }
+  { id: 'u1', name: 'Alice Silva (Estabelec.)', email: 'admin@vibe.com', tenantId: 't1', role: 'estabelecimento', password: '123', data_cadastro: '2026-05-10T12:00:00.000Z' },
+  { id: 'u2', name: 'Prof. Carlos Santos', email: 'carlos@vibe.com', tenantId: 't1', role: 'professor', password: '123', data_cadastro: '2026-05-10T12:00:00.000Z' },
+  { id: 'u3', name: 'Lucas Aluno', email: 'lucas@vibe.com', tenantId: 't1', role: 'aluno', password: '123', data_cadastro: '2026-05-10T12:00:00.000Z', data_ativacao_vip: '2026-06-01T12:00:00.000Z' },
+  { id: 'u4', name: 'Mariana Lima (Estabelec.)', email: 'admin@pulse.com', tenantId: 't2', role: 'estabelecimento', password: '123', data_cadastro: '2026-05-10T12:00:00.000Z' },
+  { id: 'u5', name: 'Prof. Pedro Souza', email: 'pedro@pulse.com', tenantId: 't2', role: 'professor', password: '123', data_cadastro: '2026-05-10T12:00:00.000Z' },
+  { id: 'u6', name: 'Juliana Aluna', email: 'juliana@pulse.com', tenantId: 't2', role: 'aluno', password: '123', data_cadastro: '2026-05-10T12:00:00.000Z', data_ativacao_vip: '2026-06-01T12:00:00.000Z' },
+  { id: 'u7', name: 'Suporte Master System', email: 'master@fitseven.com', tenantId: 'master', role: 'master', password: '123', data_cadastro: '2026-05-10T12:00:00.000Z' },
+  { id: 'u8', name: 'Tony (MASTER)', email: 'tony@fitseven.com', tenantId: 'master', role: 'master', password: '123', data_cadastro: '2026-05-10T12:00:00.000Z' }
 ];
 
 const DEFAULT_WORKOUTS = [
@@ -80,6 +80,9 @@ const AI_EXERCISE_POOL = {
 };
 
 export const AppProvider = ({ children }) => {
+  // 1.1 Rota Virtual
+  const [virtualRoute, setVirtualRoute] = useState('app');
+
   // 1. Controle de Tema
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('fitseven-theme');
@@ -325,7 +328,9 @@ export const AppProvider = ({ children }) => {
       approveAndPublishWorkout,
       currentStudentExercises,
       updateStudentExercises,
-      workoutsByStudent
+      workoutsByStudent,
+      virtualRoute,
+      setVirtualRoute
     }}>
       {children}
     </AppContext.Provider>

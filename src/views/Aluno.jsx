@@ -87,8 +87,38 @@ const INITIAL_WORKOUT_EXERCISES = [
   }
 ];
 
+const SILHOUETTES = {
+  masculino: {
+    frente: 'assets/silhouettes/masculino_frente.jpg',
+    costas: 'assets/silhouettes/masculino_costas.jpg',
+    perfil: 'assets/silhouettes/masculino_perfil.jpg'
+  },
+  feminino: {
+    frente: 'assets/silhouettes/feminino_frente.png',
+    costas: 'assets/silhouettes/feminino_costas.png',
+    perfil: 'assets/silhouettes/feminino_perfil.png'
+  }
+};
+
 const Aluno = () => {
-  const { activeTenant, user, currentStudentExercises, updateStudentExercises, submitEvaluation, workoutsByStudent } = useApp();
+  const { activeTenant, user, currentStudentExercises, updateStudentExercises, submitEvaluation, workoutsByStudent, setVirtualRoute } = useApp();
+  
+  const userDbData = workoutsByStudent && workoutsByStudent[user?.id];
+  const isVip = user?.isVip || (userDbData && userDbData.isVip);
+  const dataCadastro = user?.data_cadastro || "2026-05-10T12:00:00.000Z";
+  const dataAtivacaoVip = user?.data_ativacao_vip || (userDbData && userDbData.data_ativacao_vip) || "2026-06-01T12:00:00.000Z";
+
+  const calculateVipDaysLeft = () => {
+    if (!isVip) return 0;
+    const activationDate = new Date(dataAtivacaoVip);
+    const now = new Date();
+    const diffTime = now - activationDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, 30 - diffDays);
+  };
+
+  const vipDaysLeft = calculateVipDaysLeft();
+
   const [activeTab, setActiveTab] = useState('treinos');
   const [activeSplit, setActiveSplit] = useState('A');
   
@@ -524,6 +554,22 @@ const Aluno = () => {
               <h2 style={styles.title}>{currentTabInfo.label}</h2>
               <span style={styles.tenantText}>{activeTenant.name}</span>
             </div>
+            {isVip && (
+              <div style={{
+                backgroundColor: 'rgba(234, 179, 8, 0.15)',
+                border: '1px solid #eab308',
+                color: '#eab308',
+                padding: '6px 12px',
+                borderRadius: '20px',
+                fontSize: '0.8rem',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                👑 Plano VIP (Restam {vipDaysLeft} dias)
+              </div>
+            )}
           </div>
 
           <div style={styles.body}>
@@ -1030,10 +1076,12 @@ const Aluno = () => {
                             <div style={styles.inputGroup}>
                               <label style={styles.formLabel}>Cintura (cm) *</label>
                               <input type="number" placeholder="cm" value={formData.cintura} onChange={(e) => handleInputChange('cintura', e.target.value)} style={styles.inputField} required />
+                              <span style={styles.fieldSupportText}>Meça a parte mais estreita do tronco, geralmente 2 a 3 dedos acima do umbigo.</span>
                             </div>
                             <div style={styles.inputGroup}>
                               <label style={styles.formLabel}>Abdômen (cm) *</label>
                               <input type="number" placeholder="cm" value={formData.abdomen} onChange={(e) => handleInputChange('abdomen', e.target.value)} style={styles.inputField} required />
+                              <span style={styles.fieldSupportText}>Meça na região de maior volume, exatamente sobre a linha do umbigo.</span>
                             </div>
                             <div style={styles.inputGroup}>
                               <label style={styles.formLabel}>Quadril (cm) *</label>
@@ -1342,7 +1390,11 @@ const Aluno = () => {
                               borderRadius: '8px',
                               backgroundColor: 'var(--bg-tertiary)'
                             }}>
-                              <div style={{ fontSize: '2.5rem', marginBottom: '8px', opacity: 0.6 }}>👤</div>
+                              <img 
+                                src={formData.sexoBiologico === 'feminino' ? SILHOUETTES.feminino.frente : SILHOUETTES.masculino.frente} 
+                                alt="Silhueta Frente" 
+                                style={{ width: '80px', height: '140px', objectFit: 'contain', marginBottom: '8px', borderRadius: '4px' }} 
+                              />
                               <span style={{ fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '8px' }}>Frente (Posição ereta) *</span>
                               <input 
                                 type="file" 
@@ -1366,7 +1418,11 @@ const Aluno = () => {
                               borderRadius: '8px',
                               backgroundColor: 'var(--bg-tertiary)'
                             }}>
-                              <div style={{ fontSize: '2.5rem', marginBottom: '8px', opacity: 0.6 }}>👤</div>
+                              <img 
+                                src={formData.sexoBiologico === 'feminino' ? SILHOUETTES.feminino.costas : SILHOUETTES.masculino.costas} 
+                                alt="Silhueta Costas" 
+                                style={{ width: '80px', height: '140px', objectFit: 'contain', marginBottom: '8px', borderRadius: '4px' }} 
+                              />
                               <span style={{ fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '8px' }}>Costas (De costas) *</span>
                               <input 
                                 type="file" 
@@ -1390,7 +1446,11 @@ const Aluno = () => {
                               borderRadius: '8px',
                               backgroundColor: 'var(--bg-tertiary)'
                             }}>
-                              <div style={{ fontSize: '2.5rem', marginBottom: '8px', opacity: 0.6 }}>🧍</div>
+                              <img 
+                                src={formData.sexoBiologico === 'feminino' ? SILHOUETTES.feminino.perfil : SILHOUETTES.masculino.perfil} 
+                                alt="Silhueta Perfil" 
+                                style={{ width: '80px', height: '140px', objectFit: 'contain', marginBottom: '8px', borderRadius: '4px' }} 
+                              />
                               <span style={{ fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '8px' }}>Perfil (Braços na altura do peito) *</span>
                               <input 
                                 type="file" 
@@ -1441,20 +1501,7 @@ const Aluno = () => {
                                 <button 
                                   type="button" 
                                   onClick={() => {
-                                    // Simula a ativação do plano VIP do aluno injetando no DB mockado
-                                    const currentData = workoutsByStudent[user?.id];
-                                    const updated = {
-                                      ...workoutsByStudent,
-                                      [user?.id]: (currentData && typeof currentData === 'object' && !Array.isArray(currentData))
-                                        ? { ...currentData, isVip: true }
-                                        : { exercises: currentStudentExercises, isVip: true, vipHtml: '' }
-                                    };
-                                    updateStudentExercises(updated[user?.id]?.exercises || []);
-                                    // Salva diretamente na base de dados
-                                    localStorage.setItem('fitseven-workouts-db', JSON.stringify(updated));
-                                    alert('Parabéns! Você agora é VIP e seu cooldown foi reduzido para 30 dias!');
-                                    // Força reload suave do estado
-                                    window.location.reload();
+                                    setVirtualRoute('/planos');
                                   }}
                                   style={{
                                     background: 'none',
@@ -1686,8 +1733,59 @@ const Aluno = () => {
               </div>
             )}
 
+            {/* 4. ABA FINANCEIRO */}
+            {activeTab === 'financeiro' && (
+              <div style={{ width: '100%', textAlign: 'left' }} className="animate-fade-in">
+                <div style={{
+                  padding: '24px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px'
+                }}>
+                  <h4 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                    💳 Detalhes da Assinatura
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                    <div style={{ padding: '16px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Data de Cadastro</span>
+                      <strong style={{ fontSize: '1.1rem', color: 'var(--text-primary)' }}>{new Date(dataCadastro).toLocaleDateString('pt-BR')}</strong>
+                    </div>
+                    <div style={{ padding: '16px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Plano Ativo</span>
+                      <strong style={{ fontSize: '1.1rem', color: isVip ? '#eab308' : 'var(--text-primary)' }}>
+                        {isVip ? '👑 Plano VIP' : 'Plano Simples'}
+                      </strong>
+                    </div>
+                    {isVip && (
+                      <div style={{ padding: '16px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '8px', border: '1px solid #eab308' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Ciclo VIP</span>
+                        <strong style={{ fontSize: '1.1rem', color: '#eab308' }}>Restam {vipDaysLeft} dias</strong>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div style={{ marginTop: '16px' }}>
+                    <h5 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '8px' }}>Histórico de Faturas</h5>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifycontent: 'space-between', padding: '10px 14px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                        <span>Mensalidade Junho/2026</span>
+                        <span style={{ color: 'var(--status-success)', fontWeight: 'bold' }}>PAGO (R$ {isVip ? '149,90' : '79,90'})</span>
+                      </div>
+                      <div style={{ display: 'flex', justifycontent: 'space-between', padding: '10px 14px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                        <span>Mensalidade Maio/2026</span>
+                        <span style={{ color: 'var(--status-success)', fontWeight: 'bold' }}>PAGO (R$ 79,90)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Outras Abas */}
-            {activeTab !== 'treinos' && activeTab !== 'medidas' && activeTab !== 'evolucao' && (
+            {activeTab !== 'treinos' && activeTab !== 'medidas' && activeTab !== 'evolucao' && activeTab !== 'financeiro' && (
               <div style={styles.emptyState}>
                 <div style={styles.pulseRing}>
                   <IconComponent size={40} style={{ color: 'var(--primary)' }} />
@@ -2757,6 +2855,12 @@ const styles = {
   navLabelActive: {
     color: 'var(--primary)',
     fontWeight: '700',
+  },
+  fieldSupportText: {
+    fontSize: '0.75rem',
+    color: 'var(--text-secondary)',
+    marginTop: '4px',
+    lineHeight: '1.3',
   }
 };
 
