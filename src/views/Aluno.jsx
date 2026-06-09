@@ -89,14 +89,14 @@ const INITIAL_WORKOUT_EXERCISES = [
 
 const SILHOUETTES = {
   masculino: {
-    frente: 'assets/silhouettes/masculino_frente.jpg',
+    frente: 'assets/silhouettes/masculino_frente.png',
     costas: 'assets/silhouettes/masculino_costas.jpg',
     perfil: 'assets/silhouettes/masculino_perfil.jpg'
   },
   feminino: {
-    frente: 'assets/silhouettes/feminino_frente.png',
+    frente: 'assets/silhouettes/feminino_frente.jpg',
     costas: 'assets/silhouettes/feminino_costas.png',
-    perfil: 'assets/silhouettes/feminino_perfil.png'
+    perfil: 'assets/silhouettes/feminino_perfil.jpg'
   }
 };
 
