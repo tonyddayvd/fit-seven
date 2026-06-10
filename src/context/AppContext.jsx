@@ -499,6 +499,37 @@ export const AppProvider = ({ children }) => {
     window.location.reload();
   };
 
+  const exportDatabase = () => {
+    const data = {
+      tenants: JSON.parse(localStorage.getItem('fitseven-tenants') || '{}'),
+      users: JSON.parse(localStorage.getItem('fitseven-users') || '[]'),
+      workouts: JSON.parse(localStorage.getItem('fitseven-workouts-db') || '{}'),
+      pendingEvals: JSON.parse(localStorage.getItem('fitseven-pending-evals') || '[]')
+    };
+    return JSON.stringify(data, null, 2);
+  };
+
+  const importDatabase = (jsonData) => {
+    try {
+      const data = JSON.parse(jsonData);
+      if (data.tenants && data.users) {
+        localStorage.setItem('fitseven-tenants', JSON.stringify(data.tenants));
+        localStorage.setItem('fitseven-users', JSON.stringify(data.users));
+        if (data.workouts) localStorage.setItem('fitseven-workouts-db', JSON.stringify(data.workouts));
+        if (data.pendingEvals) localStorage.setItem('fitseven-pending-evals', JSON.stringify(data.pendingEvals));
+        alert('Banco de dados importado com sucesso! Recarregando a página...');
+        window.location.reload();
+        return true;
+      } else {
+        alert('Formato de backup inválido. Chaves essenciais ausentes.');
+        return false;
+      }
+    } catch (e) {
+      alert('Erro ao processar o JSON: ' + e.message);
+      return false;
+    }
+  };
+
   return (
     <AppContext.Provider value={{
       theme,
@@ -533,7 +564,9 @@ export const AppProvider = ({ children }) => {
       toggleUserVip,
       loginAsUser,
       revertToMaster,
-      resetDatabase
+      resetDatabase,
+      exportDatabase,
+      importDatabase
     }}>
       {children}
     </AppContext.Provider>

@@ -91,13 +91,16 @@ const Master = () => {
     deleteUser,
     toggleUserVip,
     loginAsUser,
-    resetDatabase
+    resetDatabase,
+    exportDatabase,
+    importDatabase
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('kpis_crud'); // 'kpis_crud', 'pending_approvals', 'db_auditor'
   const [activeSubTab, setActiveSubTab] = useState('tenants'); // 'tenants', 'professores', 'alunos'
   const [selectedEval, setSelectedEval] = useState(null);
   const [selectedTable, setSelectedTable] = useState(TABLES_SCHEMA[1]); // Inicia em 'users'
+  const [backupJson, setBackupJson] = useState('');
 
   // Estados dos formulários CRUD
   const [showForm, setShowForm] = useState(null); // 'tenant', 'user', null
@@ -843,6 +846,7 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
       {/* ABA DO INSPETOR DO BANCO DE DADOS */}
       {activeTab === 'db_auditor' && (
         <div style={styles.mainGrid} className="animate-fade-in">
+          {/* Lado Esquerdo: Auditoria de Tabelas */}
           <div style={{ ...styles.panelCard, flex: '1 1 500px' }} className="glass">
             <div style={styles.panelHeader}>
               <Database size={20} style={{ color: 'var(--secondary)' }} />
@@ -896,6 +900,71 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Lado Direito: Gestão de Backup */}
+          <div style={{ ...styles.panelCard, flex: '1 1 400px' }} className="glass">
+            <div style={styles.panelHeader}>
+              <Server size={20} style={{ color: 'var(--primary)' }} />
+              <h3 style={styles.panelTitle}>Backup & Sincronização Local</h3>
+            </div>
+            
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.4' }}>
+              Exporte seus dados locais em formato JSON para criar backups ou sincronizar/transferir seus perfis de teste e treinos para outros aparelhos (como o seu celular).
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={styles.inputGroup}>
+                <label style={styles.formLabel}>Código JSON de Backup</label>
+                <textarea 
+                  placeholder="Seu JSON de backup aparecerá aqui ou cole o JSON do seu celular para restaurar..."
+                  value={backupJson}
+                  onChange={(e) => setBackupJson(e.target.value)}
+                  style={{
+                    padding: '10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontFamily: 'monospace',
+                    fontSize: '0.75rem',
+                    minHeight: '150px',
+                    outline: 'none',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+              
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  onClick={() => {
+                    const json = exportDatabase();
+                    setBackupJson(json);
+                    navigator.clipboard.writeText(json);
+                    alert('Backup JSON exportado e copiado para a área de transferência com sucesso!');
+                  }}
+                  className="btn btn-primary"
+                  style={{ flex: 1, padding: '10px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer' }}
+                >
+                  📥 Exportar & Copiar
+                </button>
+                <button 
+                  onClick={() => {
+                    if (!backupJson.trim()) {
+                      alert('Cole o JSON de backup antes de importar.');
+                      return;
+                    }
+                    if (confirm('Importar este JSON irá sobrescrever todos os dados do navegador atual. Continuar?')) {
+                      importDatabase(backupJson);
+                    }
+                  }}
+                  className="btn btn-secondary"
+                  style={{ flex: 1, padding: '10px', fontSize: '0.8rem', fontWeight: 'bold', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer' }}
+                >
+                  📤 Importar / Restaurar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
