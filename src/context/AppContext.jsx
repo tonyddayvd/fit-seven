@@ -83,6 +83,39 @@ export const AppProvider = ({ children }) => {
   // 1.1 Rota Virtual
   const [virtualRoute, setVirtualRoute] = useState('app');
 
+  // Estados persistidos
+  const [tenants, setTenants] = useState(() => {
+    const saved = localStorage.getItem('fitseven-tenants');
+    if (saved) return JSON.parse(saved);
+    const defaultTenants = {
+      'academia-vibe': { id: 't1', name: 'Academia Vibe & Energia', subdomain: 'academia-vibe', plano: 'Grow', limiteAlunos: 50 },
+      'cross-pulse': { id: 't2', name: 'Cross Pulse Studio', subdomain: 'cross-pulse', plano: 'Start', limiteAlunos: 20 },
+      'fit-seven-master': { id: 'master', name: 'Fit Seven Corporate', subdomain: 'master', plano: 'Scale', limiteAlunos: 9999 }
+    };
+    localStorage.setItem('fitseven-tenants', JSON.stringify(defaultTenants));
+    return defaultTenants;
+  });
+
+  const [usersList, setUsersList] = useState(() => {
+    const saved = localStorage.getItem('fitseven-users');
+    if (saved) return JSON.parse(saved);
+    const defaultUsers = MOCK_USERS.map(u => ({
+      ...u,
+      plano: u.role === 'professor' ? 'Básico' : undefined,
+      limiteAlunos: u.role === 'professor' ? 10 : undefined,
+      isVip: u.role === 'aluno' && u.id === 'u3' ? true : false,
+      data_cadastro: u.data_cadastro || new Date().toISOString(),
+      data_ativacao_vip: u.id === 'u3' ? '2026-06-01T12:00:00.000Z' : undefined
+    }));
+    localStorage.setItem('fitseven-users', JSON.stringify(defaultUsers));
+    return defaultUsers;
+  });
+
+  const [originalUser, setOriginalUser] = useState(() => {
+    const saved = localStorage.getItem('fitseven-original-user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   // 1. Controle de Tema
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('fitseven-theme');
@@ -129,6 +162,133 @@ export const AppProvider = ({ children }) => {
   const savePendingEvalsToStorage = (newEvals) => {
     setPendingEvaluations(newEvals);
     localStorage.setItem('fitseven-pending-evals', JSON.stringify(newEvals));
+  };
+
+  const saveTenants = (newTenants) => {
+    setTenants(newTenants);
+    localStorage.setItem('fitseven-tenants', JSON.stringify(newTenants));
+  };
+
+  const saveUsers = (newUsers) => {
+    setUsersList(newUsers);
+    localStorage.setItem('fitseven-users', JSON.stringify(newUsers));
+  };
+
+  // CRUD functions
+  const addTenant = (tenant) => {
+    const id = `t${Date.now()}`;
+    const newTenants = {
+      ...tenants,
+      [tenant.subdomain]: {
+        id,
+        name: tenant.name,
+        subdomain: tenant.subdomain,
+        plano: tenant.plano || 'Básico',
+        limiteAlunos: parseInt(tenant.limiteAlunos) || 10
+      }
+    };
+    saveTenants(newTenants);
+    return id;
+  };
+
+  const updateTenant = (subdomain, updatedData) => {
+    const newTenants = {
+      ...tenants,
+      [subdomain]: {
+        ...tenants[subdomain],
+        ...updatedData,
+        limiteAlunos: parseInt(updatedData.limiteAlunos) || tenants[subdomain].limiteAlunos
+      }
+    };
+    saveTenants(newTenants);
+  };
+
+  const deleteTenant = (subdomain) => {
+    const newTenants = { ...tenants };
+    delete newTenants[subdomain];
+    saveTenants(newTenants);
+  };
+
+  const addUser = (userData) => {
+    if (userData.role === 'aluno') {
+      const tenantId = userData.tenantId;
+      const tenant = Object.values(tenants).find(t => t.id === tenantId);
+      const limit = tenant ? tenant.limiteAlunos : 100;
+      
+      const currentAlunosCount = usersList.filter(u => u.role === 'aluno' && u.tenantId === tenantId).length;
+      if (currentAlunosCount >= limit) {
+        alert('Limite de alunos do plano atingido. Entre em contato com o suporte para upgrade.');
+        throw new Error('Limite de alunos do plano atingido. Entre em contato com o suporte para upgrade.');
+      }
+    }
+
+    const newUser = {
+      id: `u${Date.now()}`,
+      ...userData,
+      data_cadastro: new Date().toISOString()
+    };
+    saveUsers([...usersList, newUser]);
+    return newUser;
+  };
+
+  const updateUser = (userId, updatedData) => {
+    const newUsers = usersList.map(u => u.id === userId ? { ...u, ...updatedData } : u);
+    saveUsers(newUsers);
+  };
+
+  const deleteUser = (userId) => {
+    const newUsers = usersList.filter(u => u.id !== userId);
+    saveUsers(newUsers);
+  };
+
+  const toggleUserVip = (userId) => {
+    const newUsers = usersList.map(u => {
+      if (u.id === userId) {
+        const isNowVip = !u.isVip;
+        return {
+          ...u,
+          isVip: isNowVip,
+          data_ativacao_vip: isNowVip ? new Date().toISOString() : undefined
+        };
+      }
+      return u;
+    });
+    saveUsers(newUsers);
+
+    // Sync with workouts database
+    const targetUser = newUsers.find(u => u.id === userId);
+    if (targetUser) {
+      const currentWorkoutData = workoutsByStudent[userId];
+      const updatedWorkouts = {
+        ...workoutsByStudent,
+        [userId]: (currentWorkoutData && typeof currentWorkoutData === 'object' && !Array.isArray(currentWorkoutData))
+          ? { ...currentWorkoutData, isVip: targetUser.isVip }
+          : { exercises: DEFAULT_WORKOUTS, isVip: targetUser.isVip, vipHtml: '' }
+      };
+      saveWorkoutsToStorage(updatedWorkouts);
+    }
+  };
+
+  const loginAsUser = (targetUser) => {
+    if (!originalUser) {
+      setOriginalUser(user);
+      localStorage.setItem('fitseven-original-user', JSON.stringify(user));
+    }
+    setUser(targetUser);
+    localStorage.setItem('fitseven-user', JSON.stringify(targetUser));
+    setBypassRole(null);
+    setBypassTenantId(null);
+    localStorage.removeItem('fitseven-bypass-role');
+    localStorage.removeItem('fitseven-bypass-tenant');
+  };
+
+  const revertToMaster = () => {
+    if (originalUser) {
+      setUser(originalUser);
+      localStorage.setItem('fitseven-user', JSON.stringify(originalUser));
+      setOriginalUser(null);
+      localStorage.removeItem('fitseven-original-user');
+    }
   };
 
   // Motor de Inteligência Artificial Mockado
@@ -245,7 +405,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const login = (email, password) => {
-    const foundUser = MOCK_USERS.find(u => u.email === email && u.password === password);
+    const foundUser = usersList.find(u => u.email === email && u.password === password);
     if (foundUser) {
       setUser(foundUser);
       localStorage.setItem('fitseven-user', JSON.stringify(foundUser));
@@ -264,9 +424,11 @@ export const AppProvider = ({ children }) => {
     setUser(null);
     setBypassRole(null);
     setBypassTenantId(null);
+    setOriginalUser(null);
     localStorage.removeItem('fitseven-user');
     localStorage.removeItem('fitseven-bypass-role');
     localStorage.removeItem('fitseven-bypass-tenant');
+    localStorage.removeItem('fitseven-original-user');
   };
 
   const applyBypass = (role, tenantId) => {
@@ -287,7 +449,7 @@ export const AppProvider = ({ children }) => {
 
   const activeRole = (user?.role === 'master' && bypassRole) ? bypassRole : user?.role;
   const activeTenantId = (user?.role === 'master' && bypassTenantId) ? bypassTenantId : user?.tenantId;
-  const activeTenant = MOCK_TENANTS[Object.keys(MOCK_TENANTS).find(k => MOCK_TENANTS[k].id === activeTenantId)] || { name: 'Fit Seven Platform', subdomain: 'system' };
+  const activeTenant = tenants[Object.keys(tenants).find(k => tenants[k].id === activeTenantId)] || { name: 'Fit Seven Platform', subdomain: 'system' };
 
   // Retorna os exercícios ativos do aluno logado
   const studentData = workoutsByStudent[user?.id];
@@ -330,7 +492,19 @@ export const AppProvider = ({ children }) => {
       updateStudentExercises,
       workoutsByStudent,
       virtualRoute,
-      setVirtualRoute
+      setVirtualRoute,
+      tenants,
+      usersList,
+      originalUser,
+      addTenant,
+      updateTenant,
+      deleteTenant,
+      addUser,
+      updateUser,
+      deleteUser,
+      toggleUserVip,
+      loginAsUser,
+      revertToMaster
     }}>
       {children}
     </AppContext.Provider>

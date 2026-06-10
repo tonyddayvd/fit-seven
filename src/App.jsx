@@ -11,7 +11,7 @@ import Master from './views/Master';
 import Planos from './views/Planos';
 
 function App() {
-  const { user, activeRole, virtualRoute } = useApp();
+  const { user, activeRole, virtualRoute, originalUser, revertToMaster } = useApp();
 
   // Se não estiver autenticado, exibe a tela de login
   if (!user) {
@@ -48,6 +48,12 @@ function App() {
 
   return (
     <div style={styles.layout}>
+      {originalUser && (
+        <div style={styles.bypassBanner}>
+          <span>🕵️ MODO AUDITORIA: Você está visualizando a tela de <strong>{user?.name}</strong> ({user?.role?.toUpperCase()}).</span>
+          <button onClick={revertToMaster} style={styles.revertBtn}>Voltar ao Painel MASTER</button>
+        </div>
+      )}
       <div style={styles.container}>
         <Header />
         
@@ -63,6 +69,29 @@ function App() {
 }
 
 const styles = {
+  bypassBanner: {
+    backgroundColor: '#eab308',
+    color: '#000000',
+    padding: '10px 20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: '0.9rem',
+    fontWeight: '700',
+    boxShadow: 'var(--shadow-md)',
+    zIndex: 9999999,
+  },
+  revertBtn: {
+    backgroundColor: '#000000',
+    color: '#ffffff',
+    border: 'none',
+    padding: '6px 12px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    fontWeight: '700',
+    transition: 'opacity 0.2s',
+  },
   loginContainer: {
     minHeight: '100vh',
     display: 'flex',
