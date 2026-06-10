@@ -420,16 +420,26 @@ const Master = () => {
                     </div>
                   )}
                   <div style={styles.inputGroup}>
-                    <label style={styles.formLabel}>Vincular à Academia (Tenant)</label>
+                    <label style={styles.formLabel}>Vincular à Academia ou Professor (Tenant)</label>
                     <select 
                       value={userForm.tenantId} 
                       onChange={(e) => setUserForm(prev => ({ ...prev, tenantId: e.target.value }))}
                       style={styles.selectField}
                     >
-                      {Object.keys(tenants).map(k => {
-                        const t = tenants[k];
-                        return <option key={t.id} value={t.id}>{t.name} ({t.subdomain})</option>;
-                      })}
+                      <option value="">Selecione um Vínculo...</option>
+                      <optgroup label="Academias">
+                        {Object.keys(tenants).map(k => {
+                          const t = tenants[k];
+                          return <option key={t.id} value={t.id}>{t.name} ({t.subdomain})</option>;
+                        })}
+                      </optgroup>
+                      {userForm.role === 'aluno' && (
+                        <optgroup label="Professores Independentes">
+                          {usersList.filter(u => u.role === 'professor').map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
                   </div>
                   {userForm.role === 'professor' && (
@@ -592,7 +602,7 @@ const Master = () => {
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableCellHeader}>Nome</th>
                       <th style={styles.tableCellHeader}>E-mail</th>
-                      <th style={styles.tableCellHeader}>Academia (Tenant)</th>
+                      <th style={styles.tableCellHeader}>Vínculo (Academia/Prof.)</th>
                       <th style={styles.tableCellHeader}>Status VIP</th>
                       <th style={styles.tableCellHeader}>Data Cadastro</th>
                       <th style={{ ...styles.tableCellHeader, textAlign: 'right' }}>Ações</th>
@@ -600,7 +610,7 @@ const Master = () => {
                   </thead>
                   <tbody>
                     {usersList.filter(u => u.role === 'aluno').map(a => {
-                      const acad = Object.values(tenants).find(t => t.id === a.tenantId) || { name: 'Desconhecida' };
+                      const acad = Object.values(tenants).find(t => t.id === a.tenantId) || usersList.find(u => u.id === a.tenantId && u.role === 'professor') || { name: 'Desconhecido' };
                       return (
                         <tr key={a.id} style={styles.tableRow}>
                           <td style={styles.tableCell}><strong>{a.name}</strong></td>

@@ -212,13 +212,29 @@ export const AppProvider = ({ children }) => {
   const addUser = (userData) => {
     if (userData.role === 'aluno') {
       const tenantId = userData.tenantId;
+      let limit = 100;
+      let isProfessorTenant = false;
+      
       const tenant = Object.values(tenants).find(t => t.id === tenantId);
-      const limit = tenant ? tenant.limiteAlunos : 100;
+      if (tenant) {
+        limit = parseInt(tenant.limiteAlunos) || 10;
+      } else {
+        const prof = usersList.find(u => u.id === tenantId && u.role === 'professor');
+        if (prof) {
+          limit = parseInt(prof.limiteAlunos) || 10;
+          isProfessorTenant = true;
+        }
+      }
       
       const currentAlunosCount = usersList.filter(u => u.role === 'aluno' && u.tenantId === tenantId).length;
       if (currentAlunosCount >= limit) {
-        alert('Limite de alunos do plano atingido. Entre em contato com o suporte para upgrade.');
-        throw new Error('Limite de alunos do plano atingido. Entre em contato com o suporte para upgrade.');
+        if (isProfessorTenant) {
+          alert('Limite do seu plano atingido. Faça um upgrade para adicionar mais alunos.');
+          throw new Error('Limite do seu plano atingido. Faça um upgrade para adicionar mais alunos.');
+        } else {
+          alert('Limite de alunos do plano atingido. Entre em contato com o suporte para upgrade.');
+          throw new Error('Limite de alunos do plano atingido. Entre em contato com o suporte para upgrade.');
+        }
       }
     }
 

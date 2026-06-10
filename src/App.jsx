@@ -50,8 +50,8 @@ function App() {
     <div style={styles.layout}>
       {originalUser && (
         <div style={styles.bypassBanner}>
-          <span>🕵️ MODO AUDITORIA: Você está visualizando a tela de <strong>{user?.name}</strong> ({user?.role?.toUpperCase()}).</span>
-          <button onClick={revertToMaster} style={styles.revertBtn}>Voltar ao Painel MASTER</button>
+          <span>🕵️ MODO VISUALIZAÇÃO: Você está acessando como <strong>{user?.name}</strong> ({user?.role?.toUpperCase()}).</span>
+          <button onClick={revertToMaster} style={styles.revertBtn}>Voltar ao meu Painel</button>
         </div>
       )}
       <div style={styles.container}>
