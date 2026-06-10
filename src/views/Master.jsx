@@ -90,7 +90,8 @@ const Master = () => {
     updateUser,
     deleteUser,
     toggleUserVip,
-    loginAsUser
+    loginAsUser,
+    resetDatabase
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('kpis_crud'); // 'kpis_crud', 'pending_approvals', 'db_auditor'
@@ -170,8 +171,7 @@ const Master = () => {
 
   // Handlers CRUD Users
   const openAddUser = (role) => {
-    const defaultTenant = Object.values(tenants)[0]?.id || '';
-    setUserForm({ name: '', email: '', password: '123', tenantId: defaultTenant, role, plano: 'Básico', limiteAlunos: 10 });
+    setUserForm({ name: '', email: '', password: '123', tenantId: '', role, plano: 'Básico', limiteAlunos: 10 });
     setEditingId(null);
     setShowForm('user');
   };
@@ -235,12 +235,36 @@ const Master = () => {
       
       {/* Welcome banner */}
       <div style={styles.welcomeCard} className="glass">
-        <div style={styles.cardHeader}>
-          <ShieldAlert size={28} className="text-gradient" />
-          <div>
-            <h2 style={styles.title}>Centro de Comando MASTER</h2>
-            <p style={styles.subtitle}>Gestão de estabelecimentos, limites de planos, acessos e fila de aprovações de IA</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={styles.cardHeader}>
+            <ShieldAlert size={28} className="text-gradient" />
+            <div>
+              <h2 style={styles.title}>Centro de Comando MASTER</h2>
+              <p style={styles.subtitle}>Gestão de estabelecimentos, limites de planos, acessos e fila de aprovações de IA</p>
+            </div>
           </div>
+          <button 
+            onClick={() => {
+              if (confirm('Deseja realmente resetar todas as alterações e recarregar os dados de demonstração originais? Isso limpará a fila de aprovação e trará os professores de volta.')) {
+                resetDatabase();
+              }
+            }} 
+            style={{ 
+              padding: '8px 16px', 
+              fontSize: '0.8rem', 
+              fontWeight: 'bold', 
+              backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+              color: 'var(--status-danger)', 
+              border: '1px solid rgba(239, 68, 68, 0.2)', 
+              borderRadius: '4px',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s' 
+            }}
+            onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'}
+            onMouseOut={(e) => e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
+          >
+            🔄 Resetar Base de Dados Local
+          </button>
         </div>
       </div>
 
@@ -426,7 +450,7 @@ const Master = () => {
                       onChange={(e) => setUserForm(prev => ({ ...prev, tenantId: e.target.value }))}
                       style={styles.selectField}
                     >
-                      <option value="">Selecione um Vínculo...</option>
+                      <option value="">Sem Vínculo (Aluno Avulso - Acompanhamento IA)</option>
                       <optgroup label="Academias">
                         {Object.keys(tenants).map(k => {
                           const t = tenants[k];
