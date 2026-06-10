@@ -131,9 +131,12 @@ const Aluno = () => {
   const [lastEvalDate, setLastEvalDate] = useState(() => {
     const saved = localStorage.getItem(`fitseven-last-eval-${user?.id || 'u3'}`);
     if (saved) return new Date(saved);
-    const d = new Date();
-    d.setDate(d.getDate() - 20); // Fallback: 20 dias atrás para demonstração inicial
-    return d;
+    if (user?.id === 'u3') {
+      const d = new Date();
+      d.setDate(d.getDate() - 20);
+      return d;
+    }
+    return null;
   });
 
   useEffect(() => {
@@ -247,6 +250,7 @@ const Aluno = () => {
 
     // Se passou, submete para a fila de aprovação e prossegue com envio
     submitEvaluation(formData);
+    setLastEvalDate(new Date());
     setMedidasSubmitted(true);
   };
 
@@ -1474,10 +1478,15 @@ const Aluno = () => {
                         const isVip = workoutsByStudent && workoutsByStudent[user?.id]?.isVip;
                         const cooldownDays = isVip ? 30 : 90;
                         
-                        const timeDiff = new Date().getTime() - lastEvalDate.getTime();
-                        const diffDays = Math.floor(timeDiff / (1000 * 3600 * 24));
-                        const daysLeft = cooldownDays - diffDays;
-                        const isCoolingDown = daysLeft > 0;
+                        let isCoolingDown = false;
+                        let daysLeft = 0;
+                        
+                        if (lastEvalDate) {
+                          const timeDiff = new Date().getTime() - lastEvalDate.getTime();
+                          const diffDays = Math.floor(timeDiff / (1000 * 3600 * 24));
+                          daysLeft = cooldownDays - diffDays;
+                          isCoolingDown = daysLeft > 0;
+                        }
 
                         return (
                           <>
