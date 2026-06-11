@@ -486,7 +486,14 @@ export const AppProvider = ({ children }) => {
   };
 
   const login = (email, password) => {
-    const foundUser = usersList.find(u => u.email === email && u.password === password);
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPassword = (password || '').trim();
+    
+    const foundUser = usersList.find(u => 
+      (u.email || '').trim().toLowerCase() === cleanEmail && 
+      (u.password || '').trim() === cleanPassword
+    );
+    
     if (foundUser) {
       setUser(foundUser);
       localStorage.setItem('fitseven-user', JSON.stringify(foundUser));
