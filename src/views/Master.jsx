@@ -743,6 +743,7 @@ Idade: ${data.idade} anos
 Peso: ${data.peso} kg
 Altura: ${data.altura} cm
 Objetivo: ${data.objetivo}
+Circunferências: Pescoço: ${data.pescoco}cm | Peitoral: ${data.peitoral}cm | Cintura: ${data.cintura}cm | Abdômen: ${data.abdomen}cm | Quadril: ${data.quadril}cm | Braço Esq/Dir: ${data.braçoEsq}cm / ${data.braçoDir}cm | Coxa Esq (Sup/Inf): ${data.coxaEsqSuperior}cm / ${data.coxaEsqInferior}cm | Coxa Dir (Sup/Inf): ${data.coxaDirSuperior}cm / ${data.coxaDirInferior}cm | Panturrilha Esq/Dir: ${data.panturrilhaEsq}cm / ${data.panturrilhaDir}cm
 Nível de Experiência: ${data.nivelExperiencia}
 Frequência Semanal: ${data.frequenciaSemanal} dias
 Tempo por Sessão: ${data.tempoSessao} minutos

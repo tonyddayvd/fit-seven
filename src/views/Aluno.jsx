@@ -177,8 +177,10 @@ const Aluno = () => {
     quadril: '', // Novo
     braçoEsq: '',
     braçoDir: '',
-    coxaEsq: '',
-    coxaDir: '',
+    coxaEsqSuperior: '',
+    coxaEsqInferior: '',
+    coxaDirSuperior: '',
+    coxaDirInferior: '',
     panturrilhaEsq: '', // Novo
     panturrilhaDir: '', // Novo
     // Seção 4: Logística e Hábitos
@@ -911,7 +913,7 @@ const Aluno = () => {
                         <p><strong>user_id:</strong> <code style={styles.code}>{user?.id || 'u3'}</code></p>
                         <p><strong>Sexo / Idade:</strong> {formData.sexoBiologico === 'masculino' ? 'Masculino' : 'Feminino'} / {formData.idade} anos</p>
                         <p><strong>Peso / Altura:</strong> {formData.peso} kg / {formData.altura} cm</p>
-                        <p><strong>Circunferências (Mandatórias):</strong> Pescoço: {formData.pescoco}cm | Peitoral: {formData.peitoral}cm | Cintura: {formData.cintura}cm | Abdômen: {formData.abdomen}cm | Quadril: {formData.quadril}cm | Coxas (D/E): {formData.coxaDir}cm / {formData.coxaEsq}cm | Braços (D/E): {formData.braçoDir}cm / {formData.braçoEsq}cm | Panturrilhas (D/E): {formData.panturrilhaDir}cm / {formData.panturrilhaEsq}cm</p>
+                        <p><strong>Circunferências (Mandatórias):</strong> Pescoço: {formData.pescoco}cm | Peitoral: {formData.peitoral}cm | Cintura: {formData.cintura}cm | Abdômen: {formData.abdomen}cm | Quadril: {formData.quadril}cm | Coxas Dir. (Sup/Inf): {formData.coxaDirSuperior}cm / {formData.coxaDirInferior}cm | Coxas Esq. (Sup/Inf): {formData.coxaEsqSuperior}cm / {formData.coxaEsqInferior}cm | Braços (D/E): {formData.braçoDir}cm / {formData.braçoEsq}cm | Panturrilhas (D/E): {formData.panturrilhaDir}cm / {formData.panturrilhaEsq}cm</p>
                         <p><strong>Objetivo:</strong> {formData.objetivo.toUpperCase()}</p>
                         <p><strong>Rotina Relatada:</strong> {formData.descricaoRotina || 'Não informada'}</p>
                         <p><strong>Logística e Nutrição:</strong> Tempo: {formData.tempoSessao}min | Sono: {formData.horasSono}h (Nota: {formData.qualidadeSono}/10) | Equipamentos: {formData.equipamentos} | Atividade: {formData.nivelAtividade} | Hidratação: {formData.hidratacaoAtual}L | Suplementos: {formData.suplementos} | Restrições Alim.: {formData.restriçõesAlimentares} | Lesões: {formData.lesoes}</p>
@@ -1100,12 +1102,24 @@ const Aluno = () => {
                               <input type="number" placeholder="cm" value={formData.braçoDir} onChange={(e) => handleInputChange('braçoDir', e.target.value)} style={styles.inputField} required />
                             </div>
                             <div style={styles.inputGroup}>
-                              <label style={styles.formLabel}>Coxa Esq. (cm) *</label>
-                              <input type="number" placeholder="cm" value={formData.coxaEsq} onChange={(e) => handleInputChange('coxaEsq', e.target.value)} style={styles.inputField} required />
+                              <label style={styles.formLabel}>Coxa Esq. Superior (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.coxaEsqSuperior} onChange={(e) => handleInputChange('coxaEsqSuperior', e.target.value)} style={styles.inputField} required />
+                              <span style={styles.fieldSupportText}>Meça a região 4 dedos abaixo da virilha.</span>
                             </div>
                             <div style={styles.inputGroup}>
-                              <label style={styles.formLabel}>Coxa Dir. (cm) *</label>
-                              <input type="number" placeholder="cm" value={formData.coxaDir} onChange={(e) => handleInputChange('coxaDir', e.target.value)} style={styles.inputField} required />
+                              <label style={styles.formLabel}>Coxa Esq. Inferior (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.coxaEsqInferior} onChange={(e) => handleInputChange('coxaEsqInferior', e.target.value)} style={styles.inputField} required />
+                              <span style={styles.fieldSupportText}>Meça a região 4 dedos acima do joelho.</span>
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Coxa Dir. Superior (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.coxaDirSuperior} onChange={(e) => handleInputChange('coxaDirSuperior', e.target.value)} style={styles.inputField} required />
+                              <span style={styles.fieldSupportText}>Meça a região 4 dedos abaixo da virilha.</span>
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.formLabel}>Coxa Dir. Inferior (cm) *</label>
+                              <input type="number" placeholder="cm" value={formData.coxaDirInferior} onChange={(e) => handleInputChange('coxaDirInferior', e.target.value)} style={styles.inputField} required />
+                              <span style={styles.fieldSupportText}>Meça a região 4 dedos acima do joelho.</span>
                             </div>
                             <div style={styles.inputGroup}>
                               <label style={styles.formLabel}>Panturrilha Esq. (cm) *</label>
