@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useApp, MOCK_USERS } from '../context/AppContext';
+import { useApp } from '../context/AppContext';
 import { Dumbbell, Eye, EyeOff, Lock, Mail, ShieldAlert } from 'lucide-react';
 
 const Login = () => {
-  const { login } = useApp();
+  const { login, usersList } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -95,7 +95,7 @@ const Login = () => {
         </div>
 
         <div style={styles.demoSection}>
-          {MOCK_USERS.map((u) => (
+          {usersList && usersList.map((u) => (
             <button
               key={u.id}
               onClick={() => selectDemoUser(u.email)}
@@ -105,7 +105,7 @@ const Login = () => {
               <span style={styles.demoBadgeRole}>
                 {u.role.toUpperCase()}
               </span>
-              <span style={styles.demoBadgeName}>{u.name.split(' ')[0]}</span>
+              <span style={styles.demoBadgeName}>{u.name?.split(' ')[0]}</span>
             </button>
           ))}
         </div>

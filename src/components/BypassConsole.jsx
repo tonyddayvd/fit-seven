@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useApp, MOCK_TENANTS } from '../context/AppContext';
+import { useApp } from '../context/AppContext';
 import { Shield, Sparkles, RefreshCw } from 'lucide-react';
 
 const BypassConsole = () => {
-  const { user, applyBypass, bypassRole, bypassTenantId } = useApp();
+  const { user, applyBypass, bypassRole, bypassTenantId, tenants } = useApp();
   const [isOpen, setIsOpen] = useState(false);
 
   // Só renderiza se o usuário original logado for master
@@ -45,9 +45,9 @@ const BypassConsole = () => {
               style={styles.select}
             >
               <option value="">Tenant do Master (Corporate)</option>
-              {Object.keys(MOCK_TENANTS).map(key => (
-                <option key={MOCK_TENANTS[key].id} value={MOCK_TENANTS[key].id}>
-                  {MOCK_TENANTS[key].name} ({MOCK_TENANTS[key].subdomain})
+              {Object.keys(tenants || {}).map(key => (
+                <option key={tenants[key].id} value={tenants[key].id}>
+                  {tenants[key].name} ({tenants[key].subdomain})
                 </option>
               ))}
             </select>

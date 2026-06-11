@@ -11,7 +11,38 @@ import Master from './views/Master';
 import Planos from './views/Planos';
 
 function App() {
-  const { user, activeRole, virtualRoute, originalUser, revertToMaster } = useApp();
+  const { user, activeRole, virtualRoute, originalUser, revertToMaster, isLoading } = useApp();
+
+  if (isLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-primary)',
+        color: 'var(--text-primary)',
+        fontFamily: 'Inter, sans-serif'
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          border: '4px solid var(--border-color)',
+          borderTopColor: 'var(--accent-primary)',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+          marginBottom: '20px'
+        }} />
+        <p style={{ fontWeight: '600', letterSpacing: '0.5px' }}>Carregando ecossistema Fit Seven...</p>
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   // Se não estiver autenticado, exibe a tela de login
   if (!user) {

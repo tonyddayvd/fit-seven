@@ -1,13 +1,13 @@
 import React from 'react';
-import { useApp, MOCK_USERS } from '../context/AppContext';
+import { useApp } from '../context/AppContext';
 import { Users, UserCheck, TrendingUp, DollarSign, Dumbbell } from 'lucide-react';
 
 const Estabelecimento = () => {
-  const { activeTenantId, activeTenant } = useApp();
+  const { activeTenantId, activeTenant, usersList } = useApp();
 
   // Filtrar dados baseados no activeTenantId para demonstrar o isolamento de dados
-  const activeStaff = MOCK_USERS.filter(u => u.tenantId === activeTenantId && u.role === 'professor');
-  const activeStudents = MOCK_USERS.filter(u => u.tenantId === activeTenantId && u.role === 'aluno');
+  const activeStaff = (usersList || []).filter(u => u.tenantId === activeTenantId && u.role === 'professor');
+  const activeStudents = (usersList || []).filter(u => u.tenantId === activeTenantId && u.role === 'aluno');
 
   return (
     <div style={styles.container} className="animate-fade-in">
