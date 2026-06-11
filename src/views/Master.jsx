@@ -193,20 +193,20 @@ const Master = () => {
     setShowForm('user');
   };
 
-  const handleSaveUser = (e) => {
+  const handleSaveUser = async (e) => {
     e.preventDefault();
     try {
       if (editingId) {
-        updateUser(editingId, userForm);
+        await updateUser(editingId, userForm);
         alert('Usuário atualizado com sucesso!');
       } else {
-        addUser(userForm);
-        alert('Novo usuário cadastrada com sucesso!');
+        await addUser(userForm);
+        alert('Novo usuário cadastrado com sucesso!');
       }
       setShowForm(null);
     } catch (err) {
-      // O erro do bloqueio de limite é pego aqui
       console.error(err);
+      alert('Erro ao salvar usuário: ' + (err.message || err.details || 'Verifique os dados.'));
     }
   };
 

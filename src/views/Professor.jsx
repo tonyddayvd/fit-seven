@@ -109,16 +109,16 @@ const Professor = () => {
     setShowForm(true);
   };
 
-  const handleSaveStudent = (e) => {
+  const handleSaveStudent = async (e) => {
     e.preventDefault();
     try {
       if (editingId) {
-        updateUser(editingId, studentForm);
+        await updateUser(editingId, studentForm);
         alert('Cadastro do aluno atualizado com sucesso!');
         setShowForm(false);
       } else {
         // Tenta cadastrar. addUser já fará o check final de limite
-        addUser({
+        await addUser({
           ...studentForm,
           role: 'aluno',
           tenantId: user.id // Vinculado diretamente a este professor
@@ -128,6 +128,7 @@ const Professor = () => {
       }
     } catch (err) {
       console.error(err);
+      alert('Erro ao salvar aluno: ' + (err.message || err.details || 'Verifique os dados.'));
     }
   };
 

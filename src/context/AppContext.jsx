@@ -218,8 +218,8 @@ export const AppProvider = ({ children }) => {
   };
 
   const addUser = async (userData) => {
+    const tenantId = userData.tenantId || 'master';
     if (userData.role === 'aluno') {
-      const tenantId = userData.tenantId;
       if (tenantId) {
         let limit = 100;
         let isProfessorTenant = false;
@@ -259,7 +259,7 @@ export const AppProvider = ({ children }) => {
 
     const { error } = await supabase.from('users').insert({
       id,
-      tenant_id: userData.tenantId,
+      tenant_id: tenantId,
       role: userData.role,
       plano_vip: false,
       dados_pessoais: dadosPessoais
