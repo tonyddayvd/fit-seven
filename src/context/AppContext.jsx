@@ -145,15 +145,29 @@ export const AppProvider = ({ children }) => {
         setUsersList(mappedUsers);
       }
 
-      // 3. Carregar Avaliacoes
+      // 3. Carregar Avaliacoes com Parsing Robusto do campo JSONB medidas
       const { data: evalsData, error: evalsErr } = await supabase.from('avaliacoes').select('*');
       if (!evalsErr && evalsData) {
-        const mappedEvals = evalsData.map(ev => ({
-          ...ev.medidas,
-          id: ev.id,
-          userId: ev.user_id,
-          tenantId: ev.tenant_id
-        }));
+        const mappedEvals = evalsData.map(ev => {
+          let parsedMedidas = {};
+          if (ev.medidas) {
+            if (typeof ev.medidas === 'string') {
+              try {
+                parsedMedidas = JSON.parse(ev.medidas);
+              } catch (e) {
+                console.error('Erro ao fazer parse de medidas:', e);
+              }
+            } else {
+              parsedMedidas = ev.medidas;
+            }
+          }
+          return {
+            ...parsedMedidas,
+            id: ev.id,
+            userId: ev.user_id,
+            tenantId: ev.tenant_id
+          };
+        });
         setPendingEvaluations(mappedEvals);
       }
 
