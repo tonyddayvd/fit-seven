@@ -442,8 +442,7 @@ export const AppProvider = ({ children }) => {
     await refreshData();
   };
 
-  // Aprovar e Publicar o Treino no Supabase
-  const approveAndPublishWorkout = async (evalId) => {
+  const approveAndPublishWorkout = async (evalId, vipOptions = {}) => {
     const evaluation = pendingEvaluations.find(ev => ev.id === evalId);
     if (!evaluation) return false;
 
@@ -458,8 +457,8 @@ export const AppProvider = ({ children }) => {
       });
     });
 
-    const isVip = arguments[1] === true || (typeof arguments[1] === 'object' && arguments[1]?.isVip === true);
-    const vipHtml = typeof arguments[1] === 'object' ? arguments[1]?.vipHtml : arguments[2];
+    const isVip = vipOptions === true || (typeof vipOptions === 'object' && vipOptions?.isVip === true);
+    const vipHtml = typeof vipOptions === 'object' ? vipOptions?.vipHtml : '';
 
     const workoutData = {
       exercises: allExercises,
