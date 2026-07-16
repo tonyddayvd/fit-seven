@@ -128,7 +128,17 @@ const Aluno = () => {
   const [auditLog, setAuditLog] = useState([]);
 
   // Data simulada da última avaliação física carregada do localStorage ou simulação de 20 dias atrás
+  // Se o aluno não tiver nenhum treino VIP ativo publicado e nenhuma avaliação pendente na fila, permitimos reenviar imediatamente para evitar travamentos
+  const { pendingEvaluations: globalPendingEvals } = useApp();
   const [lastEvalDate, setLastEvalDate] = useState(() => {
+    const hasWorkout = workoutsByStudent && workoutsByStudent[user?.id];
+    const hasPending = globalPendingEvals && globalPendingEvals.some(ev => ev.userId === user?.id);
+    
+    // Se não tem treino ativo e não tem avaliação pendente, ignora o cooldown simulado
+    if (!hasWorkout && !hasPending) {
+      return null;
+    }
+
     const saved = localStorage.getItem(`fitseven-last-eval-${user?.id || 'u3'}`);
     if (saved) return new Date(saved);
     if (user?.id === 'u3') {
@@ -1539,7 +1549,10 @@ const Aluno = () => {
                         let isCoolingDown = false;
                         let daysLeft = 0;
                         
-                        if (lastEvalDate) {
+                        const hasWorkout = workoutsByStudent && workoutsByStudent[user?.id];
+                        const hasPending = globalPendingEvals && globalPendingEvals.some(ev => ev.userId === user?.id);
+
+                        if (lastEvalDate && (hasWorkout || hasPending)) {
                           const timeDiff = new Date().getTime() - lastEvalDate.getTime();
                           const diffDays = Math.floor(timeDiff / (1000 * 3600 * 24));
                           daysLeft = cooldownDays - diffDays;
