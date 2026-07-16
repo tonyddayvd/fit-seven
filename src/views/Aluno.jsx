@@ -168,6 +168,7 @@ const Aluno = () => {
   // Estados da aba Medidas/Avaliação
   const [activeAccordion, setActiveAccordion] = useState('identificacao');
   const [medidasSubmitted, setMedidasSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Estados do Formulário de Medidas
   const [formData, setFormData] = useState({
@@ -297,8 +298,44 @@ const Aluno = () => {
     }
   };
 
+  // Função para comprimir imagens em Base64 no navegador via Canvas para evitar estouro de rede
+  const compressImageBase64 = (base64Str, maxWidth = 800, quality = 0.7) => {
+    return new Promise((resolve) => {
+      // Se não for imagem ou não for base64 completo, retorna direto
+      if (!base64Str || !base64Str.startsWith('data:image/')) {
+        resolve(base64Str);
+        return;
+      }
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressed = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressed);
+      };
+      img.onerror = () => {
+        resolve(base64Str); // Fallback caso falhe na leitura
+      };
+    });
+  };
+
   const handleMedidasSubmit = async (e) => {
     e.preventDefault();
+
+    if (isSubmitting) return;
 
     // Validação da triagem obrigatória PAR-Q
     if (formData.parqCardiaco === null || formData.parqDorPeito === null || formData.parqMedicamento === null) {
@@ -313,14 +350,37 @@ const Aluno = () => {
       return;
     }
 
-    // Se passou, submete para a fila de aprovação e prossegue com envio
+    setIsSubmitting(true);
+
     try {
-      await submitEvaluation(formData);
+      // Compactar as imagens Base64 antes do envio para evitar estouro de limite do Supabase e timeouts
+      const compressedFrente = await compressImageBase64(formData.fotoFrenteBase64);
+      const compressedCostas = await compressImageBase64(formData.fotoCostasBase64);
+      const compressedPerfil = await compressImageBase64(formData.fotoPerfilBase64);
+      
+      // Laudo clínico: Se for imagem, comprime. Se for PDF, mantém original (Base64 do PDF não inicia com data:image/)
+      const compressedLaudo = await compressImageBase64(formData.laudoFileBase64);
+
+      const finalData = {
+        ...formData,
+        fotoFrenteBase64: compressedFrente,
+        fotoCostasBase64: compressedCostas,
+        fotoPerfilBase64: compressedPerfil,
+        laudoFileBase64: compressedLaudo
+      };
+
+      await submitEvaluation(finalData);
       setLastEvalDate(new Date());
       setMedidasSubmitted(true);
       
-      // Salva em localStorage os dados enviados para autocompletar avaliações futuras
-      localStorage.setItem(`fitseven-last-eval-data-${user?.id || 'u3'}`, JSON.stringify(formData));
+      // Salva em localStorage os dados enviados para autocompletar avaliações futuras (mantendo apenas dados leves)
+      const lightData = { ...finalData };
+      delete lightData.fotoFrenteBase64;
+      delete lightData.fotoCostasBase64;
+      delete lightData.fotoPerfilBase64;
+      delete lightData.laudoFileBase64;
+      localStorage.setItem(`fitseven-last-eval-data-${user?.id || 'u3'}`, JSON.stringify(lightData));
+      
       // Limpa o rascunho temporário ativo pois o formulário já foi enviado
       localStorage.removeItem(`fitseven-draft-eval-${user?.id || 'u3'}`);
       
@@ -328,6 +388,8 @@ const Aluno = () => {
     } catch (err) {
       console.error(err);
       alert('Erro ao enviar avaliação: ' + (err.message || 'Erro de conexão com o banco de dados.'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1614,16 +1676,18 @@ const Aluno = () => {
                           <>
                             <button 
                               type="submit" 
-                              disabled={isCoolingDown}
+                              disabled={isCoolingDown || isSubmitting}
                               style={{
                                 ...styles.submitMedidasBtn,
-                                ...(isCoolingDown ? { backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-muted)', cursor: 'not-allowed', borderColor: 'var(--border-color)' } : {})
+                                ...((isCoolingDown || isSubmitting) ? { backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-muted)', cursor: 'not-allowed', borderColor: 'var(--border-color)' } : {})
                               }}
-                              className={isCoolingDown ? "btn-disabled" : "btn-primary"}
+                              className={(isCoolingDown || isSubmitting) ? "btn-disabled" : "btn-primary"}
                             >
-                              {isCoolingDown 
-                                ? `Sua próxima avaliação estará liberada em ${daysLeft} dias` 
-                                : "Enviar Medidas com tenant_id"
+                              {isSubmitting 
+                                ? "Comprimindo Fotos & Enviando..." 
+                                : isCoolingDown 
+                                  ? `Sua próxima avaliação estará liberada em ${daysLeft} dias` 
+                                  : "Enviar Medidas com tenant_id"
                               }
                             </button>
                             {isCoolingDown && (
