@@ -93,7 +93,8 @@ const Master = () => {
     loginAsUser,
     resetDatabase,
     exportDatabase,
-    importDatabase
+    importDatabase,
+    user
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('kpis_crud'); // 'kpis_crud', 'pending_approvals', 'db_auditor'

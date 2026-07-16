@@ -234,7 +234,7 @@ const Aluno = () => {
     }
   };
 
-  const handleMedidasSubmit = (e) => {
+  const handleMedidasSubmit = async (e) => {
     e.preventDefault();
 
     // Validação da triagem obrigatória PAR-Q
@@ -251,9 +251,15 @@ const Aluno = () => {
     }
 
     // Se passou, submete para a fila de aprovação e prossegue com envio
-    submitEvaluation(formData);
-    setLastEvalDate(new Date());
-    setMedidasSubmitted(true);
+    try {
+      await submitEvaluation(formData);
+      setLastEvalDate(new Date());
+      setMedidasSubmitted(true);
+      alert('Avaliação física submetida com sucesso! Aguarde a aprovação do seu treinador.');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao enviar avaliação: ' + (err.message || 'Erro de conexão com o banco de dados.'));
+    }
   };
 
   const speakText = (text, onEndCallback) => {
