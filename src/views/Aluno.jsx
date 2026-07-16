@@ -230,7 +230,15 @@ const Aluno = () => {
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData(prev => ({ ...prev, laudoFile: file.name }));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ 
+          ...prev, 
+          laudoFile: file.name,
+          laudoFileBase64: reader.result 
+        }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -1425,7 +1433,17 @@ const Aluno = () => {
                                 accept="image/*" 
                                 onChange={(e) => {
                                   const file = e.target.files[0];
-                                  if (file) handleInputChange('fotoFrente', file.name);
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      setFormData(prev => ({ 
+                                        ...prev, 
+                                        fotoFrente: file.name,
+                                        fotoFrenteBase64: reader.result 
+                                      }));
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
                                 }}
                                 required
                               />
@@ -1453,7 +1471,17 @@ const Aluno = () => {
                                 accept="image/*" 
                                 onChange={(e) => {
                                   const file = e.target.files[0];
-                                  if (file) handleInputChange('fotoCostas', file.name);
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      setFormData(prev => ({ 
+                                        ...prev, 
+                                        fotoCostas: file.name,
+                                        fotoCostasBase64: reader.result 
+                                      }));
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
                                 }}
                                 required
                               />
@@ -1481,7 +1509,17 @@ const Aluno = () => {
                                 accept="image/*" 
                                 onChange={(e) => {
                                   const file = e.target.files[0];
-                                  if (file) handleInputChange('fotoPerfil', file.name);
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      setFormData(prev => ({ 
+                                        ...prev, 
+                                        fotoPerfil: file.name,
+                                        fotoPerfilBase64: reader.result 
+                                      }));
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
                                 }}
                                 required
                               />
@@ -1649,40 +1687,90 @@ const Aluno = () => {
                       📸 Antes e Depois (Registro Fotográfico)
                     </h4>
                     <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
-                      {/* Antes */}
+                      {/* Frente */}
                       <div style={{ flex: 1, textAlign: 'center', minWidth: '120px' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Anterior (Frente)</span>
-                        <div style={{
-                          height: '140px',
-                          backgroundColor: 'var(--bg-tertiary)',
-                          borderRadius: '6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '1px solid var(--border-color)',
-                          fontSize: '2.5rem',
-                          opacity: 0.5
-                        }}>
-                          👤
-                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Foto Frente</span>
+                        {formData.fotoFrenteBase64 ? (
+                          <img src={formData.fotoFrenteBase64} alt="Frente" style={{ height: '140px', width: '100%', objectFit: 'contain', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                        ) : (
+                          <div style={{
+                            height: '140px',
+                            backgroundColor: 'var(--bg-tertiary)',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '1px solid var(--border-color)',
+                            fontSize: '2.5rem',
+                            opacity: 0.5
+                          }}>
+                            👤
+                          </div>
+                        )}
                       </div>
-                      {/* Depois */}
+                      
+                      {/* Costas */}
                       <div style={{ flex: 1, textAlign: 'center', minWidth: '120px' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--primary)', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Atual (Frente)</span>
-                        <div style={{
-                          height: '140px',
-                          backgroundColor: 'rgba(139, 92, 246, 0.05)',
-                          borderRadius: '6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '1px solid var(--primary)',
-                          fontSize: '2.5rem'
-                        }}>
-                          👤
-                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Foto Costas</span>
+                        {formData.fotoCostasBase64 ? (
+                          <img src={formData.fotoCostasBase64} alt="Costas" style={{ height: '140px', width: '100%', objectFit: 'contain', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                        ) : (
+                          <div style={{
+                            height: '140px',
+                            backgroundColor: 'var(--bg-tertiary)',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '1px solid var(--border-color)',
+                            fontSize: '2.5rem',
+                            opacity: 0.5
+                          }}>
+                            👤
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Perfil */}
+                      <div style={{ flex: 1, textAlign: 'center', minWidth: '120px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Foto Perfil</span>
+                        {formData.fotoPerfilBase64 ? (
+                          <img src={formData.fotoPerfilBase64} alt="Perfil" style={{ height: '140px', width: '100%', objectFit: 'contain', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                        ) : (
+                          <div style={{
+                            height: '140px',
+                            backgroundColor: 'var(--bg-tertiary)',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '1px solid var(--border-color)',
+                            fontSize: '2.5rem',
+                            opacity: 0.5
+                          }}>
+                            👤
+                          </div>
+                        )}
                       </div>
                     </div>
+
+                    {/* Exame Anexado Visualizável pelo Aluno */}
+                    {formData.laudoFileBase64 && (
+                      <div style={{ marginTop: '14px', padding: '10px', border: '1px solid var(--border-color)', borderRadius: '6px', backgroundColor: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <FileText size={18} style={{ color: 'var(--primary)' }} />
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Laudo / Exame Clínico Ativo</span>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{formData.laudoFile}</span>
+                          </div>
+                        </div>
+                        {formData.laudoFileBase64.startsWith('data:image/') ? (
+                          <a href={formData.laudoFileBase64} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'underline' }}>Visualizar Anexo</a>
+                        ) : (
+                          <a href={formData.laudoFileBase64} download={formData.laudoFile} style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'underline' }}>Baixar Laudo (PDF)</a>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

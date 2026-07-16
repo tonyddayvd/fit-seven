@@ -111,7 +111,6 @@ const Master = () => {
   const [tenantForm, setTenantForm] = useState({ name: '', subdomain: '', plano: 'Básico', limiteAlunos: 10 });
   const [userForm, setUserForm] = useState({ name: '', email: '', password: '123', tenantId: '', role: 'aluno', plano: 'Básico', limiteAlunos: 10 });
 
-  // Monitora alterações nas avaliações pendentes em tempo real
   React.useEffect(() => {
     if (selectedEval) {
       const stillPending = pendingEvaluations.find(ev => ev.id === selectedEval.id);
@@ -119,14 +118,25 @@ const Master = () => {
         setSelectedEval(null);
       } else {
         setSelectedEval(stillPending);
+        // Buscar se o aluno é VIP na lista de usuários cadastrados
+        const studentUser = usersList.find(u => u.id === stillPending.userId);
+        if (studentUser) {
+          setIsVip(!!studentUser.isVip);
+        }
       }
     }
-  }, [pendingEvaluations, selectedEval]);
+  }, [pendingEvaluations, selectedEval, usersList]);
 
   const [isVip, setIsVip] = useState(false);
   const [vipHtml, setVipHtml] = useState('');
 
   const handleApprove = async (id) => {
+    // Validação de aluno VIP
+    if (isVip && (!vipHtml || !vipHtml.trim())) {
+      alert('⚠️ Atenção: Este aluno possui plano VIP ativado. Para prosseguir com a aprovação VIP, você precisa colar o HTML do programa de treino personalizado gerado pela IA no campo indicado. Se você deseja apenas entregar o plano simples gerado pelo motor interno, altere o Tipo de Entrega para "Plano Simples" antes de prosseguir.');
+      return;
+    }
+
     try {
       const success = await approveAndPublishWorkout(id, { isVip, vipHtml });
       if (success) {
@@ -820,9 +830,18 @@ Restrições Alimentares: ${data.restriçõesAlimentares}
 Preferências Alimentares: ${data.preferenciasAlimentares}
 Descrição da Rotina Diária: ${data.descricaoRotina}
 
+[ANEXOS E EXAMES DO ALUNO]:
+- Nome do Laudo/Bioimpedância enviado: ${data.laudoFile || 'Nenhum arquivo anexado'}
+- Anexo de Bioimpedância Clínica (Base64): ${data.laudoFileBase64 ? 'Sim, verifique visualmente na tela do sistema as informações e simetria corporais do laudo e gráficos de bioimpedância.' : 'Não enviado'}
+- Fotos de evolução enviadas pelo aluno:
+  * Foto Frente: ${data.fotoFrente ? 'Anexada' : 'Não anexada'}
+  * Foto Costas: ${data.fotoCostas ? 'Anexada' : 'Não anexada'}
+  * Foto Perfil: ${data.fotoPerfil ? 'Anexada' : 'Não anexada'}
+  *(Analise a postura, assimetria muscular e acúmulos de gordura localizados nas fotos de evolução exibidas na tela do painel antes de formular as correções no treino).*
+
 Gere o programa formatado estritamente como um HTML rico usando variáveis e estilos CSS compatíveis com o gabarito "Treino Lisiane". Não use blocos de código externos ou markdown extra.`;
                       navigator.clipboard.writeText(prompt);
-                      alert('Script VIP copiado para a área de transferência!');
+                      alert('Script VIP copiado para a área de transferência! (Inclui exames e imagens anexadas)');
                     }} 
                     style={styles.copyScriptBtn}
                   >
@@ -843,6 +862,58 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
                     <span>Atenção: Aluno reportou histórico cardíaco no PAR-Q!</span>
                   </div>
                 )}
+
+                {/* Visualização das Fotos de Evolução e Laudos de Exames Clínicos/Bioimpedância */}
+                <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                  <h6 style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px' }}>📸 Fotos de Evolução e Laudos de Bioimpedância:</h6>
+                  
+                  {/* Grid de Fotos de Evolução */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+                    <div style={{ textAlign: 'center', padding: '6px', border: '1px solid var(--border-color)', borderRadius: '4px', backgroundColor: 'var(--bg-tertiary)' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Frente</span>
+                      {selectedEval.formData.fotoFrenteBase64 ? (
+                        <img src={selectedEval.formData.fotoFrenteBase64} alt="Frente" style={{ width: '100%', maxHeight: '120px', objectFit: 'contain', borderRadius: '2px' }} />
+                      ) : (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Sem foto</span>
+                      )}
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '6px', border: '1px solid var(--border-color)', borderRadius: '4px', backgroundColor: 'var(--bg-tertiary)' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Costas</span>
+                      {selectedEval.formData.fotoCostasBase64 ? (
+                        <img src={selectedEval.formData.fotoCostasBase64} alt="Costas" style={{ width: '100%', maxHeight: '120px', objectFit: 'contain', borderRadius: '2px' }} />
+                      ) : (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Sem foto</span>
+                      )}
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '6px', border: '1px solid var(--border-color)', borderRadius: '4px', backgroundColor: 'var(--bg-tertiary)' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Perfil</span>
+                      {selectedEval.formData.fotoPerfilBase64 ? (
+                        <img src={selectedEval.formData.fotoPerfilBase64} alt="Perfil" style={{ width: '100%', maxHeight: '120px', objectFit: 'contain', borderRadius: '2px' }} />
+                      ) : (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Sem foto</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Laudo de Bioimpedância / Exames */}
+                  {selectedEval.formData.laudoFileBase64 ? (
+                    <div style={{ padding: '10px', border: '1px solid #10b981', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.05)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#10b981' }}>📄 Bioimpedância/Exames Anexados:</span>
+                      <span style={{ fontSize: '0.75rem' }}>{selectedEval.formData.laudoFile}</span>
+                      {selectedEval.formData.laudoFileBase64.startsWith('data:image/') ? (
+                        <img src={selectedEval.formData.laudoFileBase64} alt="Laudo" style={{ maxWidth: '100%', maxHeight: '150px', objectFit: 'contain', marginTop: '4px', borderRadius: '2px' }} />
+                      ) : (
+                        <a href={selectedEval.formData.laudoFileBase64} download={selectedEval.formData.laudoFile} style={{ fontSize: '0.75rem', color: 'var(--primary)', textDecoration: 'underline', fontWeight: 'bold' }}>
+                          📥 Baixar PDF do Exame / Bioimpedância
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '8px', border: '1px dashed var(--border-color)', borderRadius: '4px', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Nenhum laudo clínico ou bioimpedância foi anexado nesta avaliação.
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Divisão sugerida de Treino pela IA */}
