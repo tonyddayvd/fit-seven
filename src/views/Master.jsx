@@ -872,7 +872,16 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
                     <div style={{ textAlign: 'center', padding: '6px', border: '1px solid var(--border-color)', borderRadius: '4px', backgroundColor: 'var(--bg-tertiary)' }}>
                       <span style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Frente</span>
                       {selectedEval.formData.fotoFrenteBase64 ? (
-                        <img src={selectedEval.formData.fotoFrenteBase64} alt="Frente" style={{ width: '100%', maxHeight: '120px', objectFit: 'contain', borderRadius: '2px' }} />
+                        <>
+                          <img src={selectedEval.formData.fotoFrenteBase64} alt="Frente" style={{ width: '100%', maxHeight: '120px', objectFit: 'contain', borderRadius: '2px' }} />
+                          <a 
+                            href={selectedEval.formData.fotoFrenteBase64} 
+                            download={`frente_${selectedEval.userName.replace(/\s+/g, '_')}_${selectedEval.id}.jpg`}
+                            style={{ display: 'block', fontSize: '0.65rem', color: 'var(--primary)', textDecoration: 'underline', fontWeight: 'bold', marginTop: '6px' }}
+                          >
+                            📥 Baixar Foto
+                          </a>
+                        </>
                       ) : (
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Sem foto</span>
                       )}
@@ -880,7 +889,16 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
                     <div style={{ textAlign: 'center', padding: '6px', border: '1px solid var(--border-color)', borderRadius: '4px', backgroundColor: 'var(--bg-tertiary)' }}>
                       <span style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Costas</span>
                       {selectedEval.formData.fotoCostasBase64 ? (
-                        <img src={selectedEval.formData.fotoCostasBase64} alt="Costas" style={{ width: '100%', maxHeight: '120px', objectFit: 'contain', borderRadius: '2px' }} />
+                        <>
+                          <img src={selectedEval.formData.fotoCostasBase64} alt="Costas" style={{ width: '100%', maxHeight: '120px', objectFit: 'contain', borderRadius: '2px' }} />
+                          <a 
+                            href={selectedEval.formData.fotoCostasBase64} 
+                            download={`costas_${selectedEval.userName.replace(/\s+/g, '_')}_${selectedEval.id}.jpg`}
+                            style={{ display: 'block', fontSize: '0.65rem', color: 'var(--primary)', textDecoration: 'underline', fontWeight: 'bold', marginTop: '6px' }}
+                          >
+                            📥 Baixar Foto
+                          </a>
+                        </>
                       ) : (
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Sem foto</span>
                       )}
@@ -888,7 +906,16 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
                     <div style={{ textAlign: 'center', padding: '6px', border: '1px solid var(--border-color)', borderRadius: '4px', backgroundColor: 'var(--bg-tertiary)' }}>
                       <span style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Perfil</span>
                       {selectedEval.formData.fotoPerfilBase64 ? (
-                        <img src={selectedEval.formData.fotoPerfilBase64} alt="Perfil" style={{ width: '100%', maxHeight: '120px', objectFit: 'contain', borderRadius: '2px' }} />
+                        <>
+                          <img src={selectedEval.formData.fotoPerfilBase64} alt="Perfil" style={{ width: '100%', maxHeight: '120px', objectFit: 'contain', borderRadius: '2px' }} />
+                          <a 
+                            href={selectedEval.formData.fotoPerfilBase64} 
+                            download={`perfil_${selectedEval.userName.replace(/\s+/g, '_')}_${selectedEval.id}.jpg`}
+                            style={{ display: 'block', fontSize: '0.65rem', color: 'var(--primary)', textDecoration: 'underline', fontWeight: 'bold', marginTop: '6px' }}
+                          >
+                            📥 Baixar Foto
+                          </a>
+                        </>
                       ) : (
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Sem foto</span>
                       )}
