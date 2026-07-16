@@ -346,6 +346,12 @@ const Master = () => {
               >
                 Alunos
               </button>
+              <button 
+                onClick={() => { setActiveSubTab('masters'); setShowForm(null); }} 
+                style={{ ...styles.crudTab, ...(activeSubTab === 'masters' ? styles.crudTabActive : {}) }}
+              >
+                Administradores (Master)
+              </button>
             </div>
 
             {/* FORMULÁRIO DE ACADEMIAS */}
@@ -664,6 +670,56 @@ const Master = () => {
                               <button onClick={() => openEditUser(a)} style={styles.iconBtn} title="Editar"><Edit2 size={14} /></button>
                               <button onClick={() => handleResetPassword(a.id)} style={styles.iconBtn} title="Resetar Senha"><Key size={14} /></button>
                               <button onClick={() => handleDeleteUser(a.id)} style={{ ...styles.iconBtn, color: 'var(--status-danger)' }} title="Deletar"><Trash2 size={14} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* TABELA DE ADMINISTRADORES (MASTER) */}
+            {activeSubTab === 'masters' && !showForm && (
+              <div className="animate-fade-in">
+                <div style={styles.tableActions}>
+                  <button onClick={() => openAddUser('master')} style={styles.addButton} className="btn-primary">
+                    <Plus size={16} /> Cadastrar Administrador
+                  </button>
+                </div>
+                <table style={styles.table}>
+                  <thead>
+                    <tr style={styles.tableHeaderRow}>
+                      <th style={styles.tableCellHeader}>Nome</th>
+                      <th style={styles.tableCellHeader}>E-mail</th>
+                      <th style={styles.tableCellHeader}>Senha Atual</th>
+                      <th style={styles.tableCellHeader}>Papel</th>
+                      <th style={{ ...styles.tableCellHeader, textAlign: 'right' }}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usersList.filter(u => u.role === 'master').map(m => {
+                      return (
+                        <tr key={m.id} style={styles.tableRow}>
+                          <td style={styles.tableCell}><strong>{m.name} {m.id === user.id ? '(Você)' : ''}</strong></td>
+                          <td style={styles.tableCell}>{m.email}</td>
+                          <td style={styles.tableCell}><code>{m.password || '123'}</code></td>
+                          <td style={styles.tableCell}>
+                            <span style={{
+                              ...styles.statusTag,
+                              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                              color: 'var(--status-danger)',
+                              fontWeight: 'bold'
+                            }}>MASTER</span>
+                          </td>
+                          <td style={{ ...styles.tableCell, textAlign: 'right' }}>
+                            <div style={styles.actionsGroup}>
+                              <button onClick={() => openEditUser(m)} style={styles.iconBtn} title="Editar"><Edit2 size={14} /></button>
+                              <button onClick={() => handleResetPassword(m.id)} style={styles.iconBtn} title="Resetar Senha"><Key size={14} /></button>
+                              {m.id !== user.id && (
+                                <button onClick={() => handleDeleteUser(m.id)} style={{ ...styles.iconBtn, color: 'var(--status-danger)' }} title="Deletar"><Trash2 size={14} /></button>
+                              )}
                             </div>
                           </td>
                         </tr>
