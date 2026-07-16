@@ -152,8 +152,135 @@ const Aluno = () => {
   }, [workoutsByStudent, pendingEvaluations, user?.id]);
 
   useEffect(() => {
+    const studentData = workoutsByStudent?.[user?.id];
+    const hasVipHtml = studentData?.isVip && studentData?.vipHtml;
+
+    if (hasVipHtml) {
+      // Parsear o HTML VIP para extrair exercícios estruturados
+      try {
+        const html = studentData.vipHtml;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const parsed = [];
+        let exCounter = 0;
+        const splitLetters = ['A', 'B', 'C', 'D', 'E'];
+        let currentSplit = 'A';
+        let splitIdx = 0;
+        const dayRegex = /\b(dia\s*\d|treino\s*[a-e1-5]|superior|inferior|core|cardio)\b/i;
+
+        // Estratégia 1: tabela HTML (padrão mais comum em HTML gerado por IA)
+        const allRows = doc.querySelectorAll('tr');
+        allRows.forEach((row, rowIdx) => {
+          const cells = row.querySelectorAll('td, th');
+          const rowText = row.textContent.trim();
+          if (!rowText || rowText.length < 3) return;
+
+          if (dayRegex.test(rowText) && rowText.length < 100 && cells.length <= 2) {
+            if (exCounter > 0 || rowIdx > 0) {
+              splitIdx = Math.min(splitIdx + 1, 4);
+              currentSplit = splitLetters[splitIdx];
+            }
+            return;
+          }
+
+          if (cells.length >= 2) {
+            const nameCell = cells[0]?.textContent?.trim() || '';
+            const repsCell = cells[1]?.textContent?.trim() || '';
+            const loadCell = cells[2]?.textContent?.trim() || '';
+            const skipWords = ['exercício', 'exercise', 'série', 'repetição', 'carga', 'método', 'obs', 'exercicios'];
+            if (skipWords.some(w => nameCell.toLowerCase() === w)) return;
+            if (!nameCell || nameCell.length < 4 || /^\d+$/.test(nameCell)) return;
+            if (nameCell.toLowerCase().startsWith('protocolo') || nameCell.toLowerCase().startsWith('programa')
+                || nameCell.toLowerCase().startsWith('cliente') || nameCell.toLowerCase().startsWith('objetivo')
+                || nameCell.toLowerCase().startsWith('dia ') || nameCell.toLowerCase().startsWith('treino ')) return;
+            exCounter++;
+            parsed.push({
+              id: `vip-ex-${splitIdx}-${exCounter}`,
+              split: currentSplit,
+              name: nameCell.replace(/\n/g, ' ').substring(0, 80),
+              category: currentSplit,
+              load: loadCell || 'Conforme orientação',
+              reps: repsCell || '4 séries de 10',
+              status: 'pendente',
+              video_oficial_url: '',
+              video_personalizado_url: ''
+            });
+          }
+        });
+
+        // Estratégia 2: listas <li> se nenhum resultado na tabela
+        if (parsed.length === 0) {
+          doc.querySelectorAll('li').forEach((item) => {
+            const text = item.textContent.trim();
+            if (text.length < 6 || text.length > 150) return;
+            const m = text.match(/^(?:\d+[\.\)]\s*)?(.{5,70})(?:\s*[-:–]\s*(\d+[xX]\d+|\d+\s*séries?))?/);
+            if (m && m[1] && !dayRegex.test(m[1])) {
+              exCounter++;
+              parsed.push({
+                id: `vip-li-${exCounter}`,
+                split: splitLetters[Math.min(Math.floor(exCounter / 5), 4)],
+                name: m[1].trim().substring(0, 80),
+                category: 'VIP',
+                load: 'Conforme orientação',
+                reps: m[2] || '4 séries de 10',
+                status: 'pendente',
+                video_oficial_url: '',
+                video_personalizado_url: ''
+              });
+            }
+          });
+        }
+
+        // Estratégia 3: parágrafos <p> com padrões de exercício (ex: "Agachamento Livre\n4x 8-10")
+        if (parsed.length === 0) {
+          const paragraphs = doc.querySelectorAll('p, h1, h2, h3, h4, h5, strong, b, td, div');
+          paragraphs.forEach((el) => {
+            const text = el.textContent.trim();
+            // Padrão: texto com nome de exercício seguido de séries (ex: "Agachamento Livre" com vizinho "4x 8-10")
+            if (text.length >= 6 && text.length <= 120) {
+              const hasReps = /\d+\s*[xX]\s*\d+|\d+\s*séries?/.test(text);
+              const hasDayPattern = dayRegex.test(text);
+              const seemsExercise = !hasDayPattern && text.length >= 6 && !/^\d+$/.test(text)
+                && !text.toLowerCase().startsWith('protocolo')
+                && !text.toLowerCase().startsWith('programa')
+                && !text.toLowerCase().startsWith('cliente');
+              
+              if (seemsExercise && !hasReps) {
+                // Pode ser o nome do exercício; busca o próximo elemento por reps
+                const next = el.nextElementSibling;
+                const nextText = next?.textContent?.trim() || '';
+                const nextHasReps = /\d+\s*[xX]\s*\d+|\d+\s*séries?/.test(nextText);
+                exCounter++;
+                parsed.push({
+                  id: `vip-p-${exCounter}`,
+                  split: splitLetters[Math.min(Math.floor(exCounter / 5), 4)],
+                  name: text.substring(0, 80),
+                  category: 'VIP',
+                  load: 'Conforme orientação',
+                  reps: (nextHasReps && nextText.length < 50) ? nextText : '4 séries de 10',
+                  status: 'pendente',
+                  video_oficial_url: '',
+                  video_personalizado_url: ''
+                });
+              }
+            }
+          });
+        }
+
+        if (parsed.length > 0) {
+          console.log(`[VIP Parser] ${parsed.length} exercícios extraídos do HTML VIP.`);
+          setExercises(parsed);
+          return;
+        }
+        console.warn('[VIP Parser] Nenhum exercício encontrado no HTML. Usando exercises[] do banco.');
+      } catch (err) {
+        console.warn('[VIP Parser] Erro ao parsear HTML:', err);
+      }
+    }
+
+    // Fallback: exercícios salvos no banco (não-VIP ou parser sem resultado)
     setExercises(currentStudentExercises);
-  }, [currentStudentExercises]);
+  }, [currentStudentExercises, workoutsByStudent, user?.id]);
 
   // Estados dos recursos interativos
   const [activeVideoEx, setActiveVideoEx] = useState(null);
