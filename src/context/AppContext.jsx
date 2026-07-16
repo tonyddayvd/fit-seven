@@ -75,6 +75,7 @@ export const AppProvider = ({ children }) => {
   const [usersList, setUsersList] = useState([]);
   const [workoutsByStudent, setWorkoutsByStudent] = useState({});
   const [pendingEvaluations, setPendingEvaluations] = useState([]);
+  const [approvedEvaluations, setApprovedEvaluations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Estados de sessão (Persistidos localmente para conveniência do usuário logado)
@@ -165,10 +166,15 @@ export const AppProvider = ({ children }) => {
             ...parsedMedidas,
             id: ev.id,
             userId: ev.user_id,
-            tenantId: ev.tenant_id
+            tenantId: ev.tenant_id,
+            // Status vive dentro do campo medidas (JSONB) para não precisar de DDL
+            _status: parsedMedidas._status || 'pending',
+            _approvedAt: parsedMedidas._approvedAt || null
           };
         });
-        setPendingEvaluations(mappedEvals);
+        // Separar pendentes das aprovadas
+        setPendingEvaluations(mappedEvals.filter(ev => ev._status !== 'approved'));
+        setApprovedEvaluations(mappedEvals.filter(ev => ev._status === 'approved'));
       }
 
       // 4. Carregar Treinos
@@ -461,13 +467,10 @@ export const AppProvider = ({ children }) => {
     if (!evaluation) return false;
 
     const allExercises = [];
-    evaluation.aiSuggestedWorkout.forEach((block, bIdx) => {
+    (evaluation.aiSuggestedWorkout || []).forEach((block, bIdx) => {
       const splitLetter = ['A', 'B', 'C', 'D', 'E'][bIdx];
-      block.exercises.forEach(ex => {
-        allExercises.push({
-          ...ex,
-          split: splitLetter
-        });
+      (block.exercises || []).forEach(ex => {
+        allExercises.push({ ...ex, split: splitLetter });
       });
     });
 
@@ -487,12 +490,48 @@ export const AppProvider = ({ children }) => {
       user_id: evaluation.userId,
       html_content: JSON.stringify(workoutData)
     });
-
     if (workoutErr) throw workoutErr;
 
-    // Remover da fila de avaliações pendentes
-    const { error: evalErr } = await supabase.from('avaliacoes').delete().eq('id', evalId);
+    // Em vez de deletar, marcar como 'approved' dentro do campo medidas
+    const approvedMedidas = {
+      ...evaluation,
+      _status: 'approved',
+      _approvedAt: new Date().toISOString()
+    };
+    // Remover campos que não devem ir para o banco duplicados
+    delete approvedMedidas.id;
+    delete approvedMedidas.userId;
+    delete approvedMedidas.tenantId;
+
+    const { error: evalErr } = await supabase
+      .from('avaliacoes')
+      .update({ medidas: approvedMedidas })
+      .eq('id', evalId);
     if (evalErr) throw evalErr;
+
+    await refreshData();
+    return true;
+  };
+
+  // Reenvia uma avaliação aprovada de volta para a fila de pendentes
+  const requeueEvaluation = async (evalId) => {
+    const evaluation = approvedEvaluations.find(ev => ev.id === evalId);
+    if (!evaluation) return false;
+
+    const requeuedMedidas = {
+      ...evaluation,
+      _status: 'pending',
+      _approvedAt: null
+    };
+    delete requeuedMedidas.id;
+    delete requeuedMedidas.userId;
+    delete requeuedMedidas.tenantId;
+
+    const { error } = await supabase
+      .from('avaliacoes')
+      .update({ medidas: requeuedMedidas })
+      .eq('id', evalId);
+    if (error) throw error;
 
     await refreshData();
     return true;
@@ -620,8 +659,10 @@ export const AppProvider = ({ children }) => {
       bypassRole,
       bypassTenantId,
       pendingEvaluations,
+      approvedEvaluations,
       submitEvaluation,
       approveAndPublishWorkout,
+      requeueEvaluation,
       currentStudentExercises,
       updateStudentExercises,
       workoutsByStudent,

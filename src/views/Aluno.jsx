@@ -530,6 +530,93 @@ const Aluno = () => {
     return { reps: repsNum, sets: setsNum };
   };
 
+  // Parser de HTML VIP gerado pela IA externa → exercícios estruturados para a ferramenta interativa
+  const parseVipHtmlToExercises = (html) => {
+    if (!html) return [];
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const exercises = [];
+      let exCounter = 0;
+      const splitLetters = ['A', 'B', 'C', 'D', 'E'];
+      let currentSplit = 'A';
+      let splitIdx = 0;
+      const dayRegex = /\b(dia\s*\d|treino\s*[a-e1-5]|superior|inferior|core|cardio)\b/i;
+
+      // Estratégia 1: buscar linhas de tabela com células (padrão mais comum em HTML gerado por IA)
+      const allRows = doc.querySelectorAll('tr');
+      allRows.forEach((row, rowIdx) => {
+        const cells = row.querySelectorAll('td, th');
+        const rowText = row.textContent.trim();
+        if (!rowText || rowText.length < 3) return;
+
+        // Detectar cabeçalho de dia/split para avançar o split
+        if (dayRegex.test(rowText) && rowText.length < 100 && cells.length <= 2) {
+          if (exCounter > 0 || rowIdx > 0) {
+            splitIdx = Math.min(splitIdx + 1, 4);
+            currentSplit = splitLetters[splitIdx];
+          }
+          return;
+        }
+
+        if (cells.length >= 2) {
+          const nameCell = cells[0]?.textContent?.trim() || '';
+          const repsCell = cells[1]?.textContent?.trim() || '';
+          const loadCell = cells[2]?.textContent?.trim() || '';
+
+          // Ignorar cabeçalhos de tabela
+          const skipWords = ['exercício', 'exercise', 'série', 'repetição', 'carga', 'método', 'obs'];
+          if (skipWords.some(w => nameCell.toLowerCase() === w)) return;
+          if (!nameCell || nameCell.length < 4 || /^\d+$/.test(nameCell)) return;
+          if (nameCell.toLowerCase().startsWith('protocolo') || nameCell.toLowerCase().startsWith('programa')
+              || nameCell.toLowerCase().startsWith('cliente') || nameCell.toLowerCase().startsWith('objetivo')
+              || nameCell.toLowerCase().startsWith('dia ') || nameCell.toLowerCase().startsWith('treino ')) return;
+
+          exCounter++;
+          exercises.push({
+            id: `vip-ex-${splitIdx}-${exCounter}`,
+            split: currentSplit,
+            name: nameCell.replace(/\n/g, ' ').substring(0, 80),
+            category: currentSplit,
+            load: loadCell || 'Conforme orientação',
+            reps: repsCell || '4 séries de 10',
+            status: 'pendente',
+            video_oficial_url: '',
+            video_personalizado_url: ''
+          });
+        }
+      });
+
+      // Estratégia 2: se não encontrou via tabela, tentar listas <li>
+      if (exercises.length === 0) {
+        doc.querySelectorAll('li').forEach((item, idx) => {
+          const text = item.textContent.trim();
+          if (text.length < 6 || text.length > 150) return;
+          const m = text.match(/^(?:\d+[\.\)]\s*)?(.{5,70})(?:\s*[-:–]\s*(\d+[xX]\d+|\d+\s*séries?))?/);
+          if (m && m[1] && !dayRegex.test(m[1])) {
+            exCounter++;
+            exercises.push({
+              id: `vip-li-${exCounter}`,
+              split: splitLetters[Math.min(Math.floor(exCounter / 5), 4)],
+              name: m[1].trim().substring(0, 80),
+              category: 'VIP',
+              load: 'Conforme orientação',
+              reps: m[2] || '4 séries de 10',
+              status: 'pendente',
+              video_oficial_url: '',
+              video_personalizado_url: ''
+            });
+          }
+        });
+      }
+
+      return exercises;
+    } catch (err) {
+      console.warn('Parser VIP HTML falhou, usando exercises[] base:', err);
+      return [];
+    }
+  };
+
   const handlePhaseTransition = () => {
     setAssistantRunning(false); // Pausa temporariamente para a fala rodar
     if (assistantPhase === 'execucao') {
@@ -721,75 +808,60 @@ const Aluno = () => {
             {/* 1. ABA DE TREINOS */}
             {activeTab === 'treinos' && (
               <div style={{ width: '100%' }}>
-                {workoutsByStudent && workoutsByStudent[user?.id] && workoutsByStudent[user?.id].isVip && workoutsByStudent[user?.id].vipHtml ? (
-                  /* Renderização do Programa VIP */
-                  <div style={{ width: '100%', position: 'relative' }} className="animate-fade-in vip-program-container">
-                    {/* Botão Fixo de Impressão / Baixar PDF */}
-                    <div style={{
-                      position: 'sticky',
-                      top: '12px',
-                      zIndex: 1000,
-                      display: 'flex',
-                      justifyContent: 'flex-end',
-                      marginBottom: '16px',
-                      padding: '0 8px'
-                    }} className="no-print">
-                      <button 
-                        onClick={() => window.print()} 
-                        style={{
-                          padding: '10px 18px',
-                          fontSize: '0.85rem',
-                          fontWeight: '700',
-                          backgroundColor: 'var(--primary)',
-                          color: '#ffffff',
-                          border: 'none',
-                          borderRadius: 'var(--radius-md)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          boxShadow: 'var(--shadow-md)'
-                        }}
-                      >
-                        📄 Baixar Programa Completo em PDF
-                      </button>
+                {/* Banner VIP dourado + botão de download — aparece quando aluno é VIP com HTML salvo */}
+                {workoutsByStudent?.[user?.id]?.isVip && workoutsByStudent?.[user?.id]?.vipHtml && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '10px',
+                    padding: '10px 14px',
+                    marginBottom: '16px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'linear-gradient(135deg, rgba(234,179,8,0.12), rgba(234,179,8,0.04))',
+                    border: '1px solid rgba(234,179,8,0.35)'
+                  }} className="animate-fade-in">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '1.2rem' }}>👑</span>
+                      <div>
+                        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#eab308' }}>Programa VIP Personalizado Ativo</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Seu treino foi montado individualmente pela IA. Use a ferramenta abaixo para acompanhar cada exercício.</div>
+                      </div>
                     </div>
-
-                    {/* CSS do gabarito embutido no escopo VIP */}
-                    <style dangerouslySetInnerHTML={{ __html: `
-                      @media print {
-                        body * {
-                          visibility: hidden;
-                        }
-                        .vip-program-container, .vip-program-container * {
-                          visibility: visible;
-                        }
-                        .vip-program-container {
-                          position: absolute;
-                          left: 0;
-                          top: 0;
-                          width: 100%;
-                        }
-                        .no-print {
-                          display: none !important;
-                        }
-                      }
-                    `}} />
-
-                    {/* HTML do programa VIP */}
-                    <div 
-                      dangerouslySetInnerHTML={{ __html: workoutsByStudent[user?.id].vipHtml }} 
-                      style={{
-                        padding: '12px',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: 'var(--bg-secondary)',
-                        border: '1px solid var(--border-color)',
-                        color: 'var(--text-primary)',
-                        lineHeight: '1.6'
+                    <button
+                      onClick={() => {
+                        const vipHtmlContent = workoutsByStudent[user.id].vipHtml;
+                        const blob = new Blob([vipHtmlContent], { type: 'text/html;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `programa-vip-${(user.name || 'aluno').replace(/\s+/g,'_')}.html`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
                       }}
-                    />
+                      style={{
+                        padding: '8px 14px',
+                        fontSize: '0.8rem',
+                        fontWeight: '700',
+                        backgroundColor: 'rgba(234,179,8,0.15)',
+                        color: '#eab308',
+                        border: '1px solid rgba(234,179,8,0.4)',
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <FileText size={14} /> Baixar Programa Completo
+                    </button>
                   </div>
-                ) : workoutSessionFinished ? (
+                )}
+                {workoutSessionFinished ? (
                   /* Tela Conclusão */
                   <div style={styles.resultCard} className="animate-fade-in">
                     {auditLog.is100Percent ? (

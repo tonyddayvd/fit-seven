@@ -80,7 +80,9 @@ const Master = () => {
   const { 
     activeTenant, 
     pendingEvaluations, 
+    approvedEvaluations,
     approveAndPublishWorkout,
+    requeueEvaluation,
     tenants,
     usersList,
     addTenant,
@@ -300,6 +302,17 @@ const Master = () => {
           style={{ ...styles.globalTab, ...(activeTab === 'pending_approvals' ? styles.globalTabActive : {}) }}
         >
           <Cpu size={16} /> Fila de Aprovações ({pendingEvaluations.length})
+        </button>
+        <button 
+          onClick={() => setActiveTab('eval_history')} 
+          style={{ ...styles.globalTab, ...(activeTab === 'eval_history' ? styles.globalTabActive : {}), position: 'relative' }}
+        >
+          <Clock size={16} /> Histórico de Avaliações
+          {approvedEvaluations.length > 0 && (
+            <span style={{ marginLeft: '4px', background: 'var(--primary)', color: '#fff', borderRadius: '10px', padding: '1px 7px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+              {approvedEvaluations.length}
+            </span>
+          )}
         </button>
         <button 
           onClick={() => setActiveTab('db_auditor')} 
@@ -1126,6 +1139,115 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONTEÚDO DA ABA HISTÓRICO DE AVALIAÇÕES APROVADAS */}
+      {activeTab === 'eval_history' && (
+        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={styles.panelCard} className="glass">
+            <div style={styles.panelHeader}>
+              <Clock size={20} style={{ color: 'var(--primary)' }} />
+              <div>
+                <h3 style={styles.panelTitle}>Histórico de Avaliações Aprovadas</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                  Clique em <strong>Reavaliar</strong> para devolver uma avaliação para a fila sem que a aluna precise preencher tudo novamente. O treino ativo só muda após uma nova aprovação.
+                </p>
+              </div>
+            </div>
+
+            {approvedEvaluations.length === 0 ? (
+              <div style={styles.emptyBox}>
+                <Clock size={40} style={{ opacity: 0.2, marginBottom: '12px' }} />
+                <p>Nenhuma avaliação aprovada ainda.</p>
+                <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>As avaliações aparecerão aqui após serem aprovadas na fila.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {[...approvedEvaluations].reverse().map(ev => {
+                  const studentUser = usersList.find(u => u.id === ev.userId);
+                  const approvedDate = ev._approvedAt 
+                    ? new Date(ev._approvedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : ev.date || '—';
+                  return (
+                    <div key={ev.id} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                      padding: '14px 16px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-secondary)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1rem',
+                          color: '#fff',
+                          fontWeight: 'bold',
+                          flexShrink: 0
+                        }}>
+                          {(ev.userName || ev.nome || 'A').charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>
+                            {ev.userName || ev.nome || 'Aluno desconhecido'}
+                            {studentUser?.isVip && (
+                              <span style={{ marginLeft: '8px', fontSize: '0.7rem', color: '#eab308', background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: '10px', padding: '1px 7px' }}>
+                                👑 VIP
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            Aprovada em: {approvedDate} · Objetivo: {ev.formData?.objetivo || ev.objetivo || '—'} · Peso: {ev.formData?.peso || ev.peso || '?'}kg
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Deseja reavaliar ${ev.userName || ev.nome}? A avaliação voltará para a fila de aprovações e você poderá ajustar o treino. O treino atual da aluna ficará ativo até que você aprove novamente.`)) return;
+                          try {
+                            await requeueEvaluation(ev.id);
+                            alert('Avaliação enviada de volta para a fila! Acesse "Fila de Aprovações" para aprovar com o novo treino.');
+                            setActiveTab('pending_approvals');
+                          } catch (err) {
+                            alert('Erro ao reavaliar: ' + (err.message || 'Tente novamente.'));
+                          }
+                        }}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '0.8rem',
+                          fontWeight: '700',
+                          backgroundColor: 'rgba(139,92,246,0.1)',
+                          color: 'var(--primary)',
+                          border: '1px solid rgba(139,92,246,0.3)',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          whiteSpace: 'nowrap',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={e => e.currentTarget.style.backgroundColor = 'rgba(139,92,246,0.2)'}
+                        onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(139,92,246,0.1)'}
+                      >
+                        🔄 Reavaliar
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
