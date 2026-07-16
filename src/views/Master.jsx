@@ -126,13 +126,18 @@ const Master = () => {
   const [isVip, setIsVip] = useState(false);
   const [vipHtml, setVipHtml] = useState('');
 
-  const handleApprove = (id) => {
-    const success = approveAndPublishWorkout(id, { isVip, vipHtml });
-    if (success) {
-      alert(isVip ? 'Treino VIP (HTML) aprovado e publicado com sucesso!' : 'Treino gerado por IA aprovado, publicado e injetado no BD com sucesso!');
-      setSelectedEval(null);
-      setIsVip(false);
-      setVipHtml('');
+  const handleApprove = async (id) => {
+    try {
+      const success = await approveAndPublishWorkout(id, { isVip, vipHtml });
+      if (success) {
+        alert(isVip ? 'Treino VIP (HTML) aprovado e publicado com sucesso!' : 'Treino gerado por IA aprovado, publicado e injetado no BD com sucesso!');
+        setSelectedEval(null);
+        setIsVip(false);
+        setVipHtml('');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao aprovar treino: ' + (err.message || 'Verifique sua conexão.'));
     }
   };
 
