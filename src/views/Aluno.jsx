@@ -101,7 +101,7 @@ const SILHOUETTES = {
 };
 
 const Aluno = () => {
-  const { activeTenant, user, currentStudentExercises, updateStudentExercises, submitEvaluation, workoutsByStudent, setVirtualRoute } = useApp();
+  const { activeTenant, user, currentStudentExercises, updateStudentExercises, submitEvaluation, workoutsByStudent, setVirtualRoute, pendingEvaluations } = useApp();
   
   const userDbData = workoutsByStudent && workoutsByStudent[user?.id];
   const isVip = user?.isVip || (userDbData && userDbData.isVip);
@@ -127,14 +127,11 @@ const Aluno = () => {
   const [workoutSessionFinished, setWorkoutSessionFinished] = useState(false);
   const [auditLog, setAuditLog] = useState([]);
 
-  // Data simulada da última avaliação física carregada do localStorage ou simulação de 20 dias atrás
-  // Se o aluno não tiver nenhum treino VIP ativo publicado e nenhuma avaliação pendente na fila, permitimos reenviar imediatamente para evitar travamentos
-  const { pendingEvaluations: globalPendingEvals } = useApp();
   const [lastEvalDate, setLastEvalDate] = useState(null);
 
   useEffect(() => {
     const hasWorkout = workoutsByStudent && workoutsByStudent[user?.id];
-    const hasPending = globalPendingEvals && globalPendingEvals.some(ev => ev.userId === user?.id);
+    const hasPending = pendingEvaluations && pendingEvaluations.some(ev => ev.userId === user?.id);
     
     // Se não tem treino ativo e não tem avaliação pendente, ignora o cooldown simulado
     if (!hasWorkout && !hasPending) {
@@ -152,7 +149,7 @@ const Aluno = () => {
     } else {
       setLastEvalDate(null);
     }
-  }, [workoutsByStudent, globalPendingEvals, user?.id]);
+  }, [workoutsByStudent, pendingEvaluations, user?.id]);
 
   useEffect(() => {
     setExercises(currentStudentExercises);
@@ -237,9 +234,52 @@ const Aluno = () => {
   const currentTabInfo = TABS.find(t => t.id === activeTab) || TABS[0];
   const IconComponent = currentTabInfo.icon;
 
-  // Handlers para o Form de Medidas
+  // Carrega rascunho temporário digitado ou histórico anterior para autocompletar e evitar redigitar tudo
+  useEffect(() => {
+    // 1. Tentar ler do rascunho temporário (rascunho de digitação atual)
+    const draft = localStorage.getItem(`fitseven-draft-eval-${user?.id || 'u3'}`);
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        setFormData(prev => ({ ...prev, ...parsed }));
+        return;
+      } catch (e) {
+        console.error('Erro ao ler rascunho de avaliação:', e);
+      }
+    }
+
+    // 2. Se não houver rascunho ativo, autocompleta com a última avaliação que já está aprovada/cadastrada ou do histórico de evolução
+    const savedLastEvalData = localStorage.getItem(`fitseven-last-eval-data-${user?.id || 'u3'}`);
+    if (savedLastEvalData) {
+      try {
+        const parsed = JSON.parse(savedLastEvalData);
+        // Remove apenas fotos, termos e campos de arquivo para que ele faça upload das fotos novas, mas mantendo todas as medidas e questionários preenchidos
+        const autocompleteData = { ...parsed };
+        delete autocompleteData.fotoFrente;
+        delete autocompleteData.fotoFrenteBase64;
+        delete autocompleteData.fotoCostas;
+        delete autocompleteData.fotoCostasBase64;
+        delete autocompleteData.fotoPerfil;
+        delete autocompleteData.fotoPerfilBase64;
+        delete autocompleteData.laudoFile;
+        delete autocompleteData.laudoFileBase64;
+        autocompleteData.parqTermo = false; // Exige novo aceite por segurança jurídica
+        
+        setFormData(prev => ({ ...prev, ...autocompleteData }));
+      } catch (e) {
+        console.error('Erro ao carregar autocompletar anterior:', e);
+      }
+    }
+  }, [user?.id]);
+
+  // Handlers para o Form de Medidas com Auto-Save de Rascunho
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      // Salva em tempo real no localStorage para não perder a digitação
+      localStorage.setItem(`fitseven-draft-eval-${user?.id || 'u3'}`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const handleFileUpload = (e) => {
@@ -278,6 +318,12 @@ const Aluno = () => {
       await submitEvaluation(formData);
       setLastEvalDate(new Date());
       setMedidasSubmitted(true);
+      
+      // Salva em localStorage os dados enviados para autocompletar avaliações futuras
+      localStorage.setItem(`fitseven-last-eval-data-${user?.id || 'u3'}`, JSON.stringify(formData));
+      // Limpa o rascunho temporário ativo pois o formulário já foi enviado
+      localStorage.removeItem(`fitseven-draft-eval-${user?.id || 'u3'}`);
+      
       alert('Avaliação física submetida com sucesso! Aguarde a aprovação do seu treinador.');
     } catch (err) {
       console.error(err);
@@ -1555,7 +1601,7 @@ const Aluno = () => {
                         let daysLeft = 0;
                         
                         const hasWorkout = workoutsByStudent && workoutsByStudent[user?.id];
-                        const hasPending = globalPendingEvals && globalPendingEvals.some(ev => ev.userId === user?.id);
+                        const hasPending = pendingEvaluations && pendingEvaluations.some(ev => ev.userId === user?.id);
 
                         if (lastEvalDate && (hasWorkout || hasPending)) {
                           const timeDiff = new Date().getTime() - lastEvalDate.getTime();
