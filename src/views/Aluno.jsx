@@ -237,8 +237,10 @@ const Aluno = () => {
 
   // Carrega rascunho temporário digitado ou histórico anterior para autocompletar e evitar redigitar tudo
   useEffect(() => {
+    if (!user?.id) return;
+    
     // 1. Tentar ler do rascunho temporário (rascunho de digitação atual)
-    const draft = localStorage.getItem(`fitseven-draft-eval-${user?.id || 'u3'}`);
+    const draft = localStorage.getItem(`fitseven-draft-eval-${user.id}`);
     if (draft) {
       try {
         const parsed = JSON.parse(draft);
@@ -250,7 +252,7 @@ const Aluno = () => {
     }
 
     // 2. Se não houver rascunho ativo, autocompleta com a última avaliação que já está aprovada/cadastrada ou do histórico de evolução
-    const savedLastEvalData = localStorage.getItem(`fitseven-last-eval-data-${user?.id || 'u3'}`);
+    const savedLastEvalData = localStorage.getItem(`fitseven-last-eval-data-${user.id}`);
     if (savedLastEvalData) {
       try {
         const parsed = JSON.parse(savedLastEvalData);
@@ -271,7 +273,7 @@ const Aluno = () => {
         console.error('Erro ao carregar autocompletar anterior:', e);
       }
     }
-  }, [user?.id]);
+  }, [user, user?.id]);
 
   // Handlers para o Form de Medidas com Auto-Save de Rascunho
   const handleInputChange = (field, value) => {
