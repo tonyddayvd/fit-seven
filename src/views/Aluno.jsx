@@ -160,99 +160,86 @@ const Aluno = () => {
         const html = studentData.vipHtml;
         const domParser = new DOMParser();
         const doc = domParser.parseFromString(html, 'text/html');
+
+        // ── ESCOPO: apenas a seção de treino, ignorando nutrição/recuperação ──
+        // Tenta #treino primeiro; se não existir, usa todo o body
+        const treinoRoot = doc.querySelector('#treino') || doc.querySelector('.page') || doc.body;
+
         const parsed = [];
-
-        // Scope: buscar SOMENTE dentro de #treino para não pegar nutrição/recuperação
-        // Se não existir #treino, usa o documento inteiro (tolerância a outros layouts)
-        const workoutScope = doc.querySelector('#treino') || doc.body;
-
-        // ── ESTRATÉGIA 1 (primária): div.exercise-main com strong + span ────────
-        // Este é o padrão do HTML gerado pela IA:
-        //   <div class="exercise-main"><strong>Nome</strong><span>4x 8-10</span></div>
+        const splitLetters = ['A', 'B', 'C', 'D', 'E'];
         const dayClassMap = { day1: 'A', day2: 'B', day3: 'C', day4: 'D', day5: 'E' };
         const catMap = {
-          A: 'Pernas / Quadríceps',
-          B: 'Costas / Core',
-          C: 'Glúteo / Posterior',
-          D: 'Superior / Cardio',
+          A: 'Pernas/Quadríceps',
+          B: 'Costas/Core',
+          C: 'Glúteo/Posterior',
+          D: 'Superior/Cardio',
           E: 'Inferiores Completos'
         };
 
-        const exerciseMains = workoutScope.querySelectorAll('.exercise-main');
+        // ── ESTRATÉGIA 1: div.exercise-main dentro do #treino ────────────────
+        // Estrutura: <div class="exercise-main"><strong>Nome</strong><span>4x10</span></div>
+        const exerciseMains = treinoRoot.querySelectorAll('.exercise-main');
 
-        if (exerciseMains.length > 0) {
-          exerciseMains.forEach((el, idx) => {
-            // Nome: primeiro <strong> direto dentro do .exercise-main
-            const nameEl = el.querySelector(':scope > strong, strong');
-            // Séries: primeiro <span> que NÃO seja .note direto
-            const repsEl = el.querySelector(':scope > span:not(.note), span:not(.note)');
+        exerciseMains.forEach((el, idx) => {
+          const name = el.querySelector('strong')?.textContent?.trim() || '';
+          const reps = el.querySelector('span')?.textContent?.trim() || '';
 
-            const name = nameEl?.textContent?.trim() || '';
-            const reps = repsEl?.textContent?.trim() || '';
-            if (!name || name.length < 4) return;
+          if (!name || name.length < 4) return;
 
-            // Detectar qual dia (split) caminhando pelos ancestors
-            let split = 'A';
-            let ancestor = el.parentElement;
-            for (let d = 0; d < 15 && ancestor; d++) {
-              let found = false;
-              for (const [cls, letter] of Object.entries(dayClassMap)) {
-                if (ancestor.classList && ancestor.classList.contains(cls)) {
-                  split = letter;
-                  found = true;
-                  break;
-                }
+          // Detectar split percorrendo ancestors até achar .day1-.day5
+          let split = 'A';
+          let node = el.parentElement;
+          for (let d = 0; node && d < 15; d++, node = node.parentElement) {
+            for (const [cls, letter] of Object.entries(dayClassMap)) {
+              if (node.classList && node.classList.contains(cls)) {
+                split = letter;
+                node = null; // para o while
+                break;
               }
-              if (found) break;
-              ancestor = ancestor.parentElement;
             }
+          }
 
-            // Seção: preparação ou treino principal
-            const sectionEl = el.closest && el.closest('.workout-section');
-            const sectionTitle = sectionEl
-              ? (sectionEl.querySelector('.section-title')?.textContent?.toLowerCase() || '')
-              : '';
-            const isPrep = sectionTitle.includes('prepara') || sectionTitle.includes('aquec');
+          // Pegar a nota (.note) do li pai como observação de carga
+          const liEl = el.closest ? el.closest('li') : null;
+          const note = liEl?.querySelector('.note')?.textContent?.trim() || '';
 
-            // Nota/carga: .note dentro do mesmo <li>
-            const liEl = el.closest && el.closest('li');
-            const note = liEl?.querySelector('.note')?.textContent?.trim() || '';
+          // Detectar se é seção de Preparação/Aquecimento
+          const sectionTitle = el.closest ? 
+            (el.closest('.workout-section')?.querySelector('.section-title')?.textContent?.toLowerCase() || '') : '';
+          const isPrep = sectionTitle.includes('prepara') || sectionTitle.includes('aquec');
 
-            parsed.push({
-              id: `vip-${split}-${idx}`,
-              split,
-              name: name.substring(0, 80),
-              category: catMap[split] || split,
-              load: note || 'Conforme orientação do treino',
-              reps: reps || '4 séries de 10',
-              isPrep,
-              status: 'pendente',
-              video_oficial_url: '',
-              video_personalizado_url: ''
-            });
+          parsed.push({
+            id: `vip-${split}-${idx}`,
+            split,
+            name: name.substring(0, 80),
+            category: catMap[split] || split,
+            load: note || 'Conforme orientação do treino',
+            reps: reps || '4 séries de 10',
+            isPrep,
+            status: 'pendente',
+            video_oficial_url: '',
+            video_personalizado_url: ''
           });
-        }
+        });
 
-        // ── ESTRATÉGIA 2: <li> com <strong> (outros layouts de IA) ──────────────
+        // ── ESTRATÉGIA 2: li > strong dentro do #treino (outros formatos de IA) ─
         if (parsed.length === 0) {
           let exCounter = 0;
-          const splitLetters = ['A', 'B', 'C', 'D', 'E'];
-          workoutScope.querySelectorAll('li').forEach((item) => {
-            const strongEl = item.querySelector('strong');
-            const spanEl = item.querySelector('span:not(.note)');
-            const exName = strongEl?.textContent?.trim() || '';
-            const exReps = spanEl?.textContent?.trim() || '';
-            if (!exName || exName.length < 5) return;
-            // Ignorar itens que pareçam ser de listas gerais (guideline, etc.)
-            if (item.closest('.guideline-card, .alert-card, .footer-legend')) return;
+          treinoRoot.querySelectorAll('li').forEach((item) => {
+            const name = item.querySelector('strong')?.textContent?.trim() || '';
+            const reps = item.querySelector('span:not(.note)')?.textContent?.trim() || '';
+            if (!name || name.length < 4) return;
+            // Ignorar itens que parecem dias/avisos, não exercícios
+            const lowName = name.toLowerCase();
+            if (lowName.startsWith('dia ') || lowName.startsWith('treino ') || lowName.startsWith('protocolo')) return;
             exCounter++;
             parsed.push({
               id: `vip-li-${exCounter}`,
-              split: splitLetters[Math.min(Math.floor((exCounter - 1) / 5), 4)],
-              name: exName.substring(0, 80),
+              split: splitLetters[Math.min(Math.floor(exCounter / 6), 4)],
+              name: name.substring(0, 80),
               category: 'VIP',
               load: item.querySelector('.note')?.textContent?.trim() || 'Conforme orientação',
-              reps: exReps || '4 séries de 10',
+              reps: reps || '4 séries de 10',
               status: 'pendente',
               video_oficial_url: '',
               video_personalizado_url: ''
@@ -261,17 +248,17 @@ const Aluno = () => {
         }
 
         if (parsed.length > 0) {
-          console.log(`[VIP Parser ✅] ${parsed.length} exercícios extraídos (${parsed.filter(e => !e.isPrep).length} principais + ${parsed.filter(e => e.isPrep).length} aquecimento).`);
+          console.log(`[VIP Parser] OK: ${parsed.length} exercícios (${parsed.filter(e => !e.isPrep).length} principais + ${parsed.filter(e => e.isPrep).length} aquecimento).`);
           setExercises(parsed);
           return;
         }
-        console.warn('[VIP Parser ⚠️] Nenhum exercício encontrado no HTML VIP. Usando exercises[] do banco como fallback.');
+        console.warn('[VIP Parser] Nenhum exercício encontrado no escopo do #treino. Usando exercises[] do banco.');
       } catch (err) {
-        console.warn('[VIP Parser ❌] Erro ao parsear HTML:', err);
+        console.warn('[VIP Parser] Erro:', err);
       }
     }
 
-    // Fallback: exercícios salvos no banco (não-VIP ou parser sem resultado)
+    // Fallback: exercícios do banco (não-VIP ou parser sem resultado)
     setExercises(currentStudentExercises);
   }, [currentStudentExercises, workoutsByStudent, user?.id]);
 
