@@ -105,6 +105,27 @@ const SILHOUETTES = {
   }
 };
 
+// Abre o HTML VIP em nova aba e dispara impressão automática → usuário salva como PDF
+// O HTML já possui @media print configurado pela IA para layout correto de página
+const openHtmlAsPdf = (htmlContent, nomeArquivo = 'programa') => {
+  // Injeta script de auto-print logo antes do </body>
+  const printScript = `
+    <script>
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          document.title = '${nomeArquivo}';
+          window.print();
+        }, 600);
+      });
+    <\/script>`;
+  const htmlWithPrint = htmlContent.replace(/<\/body>/i, printScript + '</body>');
+  const blob = new Blob([htmlWithPrint], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  // Revoga a URL após tempo suficiente para o carregamento
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+};
+
 const Aluno = () => {
   const { activeTenant, user, currentStudentExercises, updateStudentExercises, submitEvaluation, workoutsByStudent, setVirtualRoute, pendingEvaluations, approvedEvaluations } = useApp();
   
@@ -944,15 +965,8 @@ const Aluno = () => {
                     <button
                       onClick={() => {
                         const vipHtmlContent = workoutsByStudent[user.id].vipHtml;
-                        const blob = new Blob([vipHtmlContent], { type: 'text/html;charset=utf-8' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `programa-vip-${(user.name || 'aluno').replace(/\s+/g,'_')}.html`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
+                        const nome = `Programa VIP - ${user.name || 'Aluno'}`;
+                        openHtmlAsPdf(vipHtmlContent, nome);
                       }}
                       style={{
                         padding: '8px 14px',
@@ -969,7 +983,7 @@ const Aluno = () => {
                         whiteSpace: 'nowrap'
                       }}
                     >
-                      <FileText size={14} /> Baixar Programa Completo
+                      <Download size={14} /> Salvar como PDF
                     </button>
                   </div>
                 )}
@@ -2210,13 +2224,8 @@ const Aluno = () => {
                                   </div>
                                   <button
                                     onClick={() => {
-                                      const blob = new Blob([treinoAtual.vipHtml], { type: 'text/html;charset=utf-8' });
-                                      const url = URL.createObjectURL(blob);
-                                      const a = document.createElement('a');
-                                      a.href = url;
-                                      a.download = `programa-atual-${(user?.name || 'aluno').replace(/\s+/g, '_')}.html`;
-                                      document.body.appendChild(a); a.click();
-                                      document.body.removeChild(a); URL.revokeObjectURL(url);
+                                      const nome = `Programa Atual - ${user?.name || 'Aluno'}`;
+                                      openHtmlAsPdf(treinoAtual.vipHtml, nome);
                                     }}
                                     style={{
                                       padding: '7px 14px', fontSize: '0.78rem', fontWeight: '700',
@@ -2225,7 +2234,7 @@ const Aluno = () => {
                                       cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
                                     }}
                                   >
-                                    <Download size={13} /> Baixar HTML
+                                    <Download size={13} /> Salvar como PDF
                                   </button>
                                 </div>
                               )}
@@ -2252,13 +2261,8 @@ const Aluno = () => {
                                     <button
                                       onClick={() => {
                                         const vHtml = ev.vipHtml || ev.formData?.vipHtml;
-                                        const blob = new Blob([vHtml], { type: 'text/html;charset=utf-8' });
-                                        const url = URL.createObjectURL(blob);
-                                        const a = document.createElement('a');
-                                        a.href = url;
-                                        a.download = `programa-${i + 1}-${(user?.name || 'aluno').replace(/\s+/g, '_')}.html`;
-                                        document.body.appendChild(a); a.click();
-                                        document.body.removeChild(a); URL.revokeObjectURL(url);
+                                        const nome = `Programa ${myEvals.length - 1 - i} - ${user?.name || 'Aluno'}`;
+                                        openHtmlAsPdf(vHtml, nome);
                                       }}
                                       style={{
                                         padding: '6px 12px', fontSize: '0.75rem', fontWeight: '700',
@@ -2268,7 +2272,7 @@ const Aluno = () => {
                                         display: 'flex', alignItems: 'center', gap: '5px'
                                       }}
                                     >
-                                      <Download size={12} /> Baixar HTML
+                                      <Download size={12} /> Salvar como PDF
                                     </button>
                                   ) : (
                                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Treino Free (sem HTML)</span>
