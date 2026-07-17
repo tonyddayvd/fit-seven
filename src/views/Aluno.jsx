@@ -147,6 +147,7 @@ const Aluno = () => {
 
   const [activeTab, setActiveTab] = useState('treinos');
   const [activeSplit, setActiveSplit] = useState('A');
+  const [lightboxPhoto, setLightboxPhoto] = useState(null); // { url, label } ou null
   
   // Estado de exercícios sincronizado com o contexto global (Fluxo Híbrido)
   const [exercises, setExercises] = useState([]);
@@ -906,7 +907,43 @@ const Aluno = () => {
 
   return (
     <div style={styles.container} className="animate-fade-in">
-      {/* Área de Conteúdo Principal */}
+
+      {/* ── LIGHTBOX DE FOTOS ────────────────────────────────────────── */}
+      {lightboxPhoto && (
+        <div
+          onClick={() => setLightboxPhoto(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            backgroundColor: 'rgba(0,0,0,0.92)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: '20px', cursor: 'zoom-out'
+          }}
+        >
+          <div style={{
+            position: 'absolute', top: '16px', right: '20px',
+            color: '#fff', fontSize: '1.5rem', cursor: 'pointer',
+            fontWeight: '700', lineHeight: 1, opacity: 0.8
+          }} onClick={() => setLightboxPhoto(null)}>✕</div>
+          <span style={{
+            color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem',
+            marginBottom: '12px', letterSpacing: '0.05em', textTransform: 'uppercase'
+          }}>{lightboxPhoto.label}</span>
+          <img
+            src={lightboxPhoto.url}
+            alt={lightboxPhoto.label}
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: '90vw', maxHeight: '82vh',
+              objectFit: 'contain', borderRadius: '8px',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.6)'
+            }}
+          />
+          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', marginTop: '12px' }}>Clique fora da foto para fechar</span>
+        </div>
+      )}
+
+
       <div style={styles.contentArea}>
         <div style={styles.card} className="glass">
           
@@ -2073,8 +2110,8 @@ const Aluno = () => {
                                         <img
                                           src={url}
                                           alt={label}
-                                          style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-color)', cursor: 'pointer' }}
-                                          onClick={() => window.open(url, '_blank')}
+                                          style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-color)', cursor: 'zoom-in' }}
+                                          onClick={() => setLightboxPhoto({ url, label: `${evDate} — ${label}` })}
                                         />
                                       ) : (
                                         <div style={{
