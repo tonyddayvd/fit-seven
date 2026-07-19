@@ -34,9 +34,11 @@ const Login = () => {
     <div style={styles.container} className="animate-fade-in">
       <div style={styles.card} className="glass">
         <div style={styles.logoContainer}>
-          <div style={styles.iconCircle}>
-            <Dumbbell className="text-gradient" size={32} />
-          </div>
+        <img 
+          src="/assets/logo.jpg" 
+          alt="Fit Seven Logo" 
+          style={styles.logoImg} 
+        />
           <h1 style={styles.title}>Fit Seven</h1>
           <p style={styles.subtitle}>Plataforma Fitness Multi-Tenant B2B2C</p>
         </div>
@@ -137,17 +139,14 @@ const styles = {
     marginBottom: '32px',
     textAlign: 'center',
   },
-  iconCircle: {
-    width: '64px',
-    height: '64px',
-    borderRadius: 'var(--radius-md)',
-    background: 'var(--bg-tertiary)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImg: {
+    width: '120px',
+    height: '120px',
+    borderRadius: '20px',
+    objectFit: 'cover',
     marginBottom: '16px',
-    border: '1px solid var(--border-color)',
-    boxShadow: 'var(--shadow-sm)',
+    boxShadow: '0 0 25px rgba(139,92,246,0.35), 0 8px 24px rgba(0,0,0,0.4)',
+    border: '1px solid rgba(139,92,246,0.3)',
   },
   title: {
     fontSize: '2rem',

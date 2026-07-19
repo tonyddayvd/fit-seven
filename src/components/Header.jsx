@@ -8,7 +8,11 @@ const Header = () => {
   return (
     <header className="glass header-container" style={styles.header}>
       <div style={styles.logoSection}>
-        <Dumbbell className="text-gradient" size={28} style={styles.logoIcon} />
+        <img 
+          src="/assets/logo-sm.jpg" 
+          alt="Fit Seven" 
+          style={styles.logoImg} 
+        />
         <div>
           <h1 style={styles.title}>Fit Seven</h1>
           <span style={styles.tenantBadge}>
@@ -69,7 +73,13 @@ const styles = {
     alignItems: 'center',
     gap: '12px',
   },
-  logoIcon: {
+  logoImg: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '8px',
+    border: '1px solid rgba(139,92,246,0.3)',
+    objectFit: 'cover',
+    boxShadow: '0 0 10px rgba(139,92,246,0.2)',
     animation: 'pulse-slow 3s infinite ease-in-out',
   },
   title: {
