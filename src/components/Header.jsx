@@ -9,7 +9,7 @@ const Header = () => {
     <header className="glass header-container" style={styles.header}>
       <div style={styles.logoSection}>
         <img 
-          src="/assets/logo-sm.jpg" 
+          src="/fit-seven/assets/logo-sm.jpg" 
           alt="Fit Seven" 
           style={styles.logoImg} 
         />

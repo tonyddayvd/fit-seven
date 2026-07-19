@@ -35,7 +35,7 @@ const Login = () => {
       <div style={styles.card} className="glass">
         <div style={styles.logoContainer}>
         <img 
-          src="/assets/logo.jpg" 
+          src="/fit-seven/assets/logo.jpg" 
           alt="Fit Seven Logo" 
           style={styles.logoImg} 
         />
