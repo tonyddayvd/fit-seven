@@ -2103,28 +2103,42 @@ const Aluno = () => {
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '4px', padding: '8px' }}>
-                                  {[['Frente', frenteUrl], ['Costas', costasUrl], ['Perfil', perfilUrl]].map(([label, url]) => (
-                                    <div key={label} style={{ flex: 1, textAlign: 'center' }}>
-                                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '3px' }}>{label}</div>
-                                      {url ? (
-                                        <img
-                                          src={url}
-                                          alt={label}
-                                          style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-color)', cursor: 'zoom-in' }}
-                                          onClick={() => setLightboxPhoto({ url, label: `${evDate} — ${label}` })}
-                                        />
-                                      ) : (
-                                        <div style={{
-                                          width: '100%', height: '80px', borderRadius: '4px',
-                                          border: '1px dashed var(--border-color)',
-                                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                          color: 'var(--text-muted)', opacity: 0.4
-                                        }}>
-                                          <ImageOff size={18} />
-                                        </div>
-                                      )}
+                                  {anyPhoto ? (
+                                    [['Frente', frenteUrl], ['Costas', costasUrl], ['Perfil', perfilUrl]].map(([label, url]) => (
+                                      <div key={label} style={{ flex: 1, textAlign: 'center' }}>
+                                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '3px' }}>{label}</div>
+                                        {url ? (
+                                          <img
+                                            src={url}
+                                            alt={label}
+                                            style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-color)', cursor: 'zoom-in' }}
+                                            onClick={() => setLightboxPhoto({ url, label: `${evDate} — ${label}` })}
+                                          />
+                                        ) : (
+                                          <div style={{
+                                            width: '100%', height: '80px', borderRadius: '4px',
+                                            border: '1px dashed var(--border-color)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            color: 'var(--text-muted)', opacity: 0.4
+                                          }}>
+                                            <ImageOff size={18} />
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div style={{
+                                      flex: 1, padding: '12px 8px',
+                                      display: 'flex', flexDirection: 'column',
+                                      alignItems: 'center', justifyContent: 'center',
+                                      gap: '6px', textAlign: 'center'
+                                    }}>
+                                      <ImageOff size={22} style={{ opacity: 0.2 }} />
+                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                        Fotos não enviadas<br/>nesta avaliação
+                                      </span>
                                     </div>
-                                  ))}
+                                  )}
                                 </div>
 
                                 {(ev.laudoFileBase64 || ev.formData?.laudoFileBase64) && (
