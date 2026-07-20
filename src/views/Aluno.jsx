@@ -495,18 +495,12 @@ const Aluno = () => {
     const savedSplits = localStorage.getItem(`fitseven-finished-splits-${userKey}`);
     if (savedSplits) {
       try {
-        const parsedSplits = JSON.parse(savedSplits);
-        setFinishedSplits(prev => prev.length > 0 ? prev : parsedSplits);
+        setFinishedSplits(JSON.parse(savedSplits));
       } catch (e) {
         console.error('Erro ao ler splits concluídos:', e);
       }
-    } else {
-      const studentData = workoutsByStudent?.[userKey];
-      if (studentData && Array.isArray(studentData.finishedSplits)) {
-        setFinishedSplits(prev => prev.length > 0 ? prev : studentData.finishedSplits);
-      }
     }
-  }, [user, user?.id, workoutsByStudent]);
+  }, [user, user?.id]);
 
   // Handlers para o Form de Medidas com Auto-Save de Rascunho
   const handleInputChange = (field, value) => {
