@@ -297,9 +297,10 @@ const Aluno = () => {
             return { ...ex, category: finalCategory };
           });
 
-          // Sincroniza também a lista de treinos concluídos
-          if (Array.isArray(studentData.finishedSplits)) {
+          // Sincroniza a lista de treinos concluídos apenas se houver dados novos no banco, caso contrário mantém o cache local mais recente
+          if (Array.isArray(studentData.finishedSplits) && studentData.finishedSplits.length > 0) {
             setFinishedSplits(studentData.finishedSplits);
+            localStorage.setItem(`fitseven-finished-splits-${user.id}`, JSON.stringify(studentData.finishedSplits));
           }
 
           // Se o banco de dados já possuir exercises com status/realLoad salvos, mescla para não perder o progresso
@@ -345,8 +346,9 @@ const Aluno = () => {
         
         // Se falhar o parsing do HTML mas o banco possui exercícios salvos pré-estruturados, usa-os
         if (studentData?.exercises && studentData.exercises.length > 0) {
-          if (Array.isArray(studentData.finishedSplits)) {
+          if (Array.isArray(studentData.finishedSplits) && studentData.finishedSplits.length > 0) {
             setFinishedSplits(studentData.finishedSplits);
+            localStorage.setItem(`fitseven-finished-splits-${user.id}`, JSON.stringify(studentData.finishedSplits));
           }
           console.log(`[VIP Fallback] Usando ${studentData.exercises.length} exercícios pré-estruturados do banco.`);
           setExercises(studentData.exercises);
@@ -488,18 +490,24 @@ const Aluno = () => {
         console.error('Erro ao carregar autocompletar anterior:', e);
       }
     }
-    // 3. Inicializar splits concluídos
+    // 3. Inicializar splits concluídos de forma redundante e síncrona
     const savedSplits = localStorage.getItem(`fitseven-finished-splits-${user.id}`);
     if (savedSplits) {
       try {
-        setFinishedSplits(JSON.parse(savedSplits));
+        const parsedSplits = JSON.parse(savedSplits);
+        setFinishedSplits(parsedSplits);
       } catch (e) {
         console.error('Erro ao ler splits concluídos:', e);
       }
     } else {
-      setFinishedSplits([]);
+      const studentData = workoutsByStudent?.[user.id];
+      if (studentData && Array.isArray(studentData.finishedSplits)) {
+        setFinishedSplits(studentData.finishedSplits);
+      } else {
+        setFinishedSplits([]);
+      }
     }
-  }, [user, user?.id]);
+  }, [user, user?.id, workoutsByStudent]);
 
   // Handlers para o Form de Medidas com Auto-Save de Rascunho
   const handleInputChange = (field, value) => {
