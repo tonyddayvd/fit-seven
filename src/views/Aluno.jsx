@@ -1251,8 +1251,10 @@ const Aluno = () => {
                         const repsCount = defaultRepsSets.reps;
                         const dynamicTimeText = `${repsCount * 3}s`;
 
+                        const isSplitFinished = finishedSplits.includes(activeSplit);
+
                         return (
-                          <div key={ex.id} style={{ ...styles.exerciseCard, ...(ex.status === 'concluido' ? styles.exConcluido : {}), ...(ex.status === 'pulado' ? styles.exPulado : {}) }} className="glass">
+                          <div key={ex.id} style={{ ...styles.exerciseCard, ...(ex.status === 'concluido' ? styles.exConcluido : {}), ...(ex.status === 'pulado' ? styles.exPulado : {}), ...(isSplitFinished ? { opacity: 0.75, pointerEvents: 'none' } : {}) }} className="glass">
                             <div style={styles.exInfo}>
                               <div style={styles.nameVideoRow}>
                                 <span style={styles.exCat}>{ex.category.toUpperCase()}</span>
@@ -1424,11 +1426,20 @@ const Aluno = () => {
                       })}
                     </div>
 
-                    <div style={styles.finishContainer}>
-                      <button onClick={handleFinishWorkout} disabled={processedExercises < totalExercises} style={{ ...styles.finishWorkoutBtn, ...(processedExercises === totalExercises ? styles.finishWorkoutBtnActive : {}) }}>
-                        Finalizar e Enviar Treino
-                      </button>
-                    </div>
+                    {/* Se o split já estiver concluído, exibe um banner explicativo e bloqueia a finalização */}
+                    {finishedSplits.includes(activeSplit) ? (
+                      <div style={{ ...styles.resultCard, padding: '24px', border: '1px dashed var(--border-color)', margin: '16px 0', textAlign: 'center' }} className="glass">
+                        <Lock size={32} style={{ color: '#eab308', marginBottom: '8px' }} />
+                        <h4 style={{ margin: 0, fontWeight: '700', fontSize: '0.95rem', color: '#eab308' }}>Treino do Dia Já Realizado!</h4>
+                        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>Você já concluiu este treino em definitivo. Ele só será liberado para nova execução na próxima semana.</p>
+                      </div>
+                    ) : (
+                      <div style={styles.finishContainer}>
+                        <button onClick={handleFinishWorkout} disabled={processedExercises < totalExercises} style={{ ...styles.finishWorkoutBtn, ...(processedExercises === totalExercises ? styles.finishWorkoutBtnActive : {}) }}>
+                          Finalizar e Enviar Treino
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
