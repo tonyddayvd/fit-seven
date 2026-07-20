@@ -189,8 +189,8 @@ const Aluno = () => {
         const doc = domParser.parseFromString(html, 'text/html');
 
         // ── ESCOPO: apenas a seção de treino, ignorando nutrição/recuperação ──
-        // Tenta #treino primeiro; se não existir, usa todo o body
-        const treinoRoot = doc.querySelector('#treino') || doc.querySelector('.page') || doc.body;
+        // Tenta achar a div exata com id="treino" para evitar capturar páginas erradas
+        const treinoRoot = doc.getElementById('treino') || doc.querySelector('#treino') || doc.body;
 
         const parsed = [];
         const splitLetters = ['A', 'B', 'C', 'D', 'E'];
