@@ -216,14 +216,17 @@ const Aluno = () => {
           // Detectar split percorrendo ancestors até achar .day1-.day5
           let split = 'A';
           let node = el.parentElement;
-          for (let d = 0; node && d < 15; d++, node = node.parentElement) {
+          for (let d = 0; d < 15 && node; d++) {
+            let found = false;
             for (const [cls, letter] of Object.entries(dayClassMap)) {
               if (node.classList && node.classList.contains(cls)) {
                 split = letter;
-                node = null; // para o while
+                found = true;
                 break;
               }
             }
+            if (found) break;
+            node = node.parentElement;
           }
 
           // Pegar a nota (.note) do li pai como observação de carga
