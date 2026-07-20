@@ -950,7 +950,7 @@ const Aluno = () => {
   const handleSkipExercise = (id) => {
     const updated = exercises.map(ex => ex.id === id ? { ...ex, status: 'pulado' } : ex);
     setExercises(updated);
-    updateStudentExercises(updated);
+    updateStudentExercises(updated, finishedSplits);
     playBeep(400, 0.25);
     speakText('Tudo bem, esse exercício foi pulado. Vamos para o próximo!');
   };
@@ -2841,7 +2841,7 @@ const Aluno = () => {
                     } : ex
                   );
                   setExercises(updated);
-                  updateStudentExercises(updated);
+                  updateStudentExercises(updated, finishedSplits);
                   setConfirmModalEx(null);
                   playBeep(900, 0.1);
                   speakText(confirmReached100 ? 'Espetacular! Meta batida com sucesso.' : 'Muito bom relato, o importante é a constância!');
