@@ -1140,9 +1140,42 @@ const Aluno = () => {
                       </div>
                     </div>
 
-                    <button onClick={handleResetWorkout} className="btn btn-secondary" style={styles.resetBtn}>
-                      <RefreshCw size={14} /> Resetar e Simular Novamente
-                    </button>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px', width: '100%' }}>
+                      <button 
+                        onClick={() => {
+                          setWorkoutSessionFinished(false);
+                        }} 
+                        className="btn btn-secondary" 
+                        style={{ ...styles.resetBtn, flex: 1, margin: 0, padding: '12px', fontSize: '0.82rem', fontWeight: 'bold' }}
+                      >
+                        ✏️ Editar / Corrigir Informações
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const updatedSplits = [...finishedSplits];
+                          if (!updatedSplits.includes(activeSplit)) {
+                            updatedSplits.push(activeSplit);
+                          }
+                          setFinishedSplits(updatedSplits);
+                          localStorage.setItem(`fitseven-finished-splits-${user?.id || 'u3'}`, JSON.stringify(updatedSplits));
+                          setWorkoutSessionFinished(false);
+                          
+                          // Sugere o próximo split se houver
+                          const remainingSplits = ['A', 'B', 'C', 'D', 'E'].filter(s => {
+                            const count = exercises.filter(ex => (ex.split || 'A') === s).length;
+                            return count > 0 && !updatedSplits.includes(s);
+                          });
+                          if (remainingSplits.length > 0) {
+                            setActiveSplit(remainingSplits[0]);
+                          }
+                          alert('Treino concluído em definitivo! O split foi bloqueado e seu progresso computado.');
+                        }} 
+                        className="btn btn-primary" 
+                        style={{ ...styles.resetBtn, flex: 1, margin: 0, padding: '12px', fontSize: '0.82rem', fontWeight: 'bold', backgroundColor: 'var(--status-success)' }}
+                      >
+                        ✓ Concluir em Definitivo
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   /* Tela de Execução */
@@ -1162,23 +1195,27 @@ const Aluno = () => {
                       {['A', 'B', 'C', 'D', 'E'].map(letter => {
                         const count = exercises.filter(ex => (ex.split || 'A') === letter).length;
                         if (count === 0) return null; // Só renderiza splits que possuem exercícios cadastrados
+                        const isFinished = finishedSplits.includes(letter);
                         return (
                           <button
                             key={letter}
                             type="button"
+                            disabled={isFinished}
                             onClick={() => {
                               setActiveSplit(letter);
                               setWorkoutSessionFinished(false);
                             }}
                             style={{
                               ...styles.splitBtn,
-                              ...(activeSplit === letter ? styles.splitBtnActive : {})
+                              ...(activeSplit === letter ? styles.splitBtnActive : {}),
+                              ...(isFinished ? { opacity: 0.4, cursor: 'not-allowed', textDecoration: 'line-through', border: '1px dashed var(--border-color)' } : {})
                             }}
                           >
-                            Treino {letter}
+                            {isFinished ? '🔒 Concluído' : `Treino ${letter}`}
                             <span style={{
                               ...styles.splitCountBadge,
-                              ...(activeSplit === letter ? styles.splitCountBadgeActive : {})
+                              ...(activeSplit === letter ? styles.splitCountBadgeActive : {}),
+                              ...(isFinished ? { backgroundColor: 'var(--text-muted)' } : {})
                             }}>{count}</span>
                           </button>
                         );
