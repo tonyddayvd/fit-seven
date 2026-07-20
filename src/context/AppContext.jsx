@@ -636,6 +636,12 @@ export const AppProvider = ({ children }) => {
       finishedSplits: finishedSplitsArray !== null ? finishedSplitsArray : (currentData.finishedSplits || [])
     };
 
+    // Atualiza localmente de forma otimista para evitar lags de renderização
+    setWorkoutsByStudent(prev => ({
+      ...prev,
+      [user.id]: updatedWorkout
+    }));
+
     const { error } = await supabase.from('treinos_html').upsert({
       id: `t_html_${user.id}`,
       tenant_id: user.tenantId,
