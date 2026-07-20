@@ -490,8 +490,9 @@ const Aluno = () => {
         console.error('Erro ao carregar autocompletar anterior:', e);
       }
     }
-    // 3. Inicializar splits concluídos de forma redundante e síncrona
-    const savedSplits = localStorage.getItem(`fitseven-finished-splits-${user.id}`);
+    // 3. Inicializar splits concluídos de forma redundante e síncrona usando uma chave universal estável
+    const userKey = user?.id || 'u3';
+    const savedSplits = localStorage.getItem(`fitseven-finished-splits-${userKey}`);
     if (savedSplits) {
       try {
         const parsedSplits = JSON.parse(savedSplits);
@@ -500,7 +501,7 @@ const Aluno = () => {
         console.error('Erro ao ler splits concluídos:', e);
       }
     } else {
-      const studentData = workoutsByStudent?.[user.id];
+      const studentData = workoutsByStudent?.[userKey];
       if (studentData && Array.isArray(studentData.finishedSplits)) {
         setFinishedSplits(studentData.finishedSplits);
       } else {
