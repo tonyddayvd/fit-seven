@@ -1142,9 +1142,20 @@ const Aluno = () => {
                             <div style={styles.exInfo}>
                               <div style={styles.nameVideoRow}>
                                 <span style={styles.exCat}>{ex.category.toUpperCase()}</span>
-                                <button onClick={() => openVideoModal(ex)} style={styles.videoLinkBtn}>
-                                  <Tv size={14} /> Vídeo de Auxílio
-                                </button>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                  <button 
+                                    onClick={() => {
+                                      setReportModalEx(ex);
+                                      setReportText(`[Exercício: ${ex.name}]\n- Split: ${activeSplit}\n- Categoria: ${ex.category}\n- Meta: ${ex.reps}\n\nDescreva o problema aqui:\n`);
+                                    }} 
+                                    style={{ ...styles.videoLinkBtn, color: 'var(--status-danger)', borderColor: 'rgba(239, 68, 68, 0.2)', padding: '4px 8px', fontSize: '0.7rem' }}
+                                  >
+                                    🚨 Reportar Bug
+                                  </button>
+                                  <button onClick={() => openVideoModal(ex)} style={styles.videoLinkBtn}>
+                                    <Tv size={12} /> Vídeo
+                                  </button>
+                                </div>
                               </div>
                               <h4 style={styles.exName}>{ex.name}</h4>
                               <div style={styles.exMetaRow}>
@@ -2463,6 +2474,145 @@ const Aluno = () => {
                   Priorizar Link
                 </button>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Reportar Bug */}
+      {reportModalEx && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.modalCard, maxWidth: '480px' }} className="glass animate-fade-in">
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>🚨 Reportar Erro / Ajuste Técnico</h3>
+              <button onClick={() => setReportModalEx(null)} style={styles.closeModalBtn}>
+                <X size={18} />
+              </button>
+            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              Relate incoerências de grupo muscular, carga ou postura. O report será salvo no sistema para auditoria do administrador.
+            </p>
+            <textarea
+              style={{ ...styles.dualInput, width: '100%', minHeight: '120px', resize: 'vertical', fontFamily: 'monospace', fontSize: '0.8rem', padding: '12px' }}
+              value={reportText}
+              onChange={(e) => setReportText(e.target.value)}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+              <button onClick={() => {
+                navigator.clipboard.writeText(reportText);
+                alert('Conteúdo copiado!');
+              }} className="btn btn-secondary" style={{ fontSize: '0.8rem' }}>
+                📋 Copiar
+              </button>
+              <button onClick={async () => {
+                await reportBug({
+                  exerciseId: reportModalEx.id,
+                  exerciseName: reportModalEx.name,
+                  split: activeSplit,
+                  details: reportText
+                });
+                alert('Bug reportado com sucesso no sistema!');
+                setReportModalEx(null);
+              }} className="btn btn-primary" style={{ fontSize: '0.8rem' }}>
+                Enviar Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Repetições */}
+      {confirmModalEx && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.modalCard, maxWidth: '440px' }} className="glass animate-fade-in">
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>🎯 Validação de Repetições</h3>
+              <button onClick={() => setConfirmModalEx(null)} style={styles.closeModalBtn}>
+                <X size={18} />
+              </button>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', margin: '8px 0 16px 0', fontWeight: '500' }}>
+              Você conseguiu realizar todas as séries e repetições prescritas para este exercício com qualidade técnica?
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+              <button
+                onClick={() => setConfirmReached100(true)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid ' + (confirmReached100 === true ? 'var(--status-success)' : 'var(--border-color)'),
+                  backgroundColor: confirmReached100 === true ? 'rgba(16,185,129,0.1)' : 'transparent',
+                  color: confirmReached100 === true ? 'var(--status-success)' : 'var(--text-primary)',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                ✓ Sim, atingi 100%
+              </button>
+              <button
+                onClick={() => setConfirmReached100(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid ' + (confirmReached100 === false ? 'var(--status-danger)' : 'var(--border-color)'),
+                  backgroundColor: confirmReached100 === false ? 'rgba(239,68,68,0.1)' : 'transparent',
+                  color: confirmReached100 === false ? 'var(--status-danger)' : 'var(--text-primary)',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                ⚠️ Não, foi sub-máximo
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                Relato de Dificuldade / Observações (Opcional):
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Falhei na última série na rep 8"
+                value={confirmObs}
+                onChange={(e) => setConfirmObs(e.target.value)}
+                style={{ ...styles.dualInput, width: '100%' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button onClick={() => setConfirmModalEx(null)} className="btn btn-secondary" style={{ fontSize: '0.8rem' }}>
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (confirmReached100 === null) {
+                    alert('Por favor, selecione uma das opções de desempenho.');
+                    return;
+                  }
+                  // Salva os dados estendidos de execução no exercício
+                  const updated = exercises.map(ex => 
+                    ex.id === confirmModalEx.id ? { 
+                      ...ex, 
+                      status: 'concluido', 
+                      realSets: confirmModalEx.currentSetsVal, 
+                      realLoad: confirmModalEx.currentLoadVal,
+                      metaAtingida100: confirmReached100,
+                      feedbackDificuldade: confirmObs.trim()
+                    } : ex
+                  );
+                  setExercises(updated);
+                  updateStudentExercises(updated);
+                  setConfirmModalEx(null);
+                  playBeep(900, 0.1);
+                  speakText(confirmReached100 ? 'Espetacular! Meta batida com sucesso.' : 'Muito bom relato, o importante é a constância!');
+                }}
+                className="btn btn-primary"
+                style={{ fontSize: '0.8rem' }}
+              >
+                Confirmar e Concluir
+              </button>
             </div>
           </div>
         </div>

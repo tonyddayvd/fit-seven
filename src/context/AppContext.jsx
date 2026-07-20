@@ -76,6 +76,7 @@ export const AppProvider = ({ children }) => {
   const [workoutsByStudent, setWorkoutsByStudent] = useState({});
   const [pendingEvaluations, setPendingEvaluations] = useState([]);
   const [approvedEvaluations, setApprovedEvaluations] = useState([]);
+  const [bugReports, setBugReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Estados de sessão (Persistidos localmente para conveniência do usuário logado)
@@ -194,6 +195,14 @@ export const AppProvider = ({ children }) => {
           }
         });
         setWorkoutsByStudent(treinosMap);
+      }
+
+      // 5. Carregar Bug Reports (Persistência via localStorage para garantir funcionamento offline/instantâneo)
+      const localBugs = localStorage.getItem('fitseven-bug-reports');
+      if (localBugs) {
+        setBugReports(JSON.parse(localBugs));
+      } else {
+        setBugReports([]);
       }
     } catch (err) {
       console.error('Erro ao sincronizar com o Supabase:', err);
@@ -598,6 +607,20 @@ export const AppProvider = ({ children }) => {
       ? studentData.exercises 
       : DEFAULT_WORKOUTS;
 
+  const reportBug = async (bugData) => {
+    const newBug = {
+      id: `bug_${Date.now()}`,
+      studentId: user?.id || 'anonimo',
+      studentName: user?.name || 'Anônimo',
+      timestamp: new Date().toISOString(),
+      ...bugData
+    };
+    const updated = [newBug, ...bugReports];
+    setBugReports(updated);
+    localStorage.setItem('fitseven-bug-reports', JSON.stringify(updated));
+    return true;
+  };
+
   const updateStudentExercises = async (newExercises) => {
     if (!user) return;
     const currentData = workoutsByStudent[user.id] || { exercises: DEFAULT_WORKOUTS, isVip: false, vipHtml: '' };
@@ -683,6 +706,8 @@ export const AppProvider = ({ children }) => {
       resetDatabase,
       exportDatabase,
       importDatabase,
+      bugReports,
+      reportBug,
       isLoading
     }}>
       {children}

@@ -320,6 +320,12 @@ const Master = () => {
         >
           <Database size={16} /> Inspetor de Banco de Dados
         </button>
+        <button 
+          onClick={() => setActiveTab('bug_reports')} 
+          style={{ ...styles.globalTab, ...(activeTab === 'bug_reports' ? styles.globalTabActive : {}), color: 'var(--status-danger)' }}
+        >
+          🚨 Bugs Relatados
+        </button>
       </div>
 
       {/* CONTEÚDO DA ABA CENTRO DE COMANDO (KPIs + CRUDs) */}
@@ -1246,6 +1252,89 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ABA DE RELATÓRIOS DE BUGS (Visualizador para o Administrador) */}
+      {activeTab === 'bug_reports' && (
+        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={styles.panelCard} className="glass">
+            <div style={styles.panelHeader}>
+              <ShieldAlert size={20} style={{ color: 'var(--status-danger)' }} />
+              <div>
+                <h3 style={styles.panelTitle}>Bugs e Ajustes Relatados pelos Alunos</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                  Abaixo constam as incoerências de grupo muscular, carga ou postura enviadas pelos alunos de teste. Use a cópia rápida para nos encaminhar as correções.
+                </p>
+              </div>
+            </div>
+
+            {(!bugReports || bugReports.length === 0) ? (
+              <div style={styles.emptyBox}>
+                <ThumbsUp size={40} style={{ opacity: 0.2, marginBottom: '12px', color: 'var(--status-success)' }} />
+                <p>Nenhum bug ou incoerência relatada por enquanto!</p>
+                <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>Os reports enviados pelos alunos de teste aparecerão aqui em tempo real.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {bugReports.map(bug => (
+                  <div key={bug.id} style={{
+                    padding: '16px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.04)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                        👤 Aluno: {bug.studentName} ({bug.studentId})
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {new Date(bug.timestamp).toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                    <div style={{
+                      backgroundColor: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '4px',
+                      padding: '12px',
+                      fontFamily: 'monospace',
+                      fontSize: '0.8rem',
+                      color: 'var(--text-secondary)',
+                      whiteSpace: 'pre-wrap'
+                    }}>
+                      {bug.details}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(bug.details);
+                          alert('Texto do bug copiado com sucesso!');
+                        }}
+                        className="btn btn-secondary"
+                        style={{ fontSize: '0.75rem', padding: '6px 12px' }}
+                      >
+                        📋 Copiar Texto
+                      </button>
+                      <button
+                        onClick={() => {
+                          const updated = bugReports.filter(b => b.id !== bug.id);
+                          localStorage.setItem('fitseven-bug-reports', JSON.stringify(updated));
+                          window.location.reload(); // Recarrega para sincronizar estado local
+                        }}
+                        className="btn btn-primary"
+                        style={{ fontSize: '0.75rem', padding: '6px 12px', backgroundColor: 'var(--status-success)' }}
+                      >
+                        ✓ Resolvido / Limpar
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
