@@ -306,10 +306,15 @@ const Aluno = () => {
                   status: savedEx.status || 'pendente',
                   realSets: savedEx.realSets,
                   realLoad: savedEx.realLoad,
-                  video_personalizado_url: savedEx.video_personalizado_url || pEx.video_personalizado_url,
+                  video_personalizado_url: localStorage.getItem(`fitseven-custom-video-${user?.id || 'u3'}-${pEx.id}`) || savedEx.video_personalizado_url || pEx.video_personalizado_url,
                   metaAtingida100: savedEx.metaAtingida100,
                   feedbackDificuldade: savedEx.feedbackDificuldade
                 };
+              }
+              // Caso o exercício esteja no localStorage mas ainda não no banco
+              const localUrl = localStorage.getItem(`fitseven-custom-video-${user?.id || 'u3'}-${pEx.id}`);
+              if (localUrl) {
+                return { ...pEx, video_personalizado_url: localUrl };
               }
               return pEx;
             });
@@ -318,8 +323,17 @@ const Aluno = () => {
             return;
           }
 
-          console.log(`[VIP Parser] OK: ${finalParsed.length} exercícios.`);
-          setExercises(finalParsed);
+          // Se não há exercícios no banco mas há URLs salvas no local
+          const finalWithLocal = finalParsed.map(ex => {
+            const localUrl = localStorage.getItem(`fitseven-custom-video-${user?.id || 'u3'}-${ex.id}`);
+            if (localUrl) {
+              return { ...ex, video_personalizado_url: localUrl };
+            }
+            return ex;
+          });
+
+          console.log(`[VIP Parser] OK: ${finalWithLocal.length} exercícios.`);
+          setExercises(finalWithLocal);
           return;
         }
         
@@ -872,10 +886,15 @@ const Aluno = () => {
       if (vid) formattedUrl = `https://www.youtube.com/embed/${vid}`;
     }
 
-    setExercises(prev => prev.map(ex => 
+    const updated = exercises.map(ex => 
       ex.id === activeVideoEx.id ? { ...ex, video_personalizado_url: formattedUrl } : ex
-    ));
+    );
+    setExercises(updated);
+    updateStudentExercises(updated);
     setActiveVideoEx(prev => ({ ...prev, video_personalizado_url: formattedUrl }));
+    
+    // Salva de forma persistente e instantânea localmente para garantir funcionamento
+    localStorage.setItem(`fitseven-custom-video-${user?.id || 'u3'}-${activeVideoEx.id}`, formattedUrl);
     alert('Link do influenciador favorito salvo com sucesso e priorizado!');
   };
 
