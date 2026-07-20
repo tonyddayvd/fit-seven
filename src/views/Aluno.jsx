@@ -127,7 +127,7 @@ const openHtmlAsPdf = (htmlContent, nomeArquivo = 'programa') => {
 };
 
 const Aluno = () => {
-  const { activeTenant, user, currentStudentExercises, updateStudentExercises, submitEvaluation, workoutsByStudent, setVirtualRoute, pendingEvaluations, approvedEvaluations } = useApp();
+  const { activeTenant, user, currentStudentExercises, updateStudentExercises, submitEvaluation, workoutsByStudent, setVirtualRoute, pendingEvaluations, approvedEvaluations, reportBug } = useApp();
   
   const userDbData = workoutsByStudent && workoutsByStudent[user?.id];
   const isVip = user?.isVip || (userDbData && userDbData.isVip);
