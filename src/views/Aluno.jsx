@@ -378,6 +378,13 @@ const Aluno = () => {
   const [activeTooltip, setActiveTooltip] = useState(null);
   const timerRef = useRef(null);
 
+  // Estados para modais de Reporte de Bug e Confirmação de Repetições
+  const [reportModalEx, setReportModalEx] = useState(null); // ex ou null
+  const [reportText, setReportText] = useState('');
+  const [confirmModalEx, setConfirmModalEx] = useState(null); // { id, currentSetsVal, currentLoadVal } ou null
+  const [confirmReached100, setConfirmReached100] = useState(null); // 'yes' | 'no' | null
+  const [confirmObs, setConfirmObs] = useState('');
+
   const currentTabInfo = TABS.find(t => t.id === activeTab) || TABS[0];
   const IconComponent = currentTabInfo.icon;
 
