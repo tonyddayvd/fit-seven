@@ -279,11 +279,20 @@ const Aluno = () => {
           setExercises(parsed);
           return;
         }
+        
+        // Se falhar o parsing do HTML mas o banco possui exercícios salvos pré-estruturados, usa-os
+        if (studentData?.exercises && studentData.exercises.length > 0) {
+          console.log(`[VIP Fallback] Usando ${studentData.exercises.length} exercícios pré-estruturados do banco.`);
+          setExercises(studentData.exercises);
+          return;
+        }
+        
         console.warn('[VIP Parser] Nenhum exercício encontrado no escopo do #treino. Usando exercises[] do banco.');
       } catch (err) {
         console.warn('[VIP Parser] Erro:', err);
       }
     }
+
 
     // Fallback: exercícios do banco (não-VIP ou parser sem resultado)
     setExercises(currentStudentExercises);
