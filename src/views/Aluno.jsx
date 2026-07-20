@@ -152,6 +152,7 @@ const Aluno = () => {
   // Estado de exercícios sincronizado com o contexto global (Fluxo Híbrido)
   const [exercises, setExercises] = useState([]);
   const [workoutSessionFinished, setWorkoutSessionFinished] = useState(false);
+  const [finishedSplits, setFinishedSplits] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
 
   const [lastEvalDate, setLastEvalDate] = useState(null);
@@ -478,6 +479,17 @@ const Aluno = () => {
       } catch (e) {
         console.error('Erro ao carregar autocompletar anterior:', e);
       }
+    }
+    // 3. Inicializar splits concluídos
+    const savedSplits = localStorage.getItem(`fitseven-finished-splits-${user.id}`);
+    if (savedSplits) {
+      try {
+        setFinishedSplits(JSON.parse(savedSplits));
+      } catch (e) {
+        console.error('Erro ao ler splits concluídos:', e);
+      }
+    } else {
+      setFinishedSplits([]);
     }
   }, [user, user?.id]);
 
