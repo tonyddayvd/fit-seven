@@ -186,12 +186,18 @@ export const AppProvider = ({ children }) => {
           try {
             const parsed = JSON.parse(tr.html_content);
             if (parsed && (parsed.exercises || parsed.vipHtml)) {
-              treinosMap[tr.user_id] = parsed;
+              // Garante que o objeto venha estruturado com finishedSplits se houver
+              treinosMap[tr.user_id] = {
+                exercises: parsed.exercises || [],
+                finishedSplits: parsed.finishedSplits || [],
+                isVip: parsed.isVip !== undefined ? parsed.isVip : true,
+                vipHtml: parsed.vipHtml || tr.html_content
+              };
             } else {
-              treinosMap[tr.user_id] = { exercises: [], isVip: true, vipHtml: tr.html_content };
+              treinosMap[tr.user_id] = { exercises: [], finishedSplits: [], isVip: true, vipHtml: tr.html_content };
             }
           } catch (e) {
-            treinosMap[tr.user_id] = { exercises: [], isVip: true, vipHtml: tr.html_content };
+            treinosMap[tr.user_id] = { exercises: [], finishedSplits: [], isVip: true, vipHtml: tr.html_content };
           }
         });
         setWorkoutsByStudent(treinosMap);
@@ -621,12 +627,13 @@ export const AppProvider = ({ children }) => {
     return true;
   };
 
-  const updateStudentExercises = async (newExercises) => {
+  const updateStudentExercises = async (newExercises, finishedSplitsArray = null) => {
     if (!user) return;
-    const currentData = workoutsByStudent[user.id] || { exercises: DEFAULT_WORKOUTS, isVip: false, vipHtml: '' };
+    const currentData = workoutsByStudent[user.id] || { exercises: DEFAULT_WORKOUTS, isVip: false, vipHtml: '', finishedSplits: [] };
     const updatedWorkout = {
       ...currentData,
-      exercises: newExercises
+      exercises: newExercises,
+      finishedSplits: finishedSplitsArray !== null ? finishedSplitsArray : (currentData.finishedSplits || [])
     };
 
     const { error } = await supabase.from('treinos_html').upsert({

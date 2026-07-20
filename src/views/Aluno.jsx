@@ -1163,13 +1163,21 @@ const Aluno = () => {
                         ✏️ Editar / Corrigir Informações
                       </button>
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           const updatedSplits = [...finishedSplits];
                           if (!updatedSplits.includes(activeSplit)) {
                             updatedSplits.push(activeSplit);
                           }
                           setFinishedSplits(updatedSplits);
                           localStorage.setItem(`fitseven-finished-splits-${user?.id || 'u3'}`, JSON.stringify(updatedSplits));
+                          
+                          // Persiste em definitivo na nuvem do Supabase
+                          try {
+                            await updateStudentExercises(exercises, updatedSplits);
+                          } catch (err) {
+                            console.error('Erro ao persistir encerramento na nuvem:', err);
+                          }
+
                           setWorkoutSessionFinished(false);
                           
                           // Sugere o próximo split se houver
