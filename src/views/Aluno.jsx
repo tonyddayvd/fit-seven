@@ -298,7 +298,7 @@ const Aluno = () => {
           });
 
           // Sincroniza a lista de treinos concluídos apenas se houver dados novos no banco, caso contrário mantém o cache local mais recente
-          if (Array.isArray(studentData.finishedSplits) && studentData.finishedSplits.length > 0) {
+          if (Array.isArray(studentData.finishedSplits)) {
             setFinishedSplits(studentData.finishedSplits);
             localStorage.setItem(`fitseven-finished-splits-${user.id}`, JSON.stringify(studentData.finishedSplits));
           }
@@ -346,7 +346,7 @@ const Aluno = () => {
         
         // Se falhar o parsing do HTML mas o banco possui exercícios salvos pré-estruturados, usa-os
         if (studentData?.exercises && studentData.exercises.length > 0) {
-          if (Array.isArray(studentData.finishedSplits) && studentData.finishedSplits.length > 0) {
+          if (Array.isArray(studentData.finishedSplits)) {
             setFinishedSplits(studentData.finishedSplits);
             localStorage.setItem(`fitseven-finished-splits-${user.id}`, JSON.stringify(studentData.finishedSplits));
           }
@@ -496,16 +496,14 @@ const Aluno = () => {
     if (savedSplits) {
       try {
         const parsedSplits = JSON.parse(savedSplits);
-        setFinishedSplits(parsedSplits);
+        setFinishedSplits(prev => prev.length > 0 ? prev : parsedSplits);
       } catch (e) {
         console.error('Erro ao ler splits concluídos:', e);
       }
     } else {
       const studentData = workoutsByStudent?.[userKey];
       if (studentData && Array.isArray(studentData.finishedSplits)) {
-        setFinishedSplits(studentData.finishedSplits);
-      } else {
-        setFinishedSplits([]);
+        setFinishedSplits(prev => prev.length > 0 ? prev : studentData.finishedSplits);
       }
     }
   }, [user, user?.id, workoutsByStudent]);
