@@ -2500,6 +2500,64 @@ const Aluno = () => {
                             </div>
                           );
                         })()}
+                      {/* ── SEÇÃO 4: METAS MENSAIS INTELIGENTES E AUDITORIA DE PROGRESSO ─────────── */}
+                      <div style={{
+                        marginTop: '20px',
+                        padding: '20px',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+                          <Award size={16} style={{ color: '#eab308' }} />
+                          <h4 style={{ fontSize: '0.95rem', fontWeight: '700', margin: 0 }}>Metas e Frequência Mensal</h4>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                          <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Meta de Treinos do Mês</span>
+                            <div style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--primary)' }}>12 Treinos</div>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Média ideal de 3 por semana</span>
+                          </div>
+                          
+                          <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Frequência Registrada</span>
+                            <div style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--status-success)' }}>
+                              {finishedSplits.length} treino{finishedSplits.length !== 1 ? 's' : ''}
+                            </div>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Ciclo atual atualizado em tempo real</span>
+                          </div>
+
+                          <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Aproveitamento de Série</span>
+                            <div style={{ fontSize: '1.6rem', fontWeight: '800', color: '#eab308' }}>
+                              {finishedSplits.length > 0 ? '100%' : '0%'}
+                            </div>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Percentual de meta 100% atingida</span>
+                          </div>
+                        </div>
+
+                        {/* Tabela de Progresso de Peso e Repetições Reais (Exercícios Concluídos) */}
+                        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                          <h5 style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '10px', color: 'var(--text-primary)' }}>📈 Histórico de Cargas & Esforço Registrado</h5>
+                          {exercises.filter(ex => ex.status === 'concluido').length === 0 ? (
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px' }}>Nenhum exercício concluído registrado para este ciclo de treinos ainda.</p>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              {exercises.filter(ex => ex.status === 'concluido').map(ex => (
+                                <div key={ex.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.8rem' }}>
+                                  <div>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{ex.name}</strong>
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Categoria: {ex.category} · Split {ex.split}</span>
+                                  </div>
+                                  <div style={{ textAlign: 'right' }}>
+                                    <span style={{ fontWeight: '700', color: 'var(--primary)' }}>{ex.realLoad}</span>
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>{ex.realSets} séries executadas</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </>
                   )}
