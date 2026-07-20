@@ -1301,12 +1301,28 @@ const Aluno = () => {
                                   <button onClick={() => {
                                     if (activeAssistantExId === ex.id) setActiveAssistantExId(null);
                                     
-                                    // Valida se preencheu a carga antes de completar
-                                    if (!currentLoadVal || isNaN(parseFloat(currentLoadVal))) {
-                                      alert('Por favor, informe a Carga Utilizada (kg) antes de concluir o exercício.');
-                                      return;
+                                    // Para Cardio, a carga (velocidade) e o tempo real (séries) são textuais ou numéricos sem obrigatoriedade estrita de kg
+                                    if (ex.category === 'Cardio') {
+                                      if (!currentSetsVal || !currentLoadVal) {
+                                        alert('Por favor, preencha o tempo e velocidade antes de concluir.');
+                                        return;
+                                      }
+                                    } else {
+                                      // Valida se preencheu a carga antes de completar
+                                      if (!currentLoadVal || isNaN(parseFloat(currentLoadVal))) {
+                                        alert('Por favor, informe a Carga Utilizada (kg) antes de concluir o exercício.');
+                                        return;
+                                      }
                                     }
-                                    handleCompleteExercise(ex.id, currentSetsVal, `${currentLoadVal} kg`);
+                                    
+                                    // Abre o modal de validação passando o exercício e os valores reais preenchidos
+                                    setConfirmModalEx({
+                                      ...ex,
+                                      currentSetsVal,
+                                      currentLoadVal: ex.category === 'Cardio' ? currentLoadVal : `${currentLoadVal} kg`
+                                    });
+                                    setConfirmReached100(null);
+                                    setConfirmObs('');
                                   }} style={styles.btnDone}>
                                     <Check size={16} /> Concluído
                                   </button>
