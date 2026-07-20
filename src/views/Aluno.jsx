@@ -355,14 +355,14 @@ const Aluno = () => {
           return;
         }
         
-        console.warn('[VIP Parser] Nenhum exercício encontrado no escopo do #treino. Usando exercises[] do banco.');
+        console.warn('[VIP Parser] Nenhum exercício encontrado no escopo do #treino.');
       } catch (err) {
         console.warn('[VIP Parser] Erro:', err);
       }
+    } else {
+      // Fallback: exercícios do banco (não-VIP ou parser sem resultado)
+      setExercises(currentStudentExercises);
     }
-
-    // Fallback: exercícios do banco (não-VIP ou parser sem resultado)
-    setExercises(currentStudentExercises);
   }, [currentStudentExercises, workoutsByStudent, user?.id]);
 
   // Estados dos recursos interativos
