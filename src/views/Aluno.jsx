@@ -297,6 +297,11 @@ const Aluno = () => {
             return { ...ex, category: finalCategory };
           });
 
+          // Sincroniza também a lista de treinos concluídos
+          if (Array.isArray(studentData.finishedSplits)) {
+            setFinishedSplits(studentData.finishedSplits);
+          }
+
           // Se o banco de dados já possuir exercises com status/realLoad salvos, mescla para não perder o progresso
           if (studentData?.exercises && studentData.exercises.length > 0) {
             const merged = finalParsed.map(pEx => {
@@ -340,6 +345,9 @@ const Aluno = () => {
         
         // Se falhar o parsing do HTML mas o banco possui exercícios salvos pré-estruturados, usa-os
         if (studentData?.exercises && studentData.exercises.length > 0) {
+          if (Array.isArray(studentData.finishedSplits)) {
+            setFinishedSplits(studentData.finishedSplits);
+          }
           console.log(`[VIP Fallback] Usando ${studentData.exercises.length} exercícios pré-estruturados do banco.`);
           setExercises(studentData.exercises);
           return;
