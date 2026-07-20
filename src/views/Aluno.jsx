@@ -278,8 +278,48 @@ const Aluno = () => {
         }
 
         if (parsed.length > 0) {
-          console.log(`[VIP Parser] OK: ${parsed.length} exercícios (${parsed.filter(e => !e.isPrep).length} principais + ${parsed.filter(e => e.isPrep).length} aquecimento).`);
-          setExercises(parsed);
+          // Reclassificação inteligente de categoria
+          const finalParsed = parsed.map(ex => {
+            const lowName = ex.name.toLowerCase();
+            let finalCategory = ex.category;
+            if (lowName.includes('esteira') || lowName.includes('caminhada') || lowName.includes('corrida') || lowName.includes('elíptico') || lowName.includes('bike') || lowName.includes('bicicleta') || lowName.includes('cardio')) {
+              finalCategory = 'Cardio';
+            } else if (lowName.includes('manguito') || lowName.includes('desenvolvimento') || lowName.includes('elevação lateral') || lowName.includes('ombro')) {
+              finalCategory = 'Ombros';
+            } else if (lowName.includes('supino') || lowName.includes('peito') || lowName.includes('crucifixo') || lowName.includes('fly')) {
+              finalCategory = 'Peitoral';
+            } else if (lowName.includes('puxada') || lowName.includes('remada') || lowName.includes('costas')) {
+              finalCategory = 'Costas';
+            } else if (lowName.includes('agachamento') || lowName.includes('leg press') || lowName.includes('extensora') || lowName.includes('pernas')) {
+              finalCategory = 'Pernas';
+            }
+            return { ...ex, category: finalCategory };
+          });
+
+          // Se o banco de dados já possuir exercises com status/realLoad salvos, mescla para não perder o progresso
+          if (studentData?.exercises && studentData.exercises.length > 0) {
+            const merged = finalParsed.map(pEx => {
+              const savedEx = studentData.exercises.find(se => se.name === pEx.name);
+              if (savedEx) {
+                return {
+                  ...pEx,
+                  status: savedEx.status || 'pendente',
+                  realSets: savedEx.realSets,
+                  realLoad: savedEx.realLoad,
+                  video_personalizado_url: savedEx.video_personalizado_url || pEx.video_personalizado_url,
+                  metaAtingida100: savedEx.metaAtingida100,
+                  feedbackDificuldade: savedEx.feedbackDificuldade
+                };
+              }
+              return pEx;
+            });
+            console.log(`[VIP Parser] Mesclado com status do banco. Total: ${merged.length} exercícios.`);
+            setExercises(merged);
+            return;
+          }
+
+          console.log(`[VIP Parser] OK: ${finalParsed.length} exercícios.`);
+          setExercises(finalParsed);
           return;
         }
         
@@ -295,7 +335,6 @@ const Aluno = () => {
         console.warn('[VIP Parser] Erro:', err);
       }
     }
-
 
     // Fallback: exercícios do banco (não-VIP ou parser sem resultado)
     setExercises(currentStudentExercises);
@@ -1014,8 +1053,8 @@ const Aluno = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ fontSize: '1.2rem' }}>👑</span>
                       <div>
-                        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#eab308' }}>Programa VIP Personalizado Ativo</div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Seu treino foi montado individualmente pela IA. Use a ferramenta abaixo para acompanhar cada exercício.</div>
+                        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#eab308' }}>Programa VIP Homologado & Ativo</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Este treino foi montado sob medida por nossa IA e revisado/autorizado de forma personalizada pela nossa equipe técnica de profissionais de educação física.</div>
                       </div>
                     </div>
                     <button
@@ -1170,30 +1209,44 @@ const Aluno = () => {
                                 <span style={styles.exMetaItem}>Cadência (3s/rep): <strong>{dynamicTimeText}</strong></span>
                               </div>
 
-                              {/* Inputs interativos de Carga e Séries (Se pendente) */}
+                               {/* Inputs interativos de Carga e Séries (Se pendente) */}
                               {ex.status === 'pendente' && (
                                 <div style={styles.metricsFormRow}>
                                   <div style={styles.metricField}>
-                                    <label style={styles.metricLabel}>Séries Reais Realizadas</label>
-                                    <div style={styles.setsCounter}>
-                                      <button 
-                                        type="button" 
-                                        onClick={() => handleInputChange(realSetsKey, Math.max(1, currentSetsVal - 1))}
-                                        style={styles.setsBtn}
-                                      >-</button>
-                                      <span style={styles.setsValue}>{currentSetsVal}</span>
-                                      <button 
-                                        type="button" 
-                                        onClick={() => handleInputChange(realSetsKey, Math.min(defaultRepsSets.sets + 2, currentSetsVal + 1))}
-                                        style={styles.setsBtn}
-                                      >+</button>
-                                    </div>
+                                    <label style={styles.metricLabel}>
+                                      {ex.category === 'Cardio' ? 'Tempo Real (min)' : 'Séries Reais Realizadas'}
+                                    </label>
+                                    {ex.category === 'Cardio' ? (
+                                      <input 
+                                        type="number"
+                                        placeholder="Ex: 10"
+                                        value={currentSetsVal}
+                                        onChange={(e) => handleInputChange(realSetsKey, e.target.value)}
+                                        style={styles.loadInput}
+                                      />
+                                    ) : (
+                                      <div style={styles.setsCounter}>
+                                        <button 
+                                          type="button" 
+                                          onClick={() => handleInputChange(realSetsKey, Math.max(1, currentSetsVal - 1))}
+                                          style={styles.setsBtn}
+                                        >-</button>
+                                        <span style={styles.setsValue}>{currentSetsVal}</span>
+                                        <button 
+                                          type="button" 
+                                          onClick={() => handleInputChange(realSetsKey, Math.min(defaultRepsSets.sets + 2, currentSetsVal + 1))}
+                                          style={styles.setsBtn}
+                                        >+</button>
+                                      </div>
+                                    )}
                                   </div>
                                   <div style={styles.metricField}>
-                                    <label style={styles.metricLabel}>Carga Utilizada (kg)</label>
+                                    <label style={styles.metricLabel}>
+                                      {ex.category === 'Cardio' ? 'Velocidade/Ritmo' : 'Carga Utilizada (kg)'}
+                                    </label>
                                     <input 
-                                      type="number"
-                                      placeholder="Ex: 25"
+                                      type={ex.category === 'Cardio' ? 'text' : 'number'}
+                                      placeholder={ex.category === 'Cardio' ? 'Ex: 6.5 km/h' : 'Ex: 25'}
                                       value={currentLoadVal}
                                       onChange={(e) => handleInputChange(realLoadKey, e.target.value)}
                                       style={styles.loadInput}
