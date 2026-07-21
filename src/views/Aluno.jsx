@@ -1291,12 +1291,8 @@ const Aluno = () => {
                         const realSetsKey = `sets-${ex.id}`;
                         const realLoadKey = `load-${ex.id}`;
                         
-                        // Inicializa ou recupera valores do estado do formulário se não preenchidos
-                        if (!formData[realSetsKey]) formData[realSetsKey] = defaultRepsSets.sets;
-                        if (!formData[realLoadKey]) formData[realLoadKey] = '';
-
-                        const currentSetsVal = formData[realSetsKey];
-                        const currentLoadVal = formData[realLoadKey];
+                        const currentSetsVal = formData[realSetsKey] !== undefined ? formData[realSetsKey] : defaultRepsSets.sets;
+                        const currentLoadVal = formData[realLoadKey] !== undefined ? formData[realLoadKey] : '';
                         const repsCount = defaultRepsSets.reps;
                         const dynamicTimeText = `${repsCount * 3}s`;
 
