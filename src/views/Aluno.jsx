@@ -1267,7 +1267,7 @@ const Aluno = () => {
                             style={{
                               ...styles.splitBtn,
                               ...(activeSplit === letter ? styles.splitBtnActive : {}),
-                              ...(isFinished ? { opacity: 0.4, cursor: 'not-allowed', textDecoration: 'line-through', border: '1px dashed var(--border-color)' } : {})
+                              ...(isFinished ? { opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none', textDecoration: 'line-through', border: '1px dashed var(--border-color)' } : {})
                             }}
                           >
                             {isFinished ? '🔒 Concluído' : `Treino ${letter}`}
