@@ -460,7 +460,8 @@ export const AppProvider = ({ children }) => {
         userId: user?.id || 'u3',
         tenantId: user?.tenantId || 't1'
       },
-      aiSuggestedWorkout: mockAIEngine(formData)
+      aiSuggestedWorkout: mockAIEngine(formData),
+      ...(formData.workoutCompleted ? { _approvedAt: new Date().toISOString(), _approvedBy: 'Auto' } : {})
     };
 
     const { error } = await supabase.from('avaliacoes').insert({
@@ -633,7 +634,7 @@ export const AppProvider = ({ children }) => {
     const updatedWorkout = {
       ...currentData,
       exercises: newExercises,
-      finishedSplits: finishedSplitsArray !== null ? finishedSplitsArray : (currentData.finishedSplits || [])
+      finishedSplits: (finishedSplitsArray !== null && finishedSplitsArray !== undefined) ? finishedSplitsArray : (currentData.finishedSplits || [])
     };
 
     // Atualiza localmente de forma otimista para evitar lags de renderização

@@ -152,10 +152,32 @@ const Aluno = () => {
   // Estado de exercícios sincronizado com o contexto global (Fluxo Híbrido)
   const [exercises, setExercises] = useState([]);
   const [workoutSessionFinished, setWorkoutSessionFinished] = useState(false);
-  const [finishedSplits, setFinishedSplits] = useState([]);
+  const [finishedSplits, setFinishedSplits] = useState(() => {
+    try {
+      const userKey = user?.id || 'u3';
+      const saved = localStorage.getItem(`fitseven-finished-splits-${userKey}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [auditLog, setAuditLog] = useState([]);
 
   const [lastEvalDate, setLastEvalDate] = useState(null);
+
+  const isSplitDone = (splitToCheck) => {
+    // 1. Verifica se tem histórico de treino concluído hoje
+    const today = new Date().toLocaleDateString('pt-BR');
+    const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
+    const historyDone = allEvals.some(ev => 
+      ev.userId === user?.id && 
+      ev.formData?.workoutCompleted && 
+      ev.formData?.split === splitToCheck &&
+      (ev.date === today || new Date(ev._approvedAt || ev.date || 0).toLocaleDateString('pt-BR') === today)
+    );
+    // 2. Mantém compatibilidade com estado otimista/local
+    return historyDone || finishedSplits.includes(splitToCheck);
+  };
 
   useEffect(() => {
     const hasWorkout = workoutsByStudent && workoutsByStudent[user?.id];
@@ -462,32 +484,31 @@ const Aluno = () => {
       try {
         const parsed = JSON.parse(draft);
         setFormData(prev => ({ ...prev, ...parsed }));
-        return;
       } catch (e) {
         console.error('Erro ao ler rascunho de avaliação:', e);
       }
-    }
-
-    // 2. Se não houver rascunho ativo, autocompleta com a última avaliação que já está aprovada/cadastrada ou do histórico de evolução
-    const savedLastEvalData = localStorage.getItem(`fitseven-last-eval-data-${user.id}`);
-    if (savedLastEvalData) {
-      try {
-        const parsed = JSON.parse(savedLastEvalData);
-        // Remove apenas fotos, termos e campos de arquivo para que ele faça upload das fotos novas, mas mantendo todas as medidas e questionários preenchidos
-        const autocompleteData = { ...parsed };
-        delete autocompleteData.fotoFrente;
-        delete autocompleteData.fotoFrenteBase64;
-        delete autocompleteData.fotoCostas;
-        delete autocompleteData.fotoCostasBase64;
-        delete autocompleteData.fotoPerfil;
-        delete autocompleteData.fotoPerfilBase64;
-        delete autocompleteData.laudoFile;
-        delete autocompleteData.laudoFileBase64;
-        autocompleteData.parqTermo = false; // Exige novo aceite por segurança jurídica
-        
-        setFormData(prev => ({ ...prev, ...autocompleteData }));
-      } catch (e) {
-        console.error('Erro ao carregar autocompletar anterior:', e);
+    } else {
+      // 2. Se não houver rascunho ativo, autocompleta com a última avaliação que já está aprovada/cadastrada ou do histórico de evolução
+      const savedLastEvalData = localStorage.getItem(`fitseven-last-eval-data-${user.id}`);
+      if (savedLastEvalData) {
+        try {
+          const parsed = JSON.parse(savedLastEvalData);
+          // Remove apenas fotos, termos e campos de arquivo para que ele faça upload das fotos novas, mas mantendo todas as medidas e questionários preenchidos
+          const autocompleteData = { ...parsed };
+          delete autocompleteData.fotoFrente;
+          delete autocompleteData.fotoFrenteBase64;
+          delete autocompleteData.fotoCostas;
+          delete autocompleteData.fotoCostasBase64;
+          delete autocompleteData.fotoPerfil;
+          delete autocompleteData.fotoPerfilBase64;
+          delete autocompleteData.laudoFile;
+          delete autocompleteData.laudoFileBase64;
+          autocompleteData.parqTermo = false; // Exige novo aceite por segurança jurídica
+          
+          setFormData(prev => ({ ...prev, ...autocompleteData }));
+        } catch (e) {
+          console.error('Erro ao carregar autocompletar anterior:', e);
+        }
       }
     }
     // 3. Inicializar splits concluídos de forma redundante e síncrona usando uma chave universal estável
@@ -911,7 +932,7 @@ const Aluno = () => {
       ex.id === activeVideoEx.id ? { ...ex, video_personalizado_url: formattedUrl } : ex
     );
     setExercises(updated);
-    updateStudentExercises(updated);
+    updateStudentExercises(updated, finishedSplits);
     setActiveVideoEx(prev => ({ ...prev, video_personalizado_url: formattedUrl }));
     
     // Salva de forma persistente e instantânea localmente para garantir funcionamento
@@ -929,7 +950,7 @@ const Aluno = () => {
       } : ex
     );
     setExercises(updated);
-    updateStudentExercises(updated);
+    updateStudentExercises(updated, finishedSplits);
     playBeep(900, 0.1);
     const frases = [
       'Excelente execução! Continue assim.',
@@ -979,7 +1000,7 @@ const Aluno = () => {
   const handleResetWorkout = () => {
     const reseted = currentStudentExercises.map(ex => ({ ...ex, status: 'pendente' }));
     setExercises(reseted);
-    updateStudentExercises(reseted);
+    updateStudentExercises(reseted, finishedSplits);
     setWorkoutSessionFinished(false);
     setAuditLog([]);
     setActiveAssistantExId(null);
@@ -1183,8 +1204,17 @@ const Aluno = () => {
                           // Persiste em definitivo na nuvem do Supabase
                           try {
                             await updateStudentExercises(exercises, updatedSplits);
+                            
+                            // Cria um registro no Histórico (Evolução) conforme a nova regra
+                            await submitEvaluation({
+                              workoutCompleted: true,
+                              split: activeSplit,
+                              observations: `Treino do split ${activeSplit} concluído com sucesso.`,
+                              peso: null // Para não quebrar o gráfico de evolução
+                            });
                           } catch (err) {
                             console.error('Erro ao persistir encerramento na nuvem:', err);
+                            alert('ERRO AO SALVAR NO BANCO: ' + (err.message || JSON.stringify(err)));
                           }
 
                           setWorkoutSessionFinished(false);
@@ -1224,7 +1254,7 @@ const Aluno = () => {
                       {['A', 'B', 'C', 'D', 'E'].map(letter => {
                         const count = exercises.filter(ex => (ex.split || 'A') === letter).length;
                         if (count === 0) return null; // Só renderiza splits que possuem exercícios cadastrados
-                        const isFinished = finishedSplits.includes(letter);
+                        const isFinished = isSplitDone(letter);
                         return (
                           <button
                             key={letter}
@@ -1268,7 +1298,7 @@ const Aluno = () => {
                         const repsCount = defaultRepsSets.reps;
                         const dynamicTimeText = `${repsCount * 3}s`;
 
-                        const isSplitFinished = finishedSplits.includes(activeSplit);
+                        const isSplitFinished = isSplitDone(activeSplit);
 
                         return (
                           <div key={ex.id} style={{ ...styles.exerciseCard, ...(ex.status === 'concluido' ? styles.exConcluido : {}), ...(ex.status === 'pulado' ? styles.exPulado : {}), ...(isSplitFinished ? { opacity: 0.75, pointerEvents: 'none' } : {}) }} className="glass">
@@ -1444,7 +1474,7 @@ const Aluno = () => {
                     </div>
 
                     {/* Se o split já estiver concluído, exibe um banner explicativo e bloqueia a finalização */}
-                    {finishedSplits.includes(activeSplit) ? (
+                    {isSplitDone(activeSplit) ? (
                       <div style={{ ...styles.resultCard, padding: '24px', border: '1px dashed var(--border-color)', margin: '16px 0', textAlign: 'center' }} className="glass">
                         <Lock size={32} style={{ color: '#eab308', marginBottom: '8px' }} />
                         <h4 style={{ margin: 0, fontWeight: '700', fontSize: '0.95rem', color: '#eab308' }}>Treino do Dia Já Realizado!</h4>
@@ -2156,10 +2186,14 @@ const Aluno = () => {
 
             {/* 3. ABA DE EVOLUÇÃO (HISTÓRICO DO ALUNO) */}
             {activeTab === 'evolucao' && (() => {
-              // Filtra avaliações aprovadas deste aluno, ordenadas por data
-              const myEvals = (approvedEvaluations || [])
+              // Filtra avaliações (aprovadas e pendentes) deste aluno, ordenadas por data
+              const allMyEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])]
                 .filter(ev => ev.userId === user?.id)
                 .sort((a, b) => new Date(a._approvedAt || a.date || 0) - new Date(b._approvedAt || b.date || 0));
+
+              // Separa Histórico de Treino de Avaliações Físicas
+              const myEvals = allMyEvals.filter(ev => !ev.formData?.workoutCompleted);
+              const workoutHistory = allMyEvals.filter(ev => ev.formData?.workoutCompleted);
 
               const fmtDate = (iso) => iso
                 ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -2587,6 +2621,57 @@ const Aluno = () => {
                           )}
                         </div>
                       </div>
+                      
+                      {/* ── SEÇÃO 3: HISTÓRICO DE TREINOS CONCLUÍDOS ─────────── */}
+                      {workoutHistory.length > 0 && (
+                        <div style={{
+                          marginTop: '32px',
+                          padding: '24px',
+                          borderRadius: 'var(--radius-md)',
+                          backgroundColor: 'var(--bg-secondary)',
+                          border: '1px solid var(--border-color)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+                            <Dumbbell size={18} style={{ color: 'var(--status-success)' }} />
+                            <h4 style={{ fontSize: '1.05rem', fontWeight: '700', margin: 0, color: 'var(--status-success)' }}>Histórico de Treinos Concluídos</h4>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {workoutHistory.map((ev, i) => (
+                              <div key={ev.id} style={{
+                                padding: '12px 16px',
+                                borderRadius: 'var(--radius-sm)',
+                                backgroundColor: 'var(--bg-tertiary)',
+                                border: '1px solid var(--border-color)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <div style={{
+                                    width: '36px', height: '36px', borderRadius: '50%',
+                                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                                    color: 'var(--status-success)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontWeight: 'bold', fontSize: '0.9rem'
+                                  }}>
+                                    {ev.formData?.split || '?'}
+                                  </div>
+                                  <div>
+                                    <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>Treino Concluído</div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                      {ev.formData?.observations || `Split ${ev.formData?.split}`}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                  {fmtDate(ev._approvedAt || ev.date)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
