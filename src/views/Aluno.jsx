@@ -166,15 +166,17 @@ const Aluno = () => {
   const [lastEvalDate, setLastEvalDate] = useState(null);
 
   const isSplitDone = (splitToCheck) => {
-    // 1. Verifica se tem histórico de treino concluído hoje
-    const today = new Date().toLocaleDateString('pt-BR');
+    // 1. Verifica se tem histórico de treino concluído hoje de forma robusta e cross-browser
+    const today = new Date();
+    const isSameDay = (d1, d2) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+    
     const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
-    const historyDone = allEvals.some(ev => 
-      ev.userId === user?.id && 
-      ev.formData?.workoutCompleted && 
-      ev.formData?.split === splitToCheck &&
-      (ev.date === today || new Date(ev._approvedAt || ev.date || 0).toLocaleDateString('pt-BR') === today)
-    );
+    const historyDone = allEvals.some(ev => {
+      if (ev.userId !== user?.id || !ev.formData?.workoutCompleted || ev.formData?.split !== splitToCheck) return false;
+      const evDate = new Date(ev._approvedAt || ev.date || ev.created_at || 0);
+      return isSameDay(evDate, today);
+    });
+    
     // 2. Mantém compatibilidade com estado otimista/local
     return historyDone || finishedSplits.includes(splitToCheck);
   };
