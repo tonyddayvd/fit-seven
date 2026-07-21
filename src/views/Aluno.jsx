@@ -2622,6 +2622,7 @@ const Aluno = () => {
                         </div>
                       </div>
                       
+                      </div>
                       {/* ── SEÇÃO 3: HISTÓRICO DE TREINOS CONCLUÍDOS ─────────── */}
                       {workoutHistory.length > 0 && (
                         <div style={{
