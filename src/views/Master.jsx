@@ -97,7 +97,8 @@ const Master = () => {
     exportDatabase,
     importDatabase,
     user,
-    bugReports
+    bugReports,
+    deleteBug
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('kpis_crud'); // 'kpis_crud', 'pending_approvals', 'db_auditor'
@@ -1323,10 +1324,11 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
                         📋 Copiar Texto
                       </button>
                       <button
-                        onClick={() => {
-                          const updated = bugReports.filter(b => b.id !== bug.id);
-                          localStorage.setItem('fitseven-bug-reports', JSON.stringify(updated));
-                          window.location.reload(); // Recarrega para sincronizar estado local
+                        onClick={async () => {
+                          if (window.confirm('Tem certeza que resolveu este bug? Ele será apagado para sempre.')) {
+                            await deleteBug(bug.id);
+                            alert('Bug resolvido e removido!');
+                          }
                         }}
                         className="btn btn-primary"
                         style={{ fontSize: '0.75rem', padding: '6px 12px', backgroundColor: 'var(--status-success)' }}

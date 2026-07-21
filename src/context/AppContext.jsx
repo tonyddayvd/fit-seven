@@ -203,13 +203,32 @@ export const AppProvider = ({ children }) => {
         setWorkoutsByStudent(treinosMap);
       }
 
-      // 5. Carregar Bug Reports (Persistência via localStorage para garantir funcionamento offline/instantâneo)
+      // 5. Carregar Bug Reports (Mesclando Nuvem e LocalStorage)
       const localBugs = localStorage.getItem('fitseven-bug-reports');
+      let parsedLocalBugs = [];
       if (localBugs) {
-        setBugReports(JSON.parse(localBugs));
-      } else {
-        setBugReports([]);
+        try { parsedLocalBugs = JSON.parse(localBugs); } catch(e) {}
       }
+      
+      const { data: cloudBugsData } = await supabase
+        .from('avaliacoes')
+        .select('medidas')
+        .contains('medidas', { _type: 'bug_report' });
+
+      let cloudBugs = [];
+      if (cloudBugsData) {
+        cloudBugs = cloudBugsData.map(d => d.medidas);
+      }
+
+      // Mescla removendo duplicatas pelo ID (priorizando a nuvem)
+      const allBugsMap = new Map();
+      parsedLocalBugs.forEach(b => allBugsMap.set(b.id, b));
+      cloudBugs.forEach(b => allBugsMap.set(b.id, b));
+      
+      const mergedBugs = Array.from(allBugsMap.values()).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      setBugReports(mergedBugs);
+      localStorage.setItem('fitseven-bug-reports', JSON.stringify(mergedBugs));
+
     } catch (err) {
       console.error('Erro ao sincronizar com o Supabase:', err);
     } finally {
@@ -615,17 +634,47 @@ export const AppProvider = ({ children }) => {
       : DEFAULT_WORKOUTS;
 
   const reportBug = async (bugData) => {
+    const bugId = `bug_${Date.now()}`;
     const newBug = {
-      id: `bug_${Date.now()}`,
+      id: bugId,
       studentId: user?.id || 'anonimo',
       studentName: user?.name || 'Anônimo',
       timestamp: new Date().toISOString(),
       ...bugData
     };
+    
+    // Salva no Supabase como uma avaliação do tipo "bug_report"
+    if (user && user.id !== 'anonimo') {
+      try {
+        await supabase.from('avaliacoes').insert({
+          id: bugId,
+          tenant_id: user.tenantId || 'master',
+          user_id: user.id,
+          medidas: {
+            _type: 'bug_report',
+            ...newBug
+          }
+        });
+      } catch (err) {
+        console.error('Erro ao salvar bug no Supabase:', err);
+      }
+    }
+
     const updated = [newBug, ...bugReports];
     setBugReports(updated);
     localStorage.setItem('fitseven-bug-reports', JSON.stringify(updated));
     return true;
+  };
+
+  const deleteBug = async (bugId) => {
+    try {
+      await supabase.from('avaliacoes').delete().eq('id', bugId);
+    } catch (err) {
+      console.error('Erro ao deletar bug do Supabase:', err);
+    }
+    const updated = bugReports.filter(b => b.id !== bugId);
+    setBugReports(updated);
+    localStorage.setItem('fitseven-bug-reports', JSON.stringify(updated));
   };
 
   const updateStudentExercises = async (newExercises, finishedSplitsArray = null) => {
@@ -722,6 +771,7 @@ export const AppProvider = ({ children }) => {
       importDatabase,
       bugReports,
       reportBug,
+      deleteBug,
       isLoading
     }}>
       {children}
