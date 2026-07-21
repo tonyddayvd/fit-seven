@@ -1262,7 +1262,7 @@ const Aluno = () => {
                             key={letter}
                             type="button"
                             disabled={isFinished}
-                            onClick={() => {
+                            onClick={(e) => { if(isFinished) { e.preventDefault(); return; }
                               setActiveSplit(letter);
                               setWorkoutSessionFinished(false);
                             }}
