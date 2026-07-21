@@ -23,7 +23,7 @@ jobs:
         run: npm install
 
       - name: Build
-        run: CI=false npm run build
+        run: CI=false npm run build > build_log.txt 2>&1 || (cat build_log.txt && exit 1)
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
