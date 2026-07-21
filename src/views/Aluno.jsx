@@ -94,14 +94,14 @@ const INITIAL_WORKOUT_EXERCISES = [
 
 const SILHOUETTES = {
   masculino: {
-    frente: 'assets/silhouettes/masculino_frente.jpg',
-    costas: 'assets/silhouettes/masculino_costas.png',
-    perfil: 'assets/silhouettes/masculino_perfil.jpg'
+    frente: '/fit-seven/assets/silhouettes/masculino_frente.jpg',
+    costas: '/fit-seven/assets/silhouettes/masculino_costas.png',
+    perfil: '/fit-seven/assets/silhouettes/masculino_perfil.jpg'
   },
   feminino: {
-    frente: 'assets/silhouettes/feminino_frente.jpg',
-    costas: 'assets/silhouettes/feminino_costas.png',
-    perfil: 'assets/silhouettes/feminino_perfil.jpg'
+    frente: '/fit-seven/assets/silhouettes/feminino_frente.jpg',
+    costas: '/fit-seven/assets/silhouettes/feminino_costas.png',
+    perfil: '/fit-seven/assets/silhouettes/feminino_perfil.jpg'
   }
 };
 

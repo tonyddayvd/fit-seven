@@ -173,9 +173,15 @@ export const AppProvider = ({ children }) => {
             _approvedAt: parsedMedidas._approvedAt || null
           };
         });
+        // Filtra apenas avaliações reais (ignorando bugs e marcações de treino concluído)
+        const validEvals = mappedEvals.filter(ev => 
+          (ev.userName || ev.nome) && 
+          ev._type !== 'bug_report' && 
+          !ev.formData?.workoutCompleted
+        );
         // Separar pendentes das aprovadas
-        setPendingEvaluations(mappedEvals.filter(ev => ev._status !== 'approved'));
-        setApprovedEvaluations(mappedEvals.filter(ev => ev._status === 'approved'));
+        setPendingEvaluations(validEvals.filter(ev => ev._status !== 'approved'));
+        setApprovedEvaluations(validEvals.filter(ev => ev._status === 'approved'));
       }
 
       // 4. Carregar Treinos
