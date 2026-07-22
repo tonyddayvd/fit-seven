@@ -755,26 +755,40 @@ const Aluno = () => {
 
   // Função auxiliar para obter as repetições e séries padrão de um exercício
   const getExRepsAndSets = (ex) => {
-    // Prescrição de reps ex: '4 séries de 10', 'Rosca: 3 séries de 12', '4x10'
+    // Prescrição de reps ex: '4 séries de 10', 'Rosca: 3 séries de 12', '4x10', '4x 10-12', '10-12 reps'
     const repsStr = ex.reps || '';
     let repsNum = 10;
     let setsNum = 4;
     
-    // Tenta casar padrões como '4 séries de 12' ou '4x12' ou '12 reps'
-    const matchSériesDe = repsStr.match(/(\d+)\s*s\u00e9ries?\s*de\s*(\d+|\w+)/i);
-    const matchX = repsStr.match(/(\d+)\s*x\s*(\d+|\w+)/i);
+    // Tenta casar padrões como '4 séries de 12' ou '4x12', suportando também intervalos '10-12'
+    const matchSériesDe = repsStr.match(/(\d+)\s*s\u00e9ries?\s*de\s*(\d+(?:\s*-\s*\d+)?)/i);
+    const matchX = repsStr.match(/(\d+)\s*x\s*(\d+(?:\s*-\s*\d+)?)/i);
     
+    const parseReps = (str) => {
+      if (str.includes('-')) {
+        const parts = str.split('-');
+        return parseInt(parts[1].trim()) || 10;
+      }
+      return parseInt(str) || 10;
+    };
+
     if (matchSériesDe) {
       setsNum = parseInt(matchSériesDe[1]) || 4;
-      repsNum = parseInt(matchSériesDe[2]) || 10;
+      repsNum = parseReps(matchSériesDe[2]);
     } else if (matchX) {
       setsNum = parseInt(matchX[1]) || 4;
-      repsNum = parseInt(matchX[2]) || 10;
+      repsNum = parseReps(matchX[2]);
     } else {
-      // Caso não consiga parsear (ex: '15 minutos' ou 'falha')
-      const matchOnlyNum = repsStr.match(/(\d+)/);
-      if (matchOnlyNum) {
-        repsNum = parseInt(matchOnlyNum[1]) || 10;
+      // Tenta casar um range isolado (ex: '10-12 reps')
+      const matchRange = repsStr.match(/(\d+)\s*-\s*(\d+)/);
+      if (matchRange) {
+        repsNum = parseInt(matchRange[2]) || 10;
+      } else {
+        // Caso não consiga parsear (ex: '15 minutos' ou 'falha')
+        const matchOnlyNum = repsStr.match(/(\d+)/);
+        if (matchOnlyNum) {
+          repsNum = parseInt(matchOnlyNum[1]) || 10;
+        }
       }
     }
     return { reps: repsNum, sets: setsNum };
