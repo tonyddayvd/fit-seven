@@ -2575,64 +2575,119 @@ const Aluno = () => {
                           );
                         })()}
                       {/* ── SEÇÃO 4: METAS MENSAIS INTELIGENTES E AUDITORIA DE PROGRESSO ─────────── */}
-                      <div style={{
-                        marginTop: '20px',
-                        padding: '20px',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: 'var(--bg-secondary)',
-                        border: '1px solid var(--border-color)'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-                          <Award size={16} style={{ color: '#eab308' }} />
-                          <h4 style={{ fontSize: '0.95rem', fontWeight: '700', margin: 0 }}>Metas e Frequência Mensal</h4>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-                          <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Meta de Treinos do Mês</span>
-                            <div style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--primary)' }}>12 Treinos</div>
-                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Média ideal de 3 por semana</span>
-                          </div>
+                      {(() => {
+                        const allMyEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])]
+                          .filter(ev => ev.userId === user?.id)
+                          .sort((a, b) => new Date(a._approvedAt || a.date || 0) - new Date(b._approvedAt || b.date || 0));
+                        const myEvals = allMyEvals.filter(ev => !ev.formData?.workoutCompleted);
+                        const lastEval = myEvals[myEvals.length - 1];
+                        
+                        const uniqueSplits = [...new Set(exercises.map(ex => ex.split || 'A'))];
+                        const weeklyFreq = uniqueSplits.length > 0 ? uniqueSplits.length : 3;
+                        const startDateStr = lastEval?._approvedAt || lastEval?.created_at || user?.data_cadastro || new Date().toISOString();
+                        
+                        const getTrainingDays = (freq) => {
+                          switch (freq) {
+                            case 1: return [1];
+                            case 2: return [2, 4];
+                            case 3: return [1, 3, 5];
+                            case 4: return [1, 2, 4, 5];
+                            case 5: return [1, 2, 3, 4, 5];
+                            case 6: return [1, 2, 3, 4, 5, 6];
+                            case 7: return [0, 1, 2, 3, 4, 5, 6];
+                            default: return [1, 3, 5];
+                          }
+                        };
+                        
+                        const now = new Date();
+                        const currentYear = now.getFullYear();
+                        const currentMonth = now.getMonth();
+                        
+                        const start = new Date(startDateStr);
+                        const startYear = start.getFullYear();
+                        const startMonth = start.getMonth();
+                        
+                        let goal = 0;
+                        if (currentYear > startYear || (currentYear === startYear && currentMonth >= startMonth)) {
+                          let calcStartDay = 1;
+                          if (currentYear === startYear && currentMonth === startMonth) {
+                            calcStartDay = start.getDate() + 1; 
+                          }
+                          const endDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+                          const tDays = getTrainingDays(weeklyFreq);
                           
-                          <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Frequência Registrada</span>
-                            <div style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--status-success)' }}>
-                              {finishedSplits.length} treino{finishedSplits.length !== 1 ? 's' : ''}
-                            </div>
-                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Ciclo atual atualizado em tempo real</span>
-                          </div>
+                          for (let d = calcStartDay; d <= endDay; d++) {
+                            const dDate = new Date(currentYear, currentMonth, d);
+                            if (tDays.includes(dDate.getDay())) {
+                              goal++;
+                            }
+                          }
+                        }
+                        
+                        const goalReached = finishedSplits.length;
+                        const goalPercentage = goal > 0 ? Math.min(100, Math.round((goalReached / goal) * 100)) : (goalReached > 0 ? 100 : 0);
 
-                          <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Aproveitamento de Série</span>
-                            <div style={{ fontSize: '1.6rem', fontWeight: '800', color: '#eab308' }}>
-                              {finishedSplits.length > 0 ? '100%' : '0%'}
+                        return (
+                          <div style={{
+                            marginTop: '20px',
+                            padding: '20px',
+                            borderRadius: 'var(--radius-md)',
+                            backgroundColor: 'var(--bg-secondary)',
+                            border: '1px solid var(--border-color)'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+                              <Award size={16} style={{ color: '#eab308' }} />
+                              <h4 style={{ fontSize: '0.95rem', fontWeight: '700', margin: 0 }}>Metas e Frequência Mensal</h4>
                             </div>
-                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Percentual de meta 100% atingida</span>
-                          </div>
-                        </div>
-
-                        {/* Tabela de Progresso de Peso e Repetições Reais (Exercícios Concluídos) */}
-                        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-                          <h5 style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '10px', color: 'var(--text-primary)' }}>📈 Histórico de Cargas & Esforço Registrado</h5>
-                          {exercises.filter(ex => ex.status === 'concluido').length === 0 ? (
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px' }}>Nenhum exercício concluído registrado para este ciclo de treinos ainda.</p>
-                          ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              {exercises.filter(ex => ex.status === 'concluido').map(ex => (
-                                <div key={ex.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.8rem' }}>
-                                  <div>
-                                    <strong style={{ color: 'var(--text-primary)' }}>{ex.name}</strong>
-                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Categoria: {ex.category} · Split {ex.split}</span>
-                                  </div>
-                                  <div style={{ textAlign: 'right' }}>
-                                    <span style={{ fontWeight: '700', color: 'var(--primary)' }}>{ex.realLoad}</span>
-                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>{ex.realSets} séries executadas</span>
-                                  </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Meta de Treinos do Mês</span>
+                                <div style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--primary)' }}>{goal} Treinos</div>
+                                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{`Média ideal de ${weeklyFreq} por semana`}</span>
+                              </div>
+                              
+                              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Frequência Registrada</span>
+                                <div style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--status-success)' }}>
+                                  {goalReached} treino{goalReached !== 1 ? 's' : ''}
                                 </div>
-                              ))}
+                                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Ciclo atual atualizado em tempo real</span>
+                              </div>
+
+                              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Aproveitamento de Série</span>
+                                <div style={{ fontSize: '1.6rem', fontWeight: '800', color: '#eab308' }}>
+                                  {goalPercentage}%
+                                </div>
+                                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Percentual de meta {goalPercentage}% atingida</span>
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      </div>
+
+                            {/* Tabela de Progresso de Peso e Repetições Reais (Exercícios Concluídos) */}
+                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                              <h5 style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '10px', color: 'var(--text-primary)' }}>📈 Histórico de Cargas & Esforço Registrado</h5>
+                              {exercises.filter(ex => ex.status === 'concluido').length === 0 ? (
+                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px' }}>Nenhum exercício concluído registrado para este ciclo de treinos ainda.</p>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  {exercises.filter(ex => ex.status === 'concluido').map(ex => (
+                                    <div key={ex.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.8rem' }}>
+                                      <div>
+                                        <strong style={{ color: 'var(--text-primary)' }}>{ex.name}</strong>
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Categoria: {ex.category} · Split {ex.split}</span>
+                                      </div>
+                                      <div style={{ textAlign: 'right' }}>
+                                        <span style={{ fontWeight: '700', color: 'var(--primary)' }}>{ex.realLoad}</span>
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>{ex.realSets} séries executadas</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                       
                       </div>
                       {/* ── SEÇÃO 3: HISTÓRICO DE TREINOS CONCLUÍDOS ─────────── */}
