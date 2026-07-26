@@ -1,9 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Download, Camera, Image as ImageIcon, X } from 'lucide-react';
+import ImageCropper from './ImageCropper';
 
 const MedalComposer = ({ isOpen, onClose, percentage, isMonthly, studentName }) => {
   const canvasRef = useRef(null);
   const [photoData, setPhotoData] = useState(null);
+  const [cropImageSrc, setCropImageSrc] = useState(null);
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -11,6 +13,7 @@ const MedalComposer = ({ isOpen, onClose, percentage, isMonthly, studentName }) 
     if (isOpen) {
       setPhotoData(null);
       setDownloadUrl(null);
+      setCropImageSrc(null);
     }
   }, [isOpen]);
 
@@ -28,13 +31,21 @@ const MedalComposer = ({ isOpen, onClose, percentage, isMonthly, studentName }) 
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    
+    // Reseta o input para permitir selecionar a mesma foto novamente se o usuário cancelar
+    e.target.value = null;
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      setPhotoData(event.target.result);
-      generateArt(event.target.result);
+      setCropImageSrc(event.target.result);
     };
     reader.readAsDataURL(file);
+  };
+  
+  const handleCropComplete = (croppedBase64) => {
+    setCropImageSrc(null);
+    setPhotoData(croppedBase64);
+    generateArt(croppedBase64);
   };
 
   const generateArt = async (imgBase64) => {
@@ -180,9 +191,17 @@ const MedalComposer = ({ isOpen, onClose, percentage, isMonthly, studentName }) 
   };
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        <button style={styles.closeBtn} onClick={onClose}><X size={24} color="#fff" /></button>
+    <>
+      {cropImageSrc && (
+        <ImageCropper 
+          imageSrc={cropImageSrc}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setCropImageSrc(null)}
+        />
+      )}
+      <div style={styles.overlay}>
+        <div style={styles.modal}>
+          <button style={styles.closeBtn} onClick={onClose}><X size={24} color="#fff" /></button>
         
         <h2 style={styles.title}>
           {isMonthly ? '🏅 Fechamento do Mês!' : '🏁 Fechamento da Semana!'}
@@ -224,7 +243,8 @@ const MedalComposer = ({ isOpen, onClose, percentage, isMonthly, studentName }) 
       </div>
 
       <canvas ref={canvasRef} style={{ display: 'none' }} />
-    </div>
+      </div>
+    </>
   );
 };
 
