@@ -172,6 +172,12 @@ const Aluno = () => {
   const isSplitDone = (splitToCheck) => {
     // 1. Verifica se tem histórico de treino concluído hoje de forma robusta e cross-browser
     const today = new Date();
+    
+    // DESBLOQUEIO DE DOMINGO: Aos domingos, nenhum treino aparece como bloqueado
+    if (today.getDay() === 0) {
+      return false; 
+    }
+
     const isSameDay = (d1, d2) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
     
     const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
