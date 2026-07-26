@@ -75,7 +75,7 @@ const MedalComposer = ({ isOpen, onClose, percentage, isMonthly, studentName }) 
       // 1.5 Draw Logo
       const logoImg = new Image();
       logoImg.crossOrigin = 'anonymous';
-      logoImg.src = '/assets/logo-sm.jpg';
+      logoImg.src = `${import.meta.env.BASE_URL}assets/logo-sm.jpg`;
       await new Promise(r => {
         logoImg.onload = r;
         logoImg.onerror = r;
