@@ -66,6 +66,16 @@ const AI_EXERCISE_POOL = {
   }
 };
 
+const getCurrentWeekId = () => {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day;
+  const sunday = new Date(d.getTime());
+  sunday.setDate(diff);
+  sunday.setHours(0,0,0,0);
+  return sunday.toISOString();
+};
+
 export const AppProvider = ({ children }) => {
   // Rota Virtual
   const [virtualRoute, setVirtualRoute] = useState('app');
@@ -192,18 +202,27 @@ export const AppProvider = ({ children }) => {
           try {
             const parsed = JSON.parse(tr.html_content);
             if (parsed && (parsed.exercises || parsed.vipHtml)) {
-              // Garante que o objeto venha estruturado com finishedSplits se houver
+              let loadedExercises = parsed.exercises || [];
+              let loadedSplits = parsed.finishedSplits || [];
+              const currentWeekId = getCurrentWeekId();
+              
+              if (parsed.weekId && parsed.weekId !== currentWeekId) {
+                 loadedExercises = loadedExercises.map(ex => ({...ex, status: 'pendente'}));
+                 loadedSplits = [];
+              }
+
               treinosMap[tr.user_id] = {
-                exercises: parsed.exercises || [],
-                finishedSplits: parsed.finishedSplits || [],
+                exercises: loadedExercises,
+                finishedSplits: loadedSplits,
                 isVip: parsed.isVip !== undefined ? parsed.isVip : true,
-                vipHtml: parsed.vipHtml || tr.html_content
+                vipHtml: parsed.vipHtml || tr.html_content,
+                weekId: parsed.weekId && parsed.weekId === currentWeekId ? parsed.weekId : currentWeekId
               };
             } else {
-              treinosMap[tr.user_id] = { exercises: [], finishedSplits: [], isVip: true, vipHtml: tr.html_content };
+              treinosMap[tr.user_id] = { exercises: [], finishedSplits: [], isVip: true, vipHtml: tr.html_content, weekId: getCurrentWeekId() };
             }
           } catch (e) {
-            treinosMap[tr.user_id] = { exercises: [], finishedSplits: [], isVip: true, vipHtml: tr.html_content };
+            treinosMap[tr.user_id] = { exercises: [], finishedSplits: [], isVip: true, vipHtml: tr.html_content, weekId: getCurrentWeekId() };
           }
         });
         setWorkoutsByStudent(treinosMap);
@@ -387,7 +406,8 @@ export const AppProvider = ({ children }) => {
     const currentWorkoutData = workoutsByStudent[userId] || { exercises: DEFAULT_WORKOUTS, isVip: false, vipHtml: '' };
     const updatedWorkout = {
       ...currentWorkoutData,
-      isVip: isNowVip
+      isVip: isNowVip,
+      weekId: currentWorkoutData.weekId || getCurrentWeekId()
     };
 
     const { error: workoutErr } = await supabase.from('treinos_html').upsert({
@@ -689,7 +709,8 @@ export const AppProvider = ({ children }) => {
     const updatedWorkout = {
       ...currentData,
       exercises: newExercises,
-      finishedSplits: (finishedSplitsArray !== null && finishedSplitsArray !== undefined) ? finishedSplitsArray : (currentData.finishedSplits || [])
+      finishedSplits: (finishedSplitsArray !== null && finishedSplitsArray !== undefined) ? finishedSplitsArray : (currentData.finishedSplits || []),
+      weekId: getCurrentWeekId()
     };
 
     // Atualiza localmente de forma otimista para evitar lags de renderização

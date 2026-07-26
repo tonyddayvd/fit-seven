@@ -35,6 +35,7 @@ import {
   Scale,
   Download
 } from 'lucide-react';
+import MedalComposer from '../components/MedalComposer';
 
 const TABS = [
   { id: 'treinos', label: 'Treinos', icon: Dumbbell, desc: 'Ficha de treinos ativa, séries e cronograma de exercícios.' },
@@ -129,6 +130,9 @@ const openHtmlAsPdf = (htmlContent, nomeArquivo = 'programa') => {
 const Aluno = () => {
   const { activeTenant, user, currentStudentExercises, updateStudentExercises, submitEvaluation, workoutsByStudent, setVirtualRoute, pendingEvaluations, approvedEvaluations, reportBug } = useApp();
   
+  const [showMedalModal, setShowMedalModal] = useState(false);
+  const [medalData, setMedalData] = useState({ percentage: 0, isMonthly: false, name: '' });
+
   const userDbData = workoutsByStudent && workoutsByStudent[user?.id];
   const isVip = user?.isVip || (userDbData && userDbData.isVip);
   const dataCadastro = user?.data_cadastro || "2026-05-10T12:00:00.000Z";
@@ -224,7 +228,7 @@ const Aluno = () => {
           A: 'Pernas/Quadríceps',
           B: 'Costas/Core',
           C: 'Glúteo/Posterior',
-          D: 'Superior/Cardio',
+          D: 'Superiores',
           E: 'Inferiores Completos'
         };
 
@@ -307,7 +311,7 @@ const Aluno = () => {
           const finalParsed = parsed.map(ex => {
             const lowName = ex.name.toLowerCase();
             let finalCategory = ex.category;
-            if (lowName.includes('esteira') || lowName.includes('caminhada') || lowName.includes('corrida') || lowName.includes('elíptico') || lowName.includes('bike') || lowName.includes('bicicleta') || lowName.includes('cardio')) {
+            if (lowName.includes('esteira') || lowName.includes('caminhada') || lowName.includes('corrida') || lowName.includes('elíptico') || lowName.includes('bike') || lowName.includes('bicicleta') || lowName.includes('cardio') || lowName.includes('mobilidade') || lowName.includes('alongamento') || lowName.includes('aquecimento')) {
               finalCategory = 'Cardio';
             } else if (lowName.includes('manguito') || lowName.includes('desenvolvimento') || lowName.includes('elevação lateral') || lowName.includes('ombro')) {
               finalCategory = 'Ombros';
@@ -894,7 +898,7 @@ const Aluno = () => {
       // Calcula cadência dinâmica baseada no exercício em foco
       const currentEx = exercises.find(ex => ex.id === activeAssistantExId);
       const reps = currentEx ? getExRepsAndSets(currentEx).reps : 10;
-      const dynamicExecutionTime = reps * 3;
+      const dynamicExecutionTime = currentEx && currentEx.category === 'Cardio' ? reps * 60 : reps * 3;
       
       setAssistantTimer(dynamicExecutionTime);
       speakText(`Descanso finalizado. Força, inicie a próxima série agora!`, () => {
@@ -906,7 +910,7 @@ const Aluno = () => {
   const startAssistant = (exId) => {
     const currentEx = exercises.find(ex => ex.id === exId);
     const reps = currentEx ? getExRepsAndSets(currentEx).reps : 10;
-    const dynamicExecutionTime = reps * 3;
+    const dynamicExecutionTime = currentEx && currentEx.category === 'Cardio' ? reps * 60 : reps * 3;
 
     setActiveAssistantExId(exId);
     setAssistantPhase('execucao');
@@ -1016,11 +1020,20 @@ const Aluno = () => {
   const handleResetWorkout = () => {
     const reseted = currentStudentExercises.map(ex => ({ ...ex, status: 'pendente' }));
     setExercises(reseted);
-    updateStudentExercises(reseted, finishedSplits);
+    updateStudentExercises(reseted, []);
     setWorkoutSessionFinished(false);
     setAuditLog([]);
     setActiveAssistantExId(null);
     setAssistantRunning(false);
+  };
+
+  const handleOpenMedal = (percentage, isMonthly) => {
+    setMedalData({
+      percentage: percentage > 100 ? 100 : Math.round(percentage),
+      isMonthly,
+      name: user?.name || 'Aluno'
+    });
+    setShowMedalModal(true);
   };
 
   const exercisesForActiveSplit = exercises.filter(ex => (ex.split || 'A') === activeSplit);
@@ -1308,7 +1321,7 @@ const Aluno = () => {
                         const currentSetsVal = formData[realSetsKey] !== undefined ? formData[realSetsKey] : defaultRepsSets.sets;
                         const currentLoadVal = formData[realLoadKey] !== undefined ? formData[realLoadKey] : '';
                         const repsCount = defaultRepsSets.reps;
-                        const dynamicTimeText = `${repsCount * 3}s`;
+                        const dynamicTimeText = ex.category === 'Cardio' ? `${repsCount}min` : `${repsCount * 3}s`;
 
                         const isSplitFinished = isSplitDone(activeSplit);
 
@@ -1335,7 +1348,7 @@ const Aluno = () => {
                               <h4 style={styles.exName}>{ex.name}</h4>
                               <div style={styles.exMetaRow}>
                                 <span style={styles.exMetaItem}>Meta Prescrita: <strong>{ex.reps}</strong></span>
-                                <span style={styles.exMetaItem}>Cadência (3s/rep): <strong>{dynamicTimeText}</strong></span>
+                                <span style={styles.exMetaItem}>{ex.category === 'Cardio' ? 'Duração Alvo' : 'Cadência (3s/rep)'}: <strong>{dynamicTimeText}</strong></span>
                               </div>
 
                                {/* Inputs interativos de Carga e Séries (Se pendente) */}
@@ -2685,6 +2698,22 @@ const Aluno = () => {
                                 </div>
                               )}
                             </div>
+
+                            {/* BOTOES DE MEDALHA (MENSAL) */}
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexDirection: 'column' }}>
+                              <button 
+                                onClick={() => handleOpenMedal(goalPercentage, true)} 
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: 'var(--primary-color)', color: '#fff', padding: '15px', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}
+                              >
+                                <Award size={20} /> Finalizar Mês e Ver Desempenho
+                              </button>
+                              <div style={{ display: 'flex', gap: '5px' }}>
+                                <button onClick={() => handleOpenMedal(50, true)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Mês 50%</button>
+                                <button onClick={() => handleOpenMedal(75, true)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Mês 75%</button>
+                                <button onClick={() => handleOpenMedal(90, true)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Mês 90%</button>
+                                <button onClick={() => handleOpenMedal(100, true)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Mês 100%</button>
+                              </div>
+                            </div>
                           </div>
                         );
                       })()}
@@ -2737,6 +2766,27 @@ const Aluno = () => {
                                 </div>
                               </div>
                             ))}
+                          </div>
+                          
+                          {/* BOTOES DE MEDALHA (SEMANAL) */}
+                          <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexDirection: 'column' }}>
+                            <button 
+                              onClick={() => {
+                                const uniqueSplits = [...new Set(exercises.map(ex => ex.split || 'A'))];
+                                const weeklyFreq = uniqueSplits.length > 0 ? uniqueSplits.length : 3;
+                                const weeklyPercentage = Math.round((finishedSplits.length / weeklyFreq) * 100);
+                                handleOpenMedal(weeklyPercentage, false);
+                              }} 
+                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: 'var(--status-success)', color: '#fff', padding: '15px', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}
+                            >
+                              <Award size={20} /> Finalizar Semana e Ver Desempenho
+                            </button>
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                              <button onClick={() => handleOpenMedal(50, false)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Semana 50%</button>
+                              <button onClick={() => handleOpenMedal(75, false)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Semana 75%</button>
+                              <button onClick={() => handleOpenMedal(90, false)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Semana 90%</button>
+                              <button onClick={() => handleOpenMedal(100, false)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Semana 100%</button>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -3031,6 +3081,14 @@ const Aluno = () => {
           })}
         </div>
       </nav>
+      
+      <MedalComposer 
+        isOpen={showMedalModal} 
+        onClose={() => setShowMedalModal(false)} 
+        percentage={medalData.percentage}
+        isMonthly={medalData.isMonthly}
+        studentName={medalData.name}
+      />
     </div>
   );
 };

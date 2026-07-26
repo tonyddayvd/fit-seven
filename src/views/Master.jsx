@@ -1282,7 +1282,7 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {bugReports.map(bug => (
+                {bugReports.filter(bug => bug && bug.id).map(bug => (
                   <div key={bug.id} style={{
                     padding: '16px',
                     borderRadius: 'var(--radius-sm)',
