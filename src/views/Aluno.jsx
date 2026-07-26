@@ -214,6 +214,12 @@ const Aluno = () => {
   }, [workoutsByStudent, pendingEvaluations, user?.id]);
 
   useEffect(() => {
+    const isSunday = new Date().getDay() === 0;
+    const loadExercises = (exs) => {
+      if (!isSunday) return exs;
+      return exs.map(e => ({ ...e, status: 'pendente' }));
+    };
+
     const studentData = workoutsByStudent?.[user?.id];
     const hasVipHtml = studentData?.isVip && studentData?.vipHtml;
 
@@ -360,7 +366,7 @@ const Aluno = () => {
               return pEx;
             });
             console.log(`[VIP Parser] Mesclado com status do banco. Total: ${merged.length} exercícios.`);
-            setExercises(merged);
+            setExercises(loadExercises(merged));
             return;
           }
 
@@ -374,7 +380,7 @@ const Aluno = () => {
           });
 
           console.log(`[VIP Parser] OK: ${finalWithLocal.length} exercícios.`);
-          setExercises(finalWithLocal);
+          setExercises(loadExercises(finalWithLocal));
           return;
         }
         
@@ -385,7 +391,7 @@ const Aluno = () => {
             localStorage.setItem(`fitseven-finished-splits-${user.id}`, JSON.stringify(studentData.finishedSplits));
           }
           console.log(`[VIP Fallback] Usando ${studentData.exercises.length} exercícios pré-estruturados do banco.`);
-          setExercises(studentData.exercises);
+          setExercises(loadExercises(studentData.exercises));
           return;
         }
         
@@ -395,7 +401,7 @@ const Aluno = () => {
       }
     } else {
       // Fallback: exercícios do banco (não-VIP ou parser sem resultado)
-      setExercises(currentStudentExercises);
+      setExercises(loadExercises(currentStudentExercises));
     }
   }, [currentStudentExercises, workoutsByStudent, user?.id]);
 
