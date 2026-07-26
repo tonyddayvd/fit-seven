@@ -1329,9 +1329,11 @@ const Aluno = () => {
                         // Estados locais ou derivados para carga e séries editáveis por card de exercício
                         const realSetsKey = `sets-${ex.id}`;
                         const realLoadKey = `load-${ex.id}`;
+                        const historicalLoad = ex.realLoad ? String(ex.realLoad).replace(' kg', '').trim() : '';
+                        const historicalSets = ex.realSets !== undefined ? ex.realSets : defaultRepsSets.sets;
                         
-                        const currentSetsVal = formData[realSetsKey] !== undefined ? formData[realSetsKey] : defaultRepsSets.sets;
-                        const currentLoadVal = formData[realLoadKey] !== undefined ? formData[realLoadKey] : '';
+                        const currentSetsVal = formData[realSetsKey] !== undefined ? formData[realSetsKey] : historicalSets;
+                        const currentLoadVal = formData[realLoadKey] !== undefined ? formData[realLoadKey] : historicalLoad;
                         const repsCount = defaultRepsSets.reps;
                         const dynamicTimeText = ex.category === 'Cardio' ? `${repsCount}min` : `${repsCount * 3}s`;
 
