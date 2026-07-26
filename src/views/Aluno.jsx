@@ -2693,11 +2693,11 @@ const Aluno = () => {
                             {/* Tabela de Progresso de Peso e Repetições Reais (Exercícios Concluídos) */}
                             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
                               <h5 style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '10px', color: 'var(--text-primary)' }}>📈 Histórico de Cargas & Esforço Registrado</h5>
-                              {exercises.filter(ex => ex.status === 'concluido').length === 0 ? (
-                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px' }}>Nenhum exercício concluído registrado para este ciclo de treinos ainda.</p>
+                              {exercises.filter(ex => ex.status === 'concluido' || ex.realLoad || ex.realSets).length === 0 ? (
+                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px' }}>Nenhum histórico de exercício registrado ainda.</p>
                               ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                  {exercises.filter(ex => ex.status === 'concluido').map(ex => (
+                                  {exercises.filter(ex => ex.status === 'concluido' || ex.realLoad || ex.realSets).map(ex => (
                                     <div key={ex.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.8rem' }}>
                                       <div>
                                         <strong style={{ color: 'var(--text-primary)' }}>{ex.name}</strong>
