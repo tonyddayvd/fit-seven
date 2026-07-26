@@ -192,16 +192,16 @@ const MedalComposer = ({ isOpen, onClose, percentage, isMonthly, studentName }) 
 
   return (
     <>
-      {cropImageSrc && (
+      {cropImageSrc ? (
         <ImageCropper 
           imageSrc={cropImageSrc}
           onCropComplete={handleCropComplete}
           onCancel={() => setCropImageSrc(null)}
         />
-      )}
-      <div style={styles.overlay}>
-        <div style={styles.modal}>
-          <button style={styles.closeBtn} onClick={onClose}><X size={24} color="#fff" /></button>
+      ) : (
+        <div style={styles.overlay}>
+          <div style={styles.modal}>
+            <button style={styles.closeBtn} onClick={onClose}><X size={24} color="#fff" /></button>
         
         <h2 style={styles.title}>
           {isMonthly ? '🏅 Fechamento do Mês!' : '🏁 Fechamento da Semana!'}
@@ -241,9 +241,10 @@ const MedalComposer = ({ isOpen, onClose, percentage, isMonthly, studentName }) 
           </div>
         )}
       </div>
+    </div>
+    )}
 
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
-      </div>
+    <canvas ref={canvasRef} style={{ display: 'none' }} />
     </>
   );
 };
