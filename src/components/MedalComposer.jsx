@@ -53,20 +53,44 @@ const MedalComposer = ({ isOpen, onClose, percentage, isMonthly, studentName }) 
         bgGrad.addColorStop(0, '#111');
         bgGrad.addColorStop(0.5, info.color2);
         bgGrad.addColorStop(1, '#000');
-      } else {
-        bgGrad.addColorStop(0, '#1e1e1e');
-        bgGrad.addColorStop(1, '#0a0a0a');
-      }
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
 
-      ctx.save();
-      ctx.globalAlpha = 0.3;
-      ctx.beginPath();
-      ctx.arc(width/2, height/3, 500, 0, 2 * Math.PI);
-      ctx.fillStyle = info.color1;
-      ctx.fill();
-      ctx.restore();
+        // Majestoso: Grand Orb for monthly
+        ctx.save();
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath();
+        ctx.arc(width/2, height/3, 550, 0, 2 * Math.PI);
+        ctx.fillStyle = info.color1;
+        ctx.fill();
+        ctx.restore();
+      } else {
+        // Simples: Weekly background
+        bgGrad.addColorStop(0, '#1a1a1a');
+        bgGrad.addColorStop(1, '#050505');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      // 1.5 Draw Logo
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+      logoImg.src = '/assets/logo-sm.jpg';
+      await new Promise(r => {
+        logoImg.onload = r;
+        logoImg.onerror = r;
+      });
+      
+      if (logoImg.width > 0) {
+        const logoW = 350;
+        const logoH = (logoImg.height / logoImg.width) * logoW;
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(width/2 - logoW/2, 40, logoW, logoH, 20); // rounded logo
+        ctx.clip();
+        ctx.drawImage(logoImg, width/2 - logoW/2, 40, logoW, logoH);
+        ctx.restore();
+      }
 
       // 2. Load User Image
       const userImg = new Image();
@@ -74,9 +98,9 @@ const MedalComposer = ({ isOpen, onClose, percentage, isMonthly, studentName }) 
       userImg.src = imgBase64;
       await new Promise(r => userImg.onload = r);
 
-      const imgSize = 800;
+      const imgSize = isMonthly ? 850 : 750; // maior no mensal
       const imgX = (width - imgSize) / 2;
-      const imgY = 400;
+      const imgY = 460;
 
       ctx.save();
       ctx.beginPath();
@@ -95,34 +119,37 @@ const MedalComposer = ({ isOpen, onClose, percentage, isMonthly, studentName }) 
       ctx.drawImage(userImg, dx, dy, drawW, drawH);
       ctx.restore();
 
+      // Border da Imagem
       ctx.beginPath();
       if (isMonthly) {
         ctx.roundRect(imgX, imgY, imgSize, imgSize, 50);
+        ctx.lineWidth = 20; // borda mais grossa
       } else {
         ctx.arc(width/2, imgY + imgSize/2, imgSize/2, 0, 2 * Math.PI);
+        ctx.lineWidth = 12; // borda mais simples
       }
-      ctx.lineWidth = 15;
       ctx.strokeStyle = info.color1;
       ctx.stroke();
 
       // 3. Texts and Medals
       ctx.textAlign = 'center';
       ctx.fillStyle = info.color1;
-      ctx.font = 'bold 80px "Montserrat", sans-serif';
-      ctx.fillText(isMonthly ? 'DESEMPENHO MENSAL' : 'DESEMPENHO SEMANAL', width/2, 200);
+      ctx.font = 'bold 70px "Montserrat", sans-serif';
+      ctx.fillText(isMonthly ? 'DESEMPENHO MENSAL' : 'DESEMPENHO SEMANAL', width/2, 280);
       
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 100px "Montserrat", sans-serif';
-      ctx.fillText(studentName.toUpperCase(), width/2, 320);
+      ctx.font = 'bold 90px "Montserrat", sans-serif';
+      ctx.fillText(studentName.toUpperCase(), width/2, 380);
 
       const textY = imgY + imgSize + 150;
       
+      // Medalha Redonda com Porcentagem
       ctx.save();
       ctx.beginPath();
-      ctx.arc(width/2, textY + 80, 120, 0, 2*Math.PI);
+      ctx.arc(width/2, textY + 80, isMonthly ? 140 : 120, 0, 2*Math.PI);
       ctx.fillStyle = info.color2;
       ctx.fill();
-      ctx.lineWidth = 10;
+      ctx.lineWidth = isMonthly ? 15 : 10;
       ctx.strokeStyle = info.color1;
       ctx.stroke();
       ctx.restore();

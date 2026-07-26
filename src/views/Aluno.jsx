@@ -2767,29 +2767,29 @@ const Aluno = () => {
                               </div>
                             ))}
                           </div>
-                          
-                          {/* BOTOES DE MEDALHA (SEMANAL) */}
-                          <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexDirection: 'column' }}>
-                            <button 
-                              onClick={() => {
-                                const uniqueSplits = [...new Set(exercises.map(ex => ex.split || 'A'))];
-                                const weeklyFreq = uniqueSplits.length > 0 ? uniqueSplits.length : 3;
-                                const weeklyPercentage = Math.round((finishedSplits.length / weeklyFreq) * 100);
-                                handleOpenMedal(weeklyPercentage, false);
-                              }} 
-                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: 'var(--status-success)', color: '#fff', padding: '15px', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}
-                            >
-                              <Award size={20} /> Finalizar Semana e Ver Desempenho
-                            </button>
-                            <div style={{ display: 'flex', gap: '5px' }}>
-                              <button onClick={() => handleOpenMedal(50, false)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Semana 50%</button>
-                              <button onClick={() => handleOpenMedal(75, false)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Semana 75%</button>
-                              <button onClick={() => handleOpenMedal(90, false)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Semana 90%</button>
-                              <button onClick={() => handleOpenMedal(100, false)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Semana 100%</button>
-                            </div>
-                          </div>
                         </div>
                       )}
+
+                      {/* BOTOES DE MEDALHA (SEMANAL) MOVIDOS PARA FICAREM SEMPRE VISÍVEIS */}
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexDirection: 'column' }}>
+                        <button 
+                          onClick={() => {
+                            const uniqueSplits = [...new Set(exercises.map(ex => ex.split || 'A'))];
+                            const weeklyFreq = uniqueSplits.length > 0 ? uniqueSplits.length : 3;
+                            const weeklyPercentage = Math.round((finishedSplits.length / weeklyFreq) * 100);
+                            handleOpenMedal(weeklyPercentage, false);
+                          }} 
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: 'var(--status-success)', color: '#fff', padding: '15px', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}
+                        >
+                          <Award size={20} /> Finalizar Semana e Ver Desempenho
+                        </button>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                          <button onClick={() => handleOpenMedal(50, false)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Semana 50%</button>
+                          <button onClick={() => handleOpenMedal(75, false)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Semana 75%</button>
+                          <button onClick={() => handleOpenMedal(90, false)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Semana 90%</button>
+                          <button onClick={() => handleOpenMedal(100, false)} style={{ flex: 1, padding: '5px', fontSize: '10px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Semana 100%</button>
+                        </div>
+                      </div>
                     </>
                   )}
                 </div>
