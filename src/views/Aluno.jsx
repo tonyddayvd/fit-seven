@@ -237,6 +237,8 @@ const Aluno = () => {
       // If there are completed exercises, but none of them were completed in the current week (Sunday->Saturday)
       // then we are in a new week, so reset them to pendente.
       if (hasCompletedExercises && mostRecentCompletion < startOfWeek) {
+        setFinishedSplits([]);
+        localStorage.removeItem(`fitseven-finished-splits-${user?.id || 'u3'}`);
         return exs.map(e => ({ ...e, status: 'pendente' }));
       }
       return exs;
