@@ -33,14 +33,15 @@ const Professor = () => {
     tenants, 
     addUser, 
     updateUser, 
-    deleteUser, 
+    deleteUser,
     loginAsUser, 
     activeTenantId, 
     activeTenant,
     pendingEvaluations,
     approveAndPublishWorkout,
     workoutsByStudent,
-    updateWorkoutByProfessor
+    updateWorkoutByProfessor,
+    approvedEvaluations
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('alunos'); // 'alunos' ou 'prescribe'
@@ -532,6 +533,49 @@ const Professor = () => {
                   <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>Status Pagamento: <strong style={{ color: viewingStudent.pagamentoStatus === 'Pago' ? '#22c55e' : '#ef4444' }}>{viewingStudent.pagamentoStatus || 'Pendente'}</strong></p>
                   <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Cadastro em: <strong>{new Date(viewingStudent.data_cadastro).toLocaleDateString()}</strong></p>
                 </div>
+
+                {(() => {
+                    const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
+                    const latestEval = allEvals.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).find(e => e.student_id === viewingStudent?.id);
+                    const studentEval = latestEval?.formData;
+                    if (!studentEval) return (
+                      <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        Nenhuma Avaliação Física enviada ainda.
+                      </div>
+                    );
+
+                    return (
+                      <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', maxHeight: '200px', overflowY: 'auto' }}>
+                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Perfil Completo</h4>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
+                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Sexo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.sexoBiologico || '-'}</strong></p>
+                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Idade: <strong style={{color: 'var(--text-primary)'}}>{studentEval.idade || '-'} anos</strong></p>
+                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Peso: <strong style={{color: 'var(--text-primary)'}}>{studentEval.peso || '-'} kg</strong></p>
+                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Altura: <strong style={{color: 'var(--text-primary)'}}>{studentEval.altura || '-'} cm</strong></p>
+                        </div>
+                        
+                        <div style={{ marginBottom: '15px' }}>
+                          <h5 style={{ margin: '0 0 5px 0', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>Objetivos e Rotina</h5>
+                          <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Objetivo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.objetivo || '-'}</strong></p>
+                          <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Frequência: <strong style={{color: 'var(--text-primary)'}}>{studentEval.frequenciaSemanal || '-'} dias/semana</strong></p>
+                          <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Tempo/Sessão: <strong style={{color: 'var(--text-primary)'}}>{studentEval.tempoSessao || '-'} min</strong></p>
+                          <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Nível de Ativ.: <strong style={{color: 'var(--text-primary)'}}>{studentEval.nivelAtividade || '-'}</strong></p>
+                        </div>
+
+                        {studentEval.lesoes && (
+                          <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
+                            <p style={{ margin: 0, color: '#ef4444', fontSize: '0.85rem' }}><strong>⚠️ Histórico/Lesões:</strong> {studentEval.lesoes}</p>
+                          </div>
+                        )}
+                        {studentEval.observacoes && (
+                          <div style={{ padding: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px' }}>
+                            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}><strong>💡 Observações:</strong> {studentEval.observacoes}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                 })()}
                 
                 <div style={{ display: 'flex', gap: '10px' }}>
                    <button onClick={() => { setViewingStudent(null); loginAsUser(viewingStudent); }} style={{ ...styles.saveBtn, flex: 1, padding: '12px' }} className="btn-primary">
