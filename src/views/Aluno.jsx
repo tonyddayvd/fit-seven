@@ -375,6 +375,7 @@ const Aluno = () => {
                 return {
                   ...pEx,
                   status: savedEx.status || 'pendente',
+                  completedAt: savedEx.completedAt,
                   realSets: savedEx.realSets,
                   realLoad: savedEx.realLoad,
                   video_personalizado_url: localStorage.getItem(`fitseven-custom-video-${user?.id || 'u3'}-${pEx.id}`) || savedEx.video_personalizado_url || pEx.video_personalizado_url,
