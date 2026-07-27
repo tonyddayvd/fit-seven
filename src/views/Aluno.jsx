@@ -214,10 +214,32 @@ const Aluno = () => {
   }, [workoutsByStudent, pendingEvaluations, user?.id]);
 
   useEffect(() => {
-    const isSunday = new Date().getDay() === 0;
+    const getStartOfWeek = () => {
+      const now = new Date();
+      const day = now.getDay();
+      const diff = now.getDate() - day;
+      const startOfWeek = new Date(now.setDate(diff));
+      startOfWeek.setHours(0, 0, 0, 0);
+      return startOfWeek;
+    };
+
     const loadExercises = (exs) => {
-      if (!isSunday) return exs;
-      return exs.map(e => ({ ...e, status: 'pendente' }));
+      const mostRecentCompletion = exs.reduce((latest, ex) => {
+        if (ex.completedAt && new Date(ex.completedAt) > latest) {
+          return new Date(ex.completedAt);
+        }
+        return latest;
+      }, new Date(0));
+
+      const startOfWeek = getStartOfWeek();
+      const hasCompletedExercises = exs.some(e => e.status === 'concluido' || e.completedAt);
+      
+      // If there are completed exercises, but none of them were completed in the current week (Sunday->Saturday)
+      // then we are in a new week, so reset them to pendente.
+      if (hasCompletedExercises && mostRecentCompletion < startOfWeek) {
+        return exs.map(e => ({ ...e, status: 'pendente' }));
+      }
+      return exs;
     };
 
     const studentData = workoutsByStudent?.[user?.id];
@@ -977,6 +999,7 @@ const Aluno = () => {
       ex.id === id ? { 
         ...ex, 
         status: 'concluido', 
+        completedAt: new Date().toISOString(),
         realSets: realSets, 
         realLoad: realLoad 
       } : ex
@@ -3043,6 +3066,7 @@ const Aluno = () => {
                     ex.id === confirmModalEx.id ? { 
                       ...ex, 
                       status: 'concluido', 
+                      completedAt: new Date().toISOString(),
                       realSets: confirmModalEx.currentSetsVal, 
                       realLoad: confirmModalEx.currentLoadVal,
                       metaAtingida100: confirmReached100,
