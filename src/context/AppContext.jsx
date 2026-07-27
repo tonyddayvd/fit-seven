@@ -152,7 +152,9 @@ export const AppProvider = ({ children }) => {
           data_cadastro: u.dados_pessoais?.data_cadastro,
           data_ativacao_vip: u.dados_pessoais?.data_ativacao_vip,
           plano: u.dados_pessoais?.plano,
-          limiteAlunos: u.dados_pessoais?.limiteAlunos
+          limiteAlunos: u.dados_pessoais?.limiteAlunos,
+          customPlans: u.dados_pessoais?.customPlans || [],
+          pagamentoStatus: u.dados_pessoais?.pagamentoStatus || 'Pendente'
         }));
         setUsersList(mappedUsers);
       }
@@ -216,10 +218,11 @@ export const AppProvider = ({ children }) => {
                 finishedSplits: loadedSplits,
                 isVip: parsed.isVip !== undefined ? parsed.isVip : true,
                 vipHtml: parsed.vipHtml || tr.html_content,
-                weekId: parsed.weekId && parsed.weekId === currentWeekId ? parsed.weekId : currentWeekId
+                weekId: parsed.weekId && parsed.weekId === currentWeekId ? parsed.weekId : currentWeekId,
+                status: parsed.status || 'published'
               };
             } else {
-              treinosMap[tr.user_id] = { exercises: [], finishedSplits: [], isVip: true, vipHtml: tr.html_content, weekId: getCurrentWeekId() };
+              treinosMap[tr.user_id] = { exercises: [], finishedSplits: [], isVip: true, vipHtml: tr.html_content, weekId: getCurrentWeekId(), status: 'published' };
             }
           } catch (e) {
             treinosMap[tr.user_id] = { exercises: [], finishedSplits: [], isVip: true, vipHtml: tr.html_content, weekId: getCurrentWeekId() };
@@ -333,7 +336,9 @@ export const AppProvider = ({ children }) => {
       data_cadastro: new Date().toISOString(),
       data_ativacao_vip: null,
       plano: userData.plano || null,
-      limiteAlunos: userData.limiteAlunos || null
+      limiteAlunos: userData.limiteAlunos || null,
+      customPlans: userData.customPlans || [],
+      pagamentoStatus: 'Pendente'
     };
 
     const { error } = await supabase.from('users').insert({
@@ -361,7 +366,9 @@ export const AppProvider = ({ children }) => {
       data_cadastro: userObj.data_cadastro,
       data_ativacao_vip: updatedData.data_ativacao_vip !== undefined ? updatedData.data_ativacao_vip : userObj.data_ativacao_vip,
       plano: updatedData.plano !== undefined ? updatedData.plano : userObj.plano,
-      limiteAlunos: updatedData.limiteAlunos !== undefined ? updatedData.limiteAlunos : userObj.limiteAlunos
+      limiteAlunos: updatedData.limiteAlunos !== undefined ? updatedData.limiteAlunos : userObj.limiteAlunos,
+      customPlans: updatedData.customPlans !== undefined ? updatedData.customPlans : (userObj.customPlans || []),
+      pagamentoStatus: updatedData.pagamentoStatus !== undefined ? updatedData.pagamentoStatus : (userObj.pagamentoStatus || 'Pendente')
     };
 
     const { error } = await supabase.from('users').update({
@@ -392,7 +399,9 @@ export const AppProvider = ({ children }) => {
       data_cadastro: userObj.data_cadastro,
       data_ativacao_vip: isNowVip ? new Date().toISOString() : null,
       plano: userObj.plano,
-      limiteAlunos: userObj.limiteAlunos
+      limiteAlunos: userObj.limiteAlunos,
+      customPlans: userObj.customPlans || [],
+      pagamentoStatus: userObj.pagamentoStatus || 'Pendente'
     };
 
     const { error: userErr } = await supabase.from('users').update({
@@ -537,11 +546,19 @@ export const AppProvider = ({ children }) => {
 
     const isVip = vipOptions === true || (typeof vipOptions === 'object' && vipOptions?.isVip === true);
     const vipHtml = typeof vipOptions === 'object' ? vipOptions?.vipHtml : '';
+    
+    // Check if the student belongs to a professor
+    const studentObj = usersList.find(u => u.id === evaluation.userId);
+    // If the student's tenant is different from the logged-in user's ID, it means the student belongs to a professor
+    // and the Master is generating this.
+    const isDirectStudent = studentObj && studentObj.tenantId === user?.id;
+    const workoutStatus = isDirectStudent ? 'published' : 'draft_professor';
 
     const workoutData = {
       exercises: allExercises,
       isVip: !!isVip,
-      vipHtml: vipHtml || ''
+      vipHtml: vipHtml || '',
+      status: workoutStatus
     };
 
     // Upsert nos treinos
@@ -730,6 +747,21 @@ export const AppProvider = ({ children }) => {
     await refreshData();
   };
 
+  const updateWorkoutByProfessor = async (studentId, updatedWorkoutObj) => {
+    const student = usersList.find(u => u.id === studentId);
+    if (!student) return;
+
+    const { error } = await supabase.from('treinos_html').upsert({
+      id: `t_html_${student.id}`,
+      tenant_id: student.tenantId,
+      user_id: student.id,
+      html_content: JSON.stringify(updatedWorkoutObj)
+    });
+
+    if (error) throw error;
+    await refreshData();
+  };
+
   const resetDatabase = async () => {
     // Para conveniência do teste, podemos esvaziar tabelas ou recarregar
     await supabase.from('treinos_html').delete().neq('id', '');
@@ -778,6 +810,7 @@ export const AppProvider = ({ children }) => {
       requeueEvaluation,
       currentStudentExercises,
       updateStudentExercises,
+      updateWorkoutByProfessor,
       workoutsByStudent,
       virtualRoute,
       setVirtualRoute,
