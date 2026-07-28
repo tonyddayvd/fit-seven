@@ -63,6 +63,7 @@ const Professor = () => {
 
   // Cartão do Aluno state
   const [viewingStudent, setViewingStudent] = useState(null);
+  const [showMedidas, setShowMedidas] = useState(false);
 
   // Revisão IA state
   const [reviewingStudentId, setReviewingStudentId] = useState(null);
@@ -490,9 +491,9 @@ const Professor = () => {
                                 </button>
                                 {isDirectStudent && (
                                   <button 
-                                    onClick={() => handleDeleteStudent(student.id)} 
-                                    style={{ ...styles.iconBtn, color: 'var(--status-danger)' }} 
-                                    title="Excluir Aluno"
+                                    onClick={() => { setViewingStudent(student); setShowMedidas(false); }}
+                                    style={{ ...styles.iconBtn, color: 'var(--primary)' }}
+                                    title="Ver CRM do Aluno"
                                   >
                                     <Trash2 size={13} />
                                   </button>
@@ -515,71 +516,115 @@ const Professor = () => {
               <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '500px', border: '1px solid var(--border-color)', position: 'relative' }}>
                 <button onClick={() => setViewingStudent(null)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px' }}>X</button>
                 <h3 style={{ marginTop: 0, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <User size={20} color="var(--primary-color)" /> Cartão do Aluno
+                  <User size={20} color="var(--primary-color)" /> CRM do Aluno
                 </h3>
                 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', marginTop: '20px' }}>
                    <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>
-                     {viewingStudent.name.charAt(0).toUpperCase()}
+                     {(viewingStudent.name || '?').charAt(0).toUpperCase()}
                    </div>
-                   <div>
-                     <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.2rem' }}>{viewingStudent.name}</h4>
-                     <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>{viewingStudent.email}</p>
+                   <div style={{ flex: 1 }}>
+                      <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.2rem' }}>{viewingStudent.name || 'Sem Nome'}</h4>
+                      <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>{viewingStudent.email}</p>
                    </div>
-                </div>
-                
-                <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                  <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>Plano Atual: <strong style={{ color: 'var(--accent-primary)' }}>{viewingStudent.plano || 'Nenhum'}</strong></p>
-                  <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>Status Pagamento: <strong style={{ color: viewingStudent.pagamentoStatus === 'Pago' ? '#22c55e' : '#ef4444' }}>{viewingStudent.pagamentoStatus || 'Pendente'}</strong></p>
-                  <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Cadastro em: <strong>{viewingStudent.data_cadastro ? new Date(viewingStudent.data_cadastro).toLocaleDateString() : 'N/I'}</strong></p>
+                   <button onClick={() => setShowMedidas(!showMedidas)} style={{ background: 'var(--primary-color)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                     {showMedidas ? 'Ver CRM' : 'Ver Medidas'}
+                   </button>
                 </div>
 
-                {(() => {
-                    const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
-                    const latestEval = allEvals.sort((a, b) => {
-                      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-                      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-                      return dateB - dateA;
-                    }).find(e => e.userId === viewingStudent?.id || e.student_id === viewingStudent?.id);
-                    const studentEval = latestEval?.formData;
-                    if (!studentEval) return (
-                      <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        Nenhuma Avaliação Física enviada ainda.
-                      </div>
-                    );
-
-                    return (
-                      <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', maxHeight: '200px', overflowY: 'auto' }}>
-                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Perfil Completo</h4>
-                        
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
-                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Sexo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.sexoBiologico || '-'}</strong></p>
-                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Idade: <strong style={{color: 'var(--text-primary)'}}>{studentEval.idade || '-'} anos</strong></p>
-                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Peso: <strong style={{color: 'var(--text-primary)'}}>{studentEval.peso || '-'} kg</strong></p>
-                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Altura: <strong style={{color: 'var(--text-primary)'}}>{studentEval.altura || '-'} cm</strong></p>
+                {!showMedidas ? (
+                  <>
+                    <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                      <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Contato e Endereço</h4>
+                      <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Telefone: <strong style={{color: 'var(--text-primary)'}}>{viewingStudent.telefone || 'Não informado'}</strong></p>
+                      <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Endereço: <strong style={{color: 'var(--text-primary)'}}>{viewingStudent.endereco || 'Não informado'}</strong></p>
+                      <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Plano Atual: <strong style={{color: 'var(--accent-primary)'}}>{viewingStudent.plano || 'Nenhum'}</strong></p>
+                      <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Cadastro: <strong style={{color: 'var(--text-primary)'}}>{viewingStudent.data_cadastro ? new Date(viewingStudent.data_cadastro).toLocaleDateString() : 'N/I'}</strong></p>
+                    </div>
+                    
+                    <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                      <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                        Histórico Financeiro (Venc. Dia {viewingStudent.dia_vencimento || '?'})
+                      </h4>
+                      
+                      {!viewingStudent.historico_pagamentos || viewingStudent.historico_pagamentos.length === 0 ? (
+                         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Nenhum histórico gerado. Peça ao Master para configurar o dia de vencimento.</p>
+                      ) : (
+                        <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                          {viewingStudent.historico_pagamentos.map(parcela => (
+                            <div key={parcela.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                              <div>
+                                <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{parcela.mes}</span>
+                                <span style={{ marginLeft: '10px', fontSize: '0.8rem', padding: '2px 6px', borderRadius: '4px', background: parcela.status === 'Pago' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: parcela.status === 'Pago' ? '#22c55e' : '#ef4444' }}>
+                                  {parcela.status}
+                                </span>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  const novoStatus = parcela.status === 'Pago' ? 'Pendente' : 'Pago';
+                                  const novoHistorico = viewingStudent.historico_pagamentos.map(p => p.id === parcela.id ? { ...p, status: novoStatus } : p);
+                                  updateUser(viewingStudent.id, { historico_pagamentos: novoHistorico });
+                                  setViewingStudent({ ...viewingStudent, historico_pagamentos: novoHistorico });
+                                }}
+                                style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                              >
+                                Marcar como {parcela.status === 'Pago' ? 'Pendente' : 'Pago'}
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                        
-                        <div style={{ marginBottom: '15px' }}>
-                          <h5 style={{ margin: '0 0 5px 0', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>Objetivos e Rotina</h5>
-                          <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Objetivo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.objetivo || '-'}</strong></p>
-                          <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Frequência: <strong style={{color: 'var(--text-primary)'}}>{studentEval.frequenciaSemanal || '-'} dias/semana</strong></p>
-                          <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Tempo/Sessão: <strong style={{color: 'var(--text-primary)'}}>{studentEval.tempoSessao || '-'} min</strong></p>
-                          <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Nível de Ativ.: <strong style={{color: 'var(--text-primary)'}}>{studentEval.nivelAtividade || '-'}</strong></p>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  (() => {
+                      const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
+                      const latestEval = allEvals.sort((a, b) => {
+                        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                        return dateB - dateA;
+                      }).find(e => e.userId === viewingStudent?.id || e.student_id === viewingStudent?.id);
+                      const studentEval = latestEval?.formData;
+                      
+                      if (!studentEval) return (
+                        <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          Nenhuma Avaliação Física enviada ainda.
                         </div>
+                      );
 
-                        {studentEval.lesoes && (
-                          <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
-                            <p style={{ margin: 0, color: '#ef4444', fontSize: '0.85rem' }}><strong>⚠️ Histórico/Lesões:</strong> {studentEval.lesoes}</p>
+                      return (
+                        <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', maxHeight: '300px', overflowY: 'auto' }}>
+                          <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Perfil Completo / Avaliação Fisiológica</h4>
+                          
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
+                            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Sexo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.sexoBiologico || '-'}</strong></p>
+                            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Idade: <strong style={{color: 'var(--text-primary)'}}>{studentEval.idade || '-'} anos</strong></p>
+                            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Peso: <strong style={{color: 'var(--text-primary)'}}>{studentEval.peso || '-'} kg</strong></p>
+                            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Altura: <strong style={{color: 'var(--text-primary)'}}>{studentEval.altura || '-'} cm</strong></p>
                           </div>
-                        )}
-                        {studentEval.observacoes && (
-                          <div style={{ padding: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px' }}>
-                            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}><strong>💡 Observações:</strong> {studentEval.observacoes}</p>
+                          
+                          <div style={{ marginBottom: '15px' }}>
+                            <h5 style={{ margin: '0 0 5px 0', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>Objetivos e Rotina</h5>
+                            <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Objetivo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.objetivo || '-'}</strong></p>
+                            <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Frequência: <strong style={{color: 'var(--text-primary)'}}>{studentEval.frequenciaSemanal || '-'} dias/semana</strong></p>
+                            <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Tempo/Sessão: <strong style={{color: 'var(--text-primary)'}}>{studentEval.tempoSessao || '-'} min</strong></p>
+                            <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Nível de Ativ.: <strong style={{color: 'var(--text-primary)'}}>{studentEval.nivelAtividade || '-'}</strong></p>
                           </div>
-                        )}
-                      </div>
-                    );
-                 })()}
+
+                          {studentEval.lesoes && (
+                            <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
+                              <p style={{ margin: 0, color: '#ef4444', fontSize: '0.85rem' }}><strong>⚠️ Histórico/Lesões:</strong> {studentEval.lesoes}</p>
+                            </div>
+                          )}
+                          {studentEval.observacoes && (
+                            <div style={{ padding: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px' }}>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}><strong>💡 Observações:</strong> {studentEval.observacoes}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                  })()
+                )}
                 
                 <div style={{ display: 'flex', gap: '10px' }}>
                    <button onClick={() => { setViewingStudent(null); loginAsUser(viewingStudent); }} style={{ ...styles.saveBtn, flex: 1, padding: '12px' }} className="btn-primary">

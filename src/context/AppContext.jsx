@@ -76,6 +76,32 @@ const getCurrentWeekId = () => {
   return sunday.toISOString();
 };
 
+const gerarHistoricoPagamentos = (diaVencimento, historicoAtual = []) => {
+  if (!diaVencimento) return historicoAtual;
+  
+  const anoAtual = new Date().getFullYear();
+  const mesAtual = new Date().getMonth(); // 0 a 11
+  
+  const novoHistorico = [...historicoAtual];
+  
+  // Gera parcelas do mês atual até Dezembro do ano corrente
+  for (let m = mesAtual; m < 12; m++) {
+    const mesStr = (m + 1).toString().padStart(2, '0');
+    const chaveMes = `${mesStr}/${anoAtual}`; // ex: 08/2026
+    
+    // Se a parcela já existe, não sobrecrevemos
+    if (!novoHistorico.find(p => p.mes === chaveMes)) {
+      novoHistorico.push({
+        id: `p_${chaveMes.replace('/', '')}_${Date.now()}`,
+        mes: chaveMes,
+        diaVencimento: parseInt(diaVencimento),
+        status: 'Pendente' // Pago, Pendente, Vencido (calculado na view)
+      });
+    }
+  }
+  return novoHistorico;
+};
+
 export const AppProvider = ({ children }) => {
   // Rota Virtual
   const [virtualRoute, setVirtualRoute] = useState('app');
@@ -154,7 +180,11 @@ export const AppProvider = ({ children }) => {
           plano: u.dados_pessoais?.plano,
           limiteAlunos: u.dados_pessoais?.limiteAlunos,
           customPlans: u.dados_pessoais?.customPlans || [],
-          pagamentoStatus: u.dados_pessoais?.pagamentoStatus || 'Pendente'
+          pagamentoStatus: u.dados_pessoais?.pagamentoStatus || 'Pendente',
+          telefone: u.dados_pessoais?.telefone || '',
+          endereco: u.dados_pessoais?.endereco || '',
+          dia_vencimento: u.dados_pessoais?.dia_vencimento || '',
+          historico_pagamentos: u.dados_pessoais?.historico_pagamentos || []
         }));
         setUsersList(mappedUsers);
       }
@@ -338,7 +368,11 @@ export const AppProvider = ({ children }) => {
       plano: userData.plano || null,
       limiteAlunos: userData.limiteAlunos || null,
       customPlans: userData.customPlans || [],
-      pagamentoStatus: 'Pendente'
+      pagamentoStatus: 'Pendente',
+      telefone: userData.telefone || '',
+      endereco: userData.endereco || '',
+      dia_vencimento: userData.dia_vencimento || '',
+      historico_pagamentos: gerarHistoricoPagamentos(userData.dia_vencimento, [])
     };
 
     const { error } = await supabase.from('users').insert({
@@ -368,7 +402,15 @@ export const AppProvider = ({ children }) => {
       plano: updatedData.plano !== undefined ? updatedData.plano : userObj.plano,
       limiteAlunos: updatedData.limiteAlunos !== undefined ? updatedData.limiteAlunos : userObj.limiteAlunos,
       customPlans: updatedData.customPlans !== undefined ? updatedData.customPlans : (userObj.customPlans || []),
-      pagamentoStatus: updatedData.pagamentoStatus !== undefined ? updatedData.pagamentoStatus : (userObj.pagamentoStatus || 'Pendente')
+      pagamentoStatus: updatedData.pagamentoStatus !== undefined ? updatedData.pagamentoStatus : (userObj.pagamentoStatus || 'Pendente'),
+      telefone: updatedData.telefone !== undefined ? updatedData.telefone : (userObj.telefone || ''),
+      endereco: updatedData.endereco !== undefined ? updatedData.endereco : (userObj.endereco || ''),
+      dia_vencimento: updatedData.dia_vencimento !== undefined ? updatedData.dia_vencimento : (userObj.dia_vencimento || ''),
+      historico_pagamentos: updatedData.historico_pagamentos !== undefined ? updatedData.historico_pagamentos : (
+        updatedData.dia_vencimento !== undefined && updatedData.dia_vencimento !== userObj.dia_vencimento 
+          ? gerarHistoricoPagamentos(updatedData.dia_vencimento, userObj.historico_pagamentos || [])
+          : (userObj.historico_pagamentos || [])
+      )
     };
 
     const { error } = await supabase.from('users').update({
