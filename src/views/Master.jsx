@@ -19,7 +19,8 @@ import {
   Eye,
   Building,
   Users,
-  Check
+  Check,
+  User
 } from 'lucide-react';
 
 const TABLES_SCHEMA = [
