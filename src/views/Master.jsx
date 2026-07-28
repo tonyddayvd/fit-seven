@@ -99,7 +99,9 @@ const Master = () => {
     importDatabase,
     user,
     bugReports,
-    deleteBug
+    deleteBug,
+    workoutsByStudent,
+    updateWorkoutByProfessor
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('kpis_crud'); // 'kpis_crud', 'pending_approvals', 'db_auditor'
@@ -110,7 +112,8 @@ const Master = () => {
 
   // Estado para o Cartão do Aluno
   const [viewingStudent, setViewingStudent] = useState(null);
-  const [showMedidas, setShowMedidas] = useState(false);
+  const [activeModalTab, setActiveModalTab] = useState('medidas'); // 'medidas', 'treinos', 'financeiro'
+  const [editWorkoutHtml, setEditWorkoutHtml] = useState('');
 
   // Estados dos formulários CRUD
   const [showForm, setShowForm] = useState(null); // 'tenant', 'user', null
@@ -760,13 +763,14 @@ const Master = () => {
               </div>
             )}
 
-            {/* Modal Cartão do Aluno */}
+            {/* Modal Cartão do Aluno (Dossiê) */}
             {viewingStudent && (
               <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '500px', border: '1px solid var(--border-color)', position: 'relative' }}>
-                  <button onClick={() => setViewingStudent(null)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px' }}>X</button>
+                <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)', position: 'relative' }}>
+                  <button onClick={() => { setViewingStudent(null); setActiveModalTab('medidas'); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px' }}>X</button>
+                  
                   <h3 style={{ marginTop: 0, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <User size={20} color="var(--primary-color)" /> CRM do Aluno (Visão Master)
+                    <User size={20} color="var(--primary-color)" /> Dossiê do Aluno
                   </h3>
                   
                   <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', marginTop: '20px' }}>
@@ -777,13 +781,35 @@ const Master = () => {
                         <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.2rem' }}>{viewingStudent.name || 'Sem Nome'}</h4>
                         <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>{viewingStudent.email}</p>
                      </div>
-                     <button onClick={() => setShowMedidas(!showMedidas)} style={{ background: 'var(--primary-color)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
-                       {showMedidas ? 'Ver CRM' : 'Ver Medidas'}
-                     </button>
                   </div>
 
-                  {!showMedidas ? (
-                    <>
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+                    <button 
+                      onClick={() => setActiveModalTab('medidas')} 
+                      style={{ background: activeModalTab === 'medidas' ? 'var(--primary-color)' : 'transparent', color: activeModalTab === 'medidas' ? '#fff' : 'var(--text-secondary)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: activeModalTab === 'medidas' ? 'bold' : 'normal' }}
+                    >
+                      📋 Medidas & Anamnese
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setActiveModalTab('treinos');
+                        const w = workoutsByStudent[viewingStudent.id];
+                        if (w && w.isVip) setEditWorkoutHtml(w.vipHtml || '');
+                      }} 
+                      style={{ background: activeModalTab === 'treinos' ? 'var(--primary-color)' : 'transparent', color: activeModalTab === 'treinos' ? '#fff' : 'var(--text-secondary)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: activeModalTab === 'treinos' ? 'bold' : 'normal' }}
+                    >
+                      🏋️‍♂️ Treino Atual
+                    </button>
+                    <button 
+                      onClick={() => setActiveModalTab('financeiro')} 
+                      style={{ background: activeModalTab === 'financeiro' ? 'var(--primary-color)' : 'transparent', color: activeModalTab === 'financeiro' ? '#fff' : 'var(--text-secondary)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: activeModalTab === 'financeiro' ? 'bold' : 'normal' }}
+                    >
+                      💳 CRM / Financeiro
+                    </button>
+                  </div>
+
+                  {activeModalTab === 'financeiro' && (
+                    <div className="animate-fade-in">
                       <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
                         <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Contato e Endereço</h4>
                         <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Telefone: <strong style={{color: 'var(--text-primary)'}}>{viewingStudent.telefone || 'Não informado'}</strong></p>
@@ -825,9 +851,12 @@ const Master = () => {
                           </div>
                         )}
                       </div>
-                    </>
-                  ) : (
-                    (() => {
+                    </div>
+                  )}
+
+                  {activeModalTab === 'medidas' && (
+                    <div className="animate-fade-in">
+                    {(() => {
                         const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
                         const latestEval = allEvals.sort((a, b) => {
                           const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -843,7 +872,7 @@ const Master = () => {
                         );
 
                         return (
-                          <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', maxHeight: '300px', overflowY: 'auto' }}>
+                          <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
                             <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Perfil Completo / Avaliação Fisiológica</h4>
                             
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
@@ -851,6 +880,13 @@ const Master = () => {
                               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Idade: <strong style={{color: 'var(--text-primary)'}}>{studentEval.idade || '-'} anos</strong></p>
                               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Peso: <strong style={{color: 'var(--text-primary)'}}>{studentEval.peso || '-'} kg</strong></p>
                               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Altura: <strong style={{color: 'var(--text-primary)'}}>{studentEval.altura || '-'} cm</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Tórax: <strong style={{color: 'var(--text-primary)'}}>{studentEval.torax || '-'} cm</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Cintura: <strong style={{color: 'var(--text-primary)'}}>{studentEval.cintura || '-'} cm</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Abdômen: <strong style={{color: 'var(--text-primary)'}}>{studentEval.abdomen || '-'} cm</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Quadril: <strong style={{color: 'var(--text-primary)'}}>{studentEval.quadril || '-'} cm</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Bíceps Dir/Esq: <strong style={{color: 'var(--text-primary)'}}>{studentEval.bicepsDir || '-'} / {studentEval.bicepsEsq || '-'} cm</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Coxa Dir/Esq: <strong style={{color: 'var(--text-primary)'}}>{studentEval.coxaDir || '-'} / {studentEval.coxaEsq || '-'} cm</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Pant. Dir/Esq: <strong style={{color: 'var(--text-primary)'}}>{studentEval.panturrilhaDir || '-'} / {studentEval.panturrilhaEsq || '-'} cm</strong></p>
                             </div>
                             
                             <div style={{ marginBottom: '15px' }}>
@@ -859,6 +895,9 @@ const Master = () => {
                               <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Frequência: <strong style={{color: 'var(--text-primary)'}}>{studentEval.frequenciaSemanal || '-'} dias/semana</strong></p>
                               <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Tempo/Sessão: <strong style={{color: 'var(--text-primary)'}}>{studentEval.tempoSessao || '-'} min</strong></p>
                               <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Nível de Ativ.: <strong style={{color: 'var(--text-primary)'}}>{studentEval.nivelAtividade || '-'}</strong></p>
+                              <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Horário Pref.: <strong style={{color: 'var(--text-primary)'}}>{studentEval.horarioTreino || '-'}</strong></p>
+                              <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Sono: <strong style={{color: 'var(--text-primary)'}}>{studentEval.qualidadeSono || '-'}</strong></p>
+                              <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Alimentação: <strong style={{color: 'var(--text-primary)'}}>{studentEval.alimentacao || '-'}</strong></p>
                             </div>
 
                             {studentEval.lesoes && (
@@ -866,15 +905,94 @@ const Master = () => {
                                 <p style={{ margin: 0, color: '#ef4444', fontSize: '0.85rem' }}><strong>⚠️ Histórico/Lesões:</strong> {studentEval.lesoes}</p>
                               </div>
                             )}
+                            {studentEval.limitacoesMovimento && (
+                              <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
+                                <p style={{ margin: 0, color: '#ef4444', fontSize: '0.85rem' }}><strong>⚠️ Limitações de Movimento:</strong> {studentEval.limitacoesMovimento}</p>
+                              </div>
+                            )}
+                            {studentEval.condicoesMedicas && (
+                              <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
+                                <p style={{ margin: 0, color: '#ef4444', fontSize: '0.85rem' }}><strong>⚠️ Condições Médicas:</strong> {studentEval.condicoesMedicas}</p>
+                              </div>
+                            )}
+                            {studentEval.medicamentos && (
+                              <div style={{ padding: '8px', background: 'rgba(239, 137, 68, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
+                                <p style={{ margin: 0, color: '#ef8944', fontSize: '0.85rem' }}><strong>💊 Medicamentos:</strong> {studentEval.medicamentos}</p>
+                              </div>
+                            )}
+                            {studentEval.suplementos && (
+                              <div style={{ padding: '8px', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
+                                <p style={{ margin: 0, color: '#22c55e', fontSize: '0.85rem' }}><strong>🥤 Suplementos:</strong> {studentEval.suplementos}</p>
+                              </div>
+                            )}
                             {studentEval.observacoes && (
                               <div style={{ padding: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px' }}>
-                                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}><strong>💡 Observações:</strong> {studentEval.observacoes}</p>
+                                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}><strong>💡 Observações Adicionais:</strong> {studentEval.observacoes}</p>
                               </div>
                             )}
                           </div>
                         );
-                    })()
+                    })()}
+                    </div>
                   )}
+
+                  {activeModalTab === 'treinos' && (
+                    <div className="animate-fade-in">
+                      <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                          Treino Atual do Aluno
+                        </h4>
+                        {(() => {
+                          const workout = workoutsByStudent[viewingStudent.id];
+                          if (!workout) {
+                            return <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Nenhum treino definido para este aluno.</p>;
+                          }
+
+                          if (workout.isVip) {
+                            return (
+                              <div>
+                                <p style={{ margin: '0 0 10px 0', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
+                                  Aluno com Plano VIP (Treino gerado em HTML).<br/>
+                                  <span style={{ color: 'var(--text-secondary)' }}>Edite os nomes dos exercícios, repetições, dias etc. clicando no código abaixo. As alterações vão refletir no app e no PDF.</span>
+                                </p>
+                                <textarea
+                                  value={editWorkoutHtml}
+                                  onChange={(e) => setEditWorkoutHtml(e.target.value)}
+                                  style={{ width: '100%', minHeight: '350px', padding: '10px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '6px', fontFamily: 'monospace', fontSize: '13px', lineHeight: '1.4' }}
+                                />
+                                <button 
+                                  onClick={async () => {
+                                    await updateWorkoutByProfessor(viewingStudent.id, { vipHtml: editWorkoutHtml });
+                                    alert('Treino atualizado! O PDF do aluno foi alterado.');
+                                  }}
+                                  style={{ marginTop: '15px', width: '100%', background: 'var(--primary-color)', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+                                >
+                                  Salvar Alterações no PDF / Treino
+                                </button>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div>
+                                <p style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                                  Aluno com Treino Livre.
+                                </p>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                  {workout.exercises && workout.exercises.map((ex, i) => (
+                                    <li key={i} style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                      <strong style={{ color: 'var(--text-primary)' }}>{ex.name}</strong> - {ex.sets}x{ex.reps} (Carga: {ex.weight})
+                                    </li>
+                                  ))}
+                                </ul>
+                                <p style={{ marginTop: '10px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>* A edição deste modo via modal será adicionada em breve. Apenas HTML VIP é 100% editável no momento.</p>
+                              </div>
+                            );
+                          }
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </div>
             )}
