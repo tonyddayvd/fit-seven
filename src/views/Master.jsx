@@ -107,6 +107,9 @@ const Master = () => {
   const [selectedTable, setSelectedTable] = useState(TABLES_SCHEMA[1]); // Inicia em 'users'
   const [backupJson, setBackupJson] = useState('');
 
+  // Estado para o Cartão do Aluno
+  const [viewingStudent, setViewingStudent] = useState(null);
+
   // Estados dos formulários CRUD
   const [showForm, setShowForm] = useState(null); // 'tenant', 'user', null
   const [editingId, setEditingId] = useState(null); // ID do objeto sendo editado
@@ -703,6 +706,7 @@ const Master = () => {
                               <button onClick={() => toggleUserVip(a.id)} style={{ ...styles.iconBtn, color: '#eab308' }} title={a.isVip ? "Remover VIP" : "Conceder VIP"}>
                                 <Star size={14} fill={a.isVip ? '#eab308' : 'none'} />
                               </button>
+                              <button onClick={() => setViewingStudent(a)} style={{ ...styles.iconBtn, color: 'var(--primary)' }} title="Cartão do Aluno"><User size={14} /></button>
                               <button onClick={() => loginAsUser(a)} style={{ ...styles.iconBtn, color: '#06b6d4' }} title="Acessar como..."><Eye size={14} /></button>
                               <button onClick={() => openEditUser(a)} style={styles.iconBtn} title="Editar"><Edit2 size={14} /></button>
                               <button onClick={() => handleResetPassword(a.id)} style={styles.iconBtn} title="Resetar Senha"><Key size={14} /></button>
@@ -714,6 +718,90 @@ const Master = () => {
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Modal Cartão do Aluno */}
+            {viewingStudent && (
+              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '500px', border: '1px solid var(--border-color)', position: 'relative' }}>
+                  <button onClick={() => setViewingStudent(null)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px' }}>X</button>
+                  <h3 style={{ marginTop: 0, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <User size={20} color="var(--primary-color)" /> Cartão do Aluno (Visão Master)
+                  </h3>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', marginTop: '20px' }}>
+                     <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>
+                       {viewingStudent.name.charAt(0).toUpperCase()}
+                     </div>
+                     <div>
+                        <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.2rem' }}>{viewingStudent.name}</h4>
+                        <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>{viewingStudent.email}</p>
+                     </div>
+                  </div>
+                  
+                  <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                    <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>Plano Atual: <strong style={{ color: 'var(--accent-primary)' }}>{viewingStudent.plano || 'Nenhum'}</strong></p>
+                    <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>
+                      Status Pagamento: 
+                      <strong style={{ color: viewingStudent.pagamentoStatus === 'Pago' ? '#22c55e' : '#ef4444', marginLeft: '5px' }}>{viewingStudent.pagamentoStatus || 'Pendente'}</strong>
+                      <button 
+                        onClick={() => {
+                          const novoStatus = viewingStudent.pagamentoStatus === 'Pago' ? 'Pendente' : 'Pago';
+                          updateUser(viewingStudent.id, { pagamentoStatus: novoStatus });
+                          setViewingStudent({ ...viewingStudent, pagamentoStatus: novoStatus });
+                        }}
+                        style={{ marginLeft: '10px', fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', cursor: 'pointer' }}
+                      >
+                        Alternar
+                      </button>
+                    </p>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Cadastro em: <strong>{new Date(viewingStudent.data_cadastro).toLocaleDateString()}</strong></p>
+                  </div>
+
+                  {(() => {
+                      const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
+                      const latestEval = allEvals.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).find(e => e.student_id === viewingStudent?.id);
+                      const studentEval = latestEval?.formData;
+                      if (!studentEval) return (
+                        <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          Nenhuma Avaliação Física enviada ainda.
+                        </div>
+                      );
+
+                      return (
+                        <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', maxHeight: '200px', overflowY: 'auto' }}>
+                          <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Perfil Completo</h4>
+                          
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
+                            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Sexo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.sexoBiologico || '-'}</strong></p>
+                            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Idade: <strong style={{color: 'var(--text-primary)'}}>{studentEval.idade || '-'} anos</strong></p>
+                            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Peso: <strong style={{color: 'var(--text-primary)'}}>{studentEval.peso || '-'} kg</strong></p>
+                            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Altura: <strong style={{color: 'var(--text-primary)'}}>{studentEval.altura || '-'} cm</strong></p>
+                          </div>
+                          
+                          <div style={{ marginBottom: '15px' }}>
+                            <h5 style={{ margin: '0 0 5px 0', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>Objetivos e Rotina</h5>
+                            <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Objetivo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.objetivo || '-'}</strong></p>
+                            <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Frequência: <strong style={{color: 'var(--text-primary)'}}>{studentEval.frequenciaSemanal || '-'} dias/semana</strong></p>
+                            <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Tempo/Sessão: <strong style={{color: 'var(--text-primary)'}}>{studentEval.tempoSessao || '-'} min</strong></p>
+                            <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Nível de Ativ.: <strong style={{color: 'var(--text-primary)'}}>{studentEval.nivelAtividade || '-'}</strong></p>
+                          </div>
+
+                          {studentEval.lesoes && (
+                            <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
+                              <p style={{ margin: 0, color: '#ef4444', fontSize: '0.85rem' }}><strong>⚠️ Histórico/Lesões:</strong> {studentEval.lesoes}</p>
+                            </div>
+                          )}
+                          {studentEval.observacoes && (
+                            <div style={{ padding: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px' }}>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}><strong>💡 Observações:</strong> {studentEval.observacoes}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                  })()}
+                </div>
               </div>
             )}
 
