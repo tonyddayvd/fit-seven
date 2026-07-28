@@ -730,21 +730,28 @@ const Professor = () => {
                                 Aluno com Plano VIP (Edição Visual Ativada).<br/>
                                 <span style={{ color: 'var(--text-secondary)' }}>Clique em qualquer texto abaixo e digite para editar.</span>
                               </p>
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setEditWorkoutHtml(e.target.innerHTML)}
-                                dangerouslySetInnerHTML={{ __html: editWorkoutHtml || workout.vipHtml || '' }}
+                              <iframe
+                                id={`iframe-editor-${viewingStudent.id}`}
+                                srcDoc={workout.vipHtml || ''}
+                                onLoad={(e) => {
+                                  const doc = e.target.contentDocument;
+                                  if (doc) {
+                                    doc.designMode = "on";
+                                  }
+                                }}
                                 style={{ 
-                                  width: '100%', minHeight: '350px', maxHeight: '500px', overflowY: 'auto', 
-                                  padding: '20px', background: '#fff', color: '#000', 
-                                  border: '2px solid var(--primary-color)', borderRadius: '6px' 
+                                  width: '100%', height: '500px',
+                                  background: '#fff', border: '2px solid var(--primary-color)', borderRadius: '6px' 
                                 }}
                               />
                               <button 
                                 onClick={async () => {
-                                  await updateWorkoutByProfessor(viewingStudent.id, { vipHtml: editWorkoutHtml });
-                                  alert('Treino atualizado! O PDF do aluno foi alterado.');
+                                  const iframe = document.getElementById(`iframe-editor-${viewingStudent.id}`);
+                                  if (iframe && iframe.contentDocument) {
+                                    const finalHtml = "<!DOCTYPE html>\n" + iframe.contentDocument.documentElement.outerHTML;
+                                    await updateWorkoutByProfessor(viewingStudent.id, { vipHtml: finalHtml });
+                                    alert('Treino atualizado! O PDF do aluno foi alterado e o formato mantido.');
+                                  }
                                 }}
                                 style={{ marginTop: '15px', width: '100%', background: 'var(--primary-color)', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
                               >

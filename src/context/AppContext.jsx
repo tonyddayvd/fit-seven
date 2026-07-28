@@ -793,11 +793,14 @@ export const AppProvider = ({ children }) => {
     const student = usersList.find(u => u.id === studentId);
     if (!student) return;
 
+    const currentData = workoutsByStudent[studentId] || {};
+    const mergedData = { ...currentData, ...updatedWorkoutObj };
+
     const { error } = await supabase.from('treinos_html').upsert({
       id: `t_html_${student.id}`,
       tenant_id: student.tenantId,
       user_id: student.id,
-      html_content: JSON.stringify(updatedWorkoutObj)
+      html_content: JSON.stringify(mergedData)
     });
 
     if (error) throw error;
