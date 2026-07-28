@@ -685,9 +685,37 @@ const Professor = () => {
 
                 {activeModalTab === 'treinos' && (
                   <div className="animate-fade-in">
+                    {/* Acompanhamento / Tracking */}
+                    <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', borderLeft: '4px solid var(--accent-primary)' }}>
+                      <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
+                        📈 Acompanhamento da Semana
+                      </h4>
+                      {(() => {
+                        const workout = workoutsByStudent[viewingStudent.id];
+                        const concluidos = workout?.finishedSplits || [];
+                        if (concluidos.length === 0) {
+                          return <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>O aluno ainda não iniciou os treinos desta semana.</p>;
+                        }
+                        return (
+                          <div>
+                            <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                              Treinos concluídos: <strong style={{ color: 'var(--accent-primary)' }}>{concluidos.length}</strong>
+                            </p>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              {concluidos.map((split, idx) => (
+                                <span key={idx} style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', padding: '4px 10px', borderRadius: '15px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                                  ✓ Treino {split}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
                     <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
                       <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                        Treino Atual do Aluno
+                        Ficha de Treino Atual
                       </h4>
                       {(() => {
                         const workout = workoutsByStudent[viewingStudent.id];
@@ -699,13 +727,19 @@ const Professor = () => {
                           return (
                             <div>
                               <p style={{ margin: '0 0 10px 0', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
-                                Aluno com Plano VIP (Treino gerado em HTML).<br/>
-                                <span style={{ color: 'var(--text-secondary)' }}>Edite os nomes dos exercícios, repetições, dias etc. clicando no código abaixo. As alterações vão refletir no app e no PDF.</span>
+                                Aluno com Plano VIP (Edição Visual Ativada).<br/>
+                                <span style={{ color: 'var(--text-secondary)' }}>Clique em qualquer texto abaixo e digite para editar.</span>
                               </p>
-                              <textarea
-                                value={editWorkoutHtml}
-                                onChange={(e) => setEditWorkoutHtml(e.target.value)}
-                                style={{ width: '100%', minHeight: '350px', padding: '10px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '6px', fontFamily: 'monospace', fontSize: '13px', lineHeight: '1.4' }}
+                              <div
+                                contentEditable
+                                suppressContentEditableWarning
+                                onBlur={(e) => setEditWorkoutHtml(e.target.innerHTML)}
+                                dangerouslySetInnerHTML={{ __html: editWorkoutHtml || workout.vipHtml || '' }}
+                                style={{ 
+                                  width: '100%', minHeight: '350px', maxHeight: '500px', overflowY: 'auto', 
+                                  padding: '20px', background: '#fff', color: '#000', 
+                                  border: '2px solid var(--primary-color)', borderRadius: '6px' 
+                                }}
                               />
                               <button 
                                 onClick={async () => {
@@ -714,7 +748,7 @@ const Professor = () => {
                                 }}
                                 style={{ marginTop: '15px', width: '100%', background: 'var(--primary-color)', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
                               >
-                                Salvar Alterações no PDF / Treino
+                                Salvar Alterações no PDF
                               </button>
                             </div>
                           );
@@ -722,16 +756,65 @@ const Professor = () => {
                           return (
                             <div>
                               <p style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
-                                Aluno com Treino Livre.
+                                Aluno com Treino Livre (Manual).
                               </p>
-                              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                {workout.exercises && workout.exercises.map((ex, i) => (
-                                  <li key={i} style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                                    <strong style={{ color: 'var(--text-primary)' }}>{ex.name}</strong> - {ex.sets}x{ex.reps} (Carga: {ex.weight})
-                                  </li>
-                                ))}
-                              </ul>
-                              <p style={{ marginTop: '10px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>* A edição deste modo via modal será adicionada em breve. Apenas HTML VIP é 100% editável no momento.</p>
+                              {(!workout.exercises || workout.exercises.length === 0) ? (
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>A ficha está vazia.</p>
+                              ) : (
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                  {workout.exercises.map((ex, i) => (
+                                    <li key={i} style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <div>
+                                        <strong style={{ color: 'var(--text-primary)' }}>{ex.name}</strong> - {ex.sets}x{ex.reps} (Carga: {ex.weight})
+                                      </div>
+                                      <button 
+                                        onClick={async () => {
+                                          const newExs = workout.exercises.filter((_, idx) => idx !== i);
+                                          await updateWorkoutByProfessor(viewingStudent.id, { exercises: newExs, isVip: false });
+                                        }}
+                                        style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                      >
+                                        Remover
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                              
+                              {/* Mini Formulário de Adição de Exercício Manual */}
+                              <div style={{ marginTop: '15px', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                                <h5 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', fontSize: '0.85rem' }}>+ Adicionar Exercício Manual</h5>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                  <input type="text" id={`new-ex-name-${viewingStudent.id}`} placeholder="Ex: Supino Reto" style={{ padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)', fontSize: '0.8rem' }} />
+                                  <input type="text" id={`new-ex-reps-${viewingStudent.id}`} placeholder="Ex: 4x10" style={{ padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)', fontSize: '0.8rem' }} />
+                                </div>
+                                <button 
+                                  onClick={async () => {
+                                    const nameInput = document.getElementById(`new-ex-name-${viewingStudent.id}`);
+                                    const repsInput = document.getElementById(`new-ex-reps-${viewingStudent.id}`);
+                                    if(nameInput.value && repsInput.value) {
+                                      const parts = repsInput.value.toLowerCase().split('x');
+                                      const sets = parts[0] || '3';
+                                      const reps = parts[1] || '10';
+                                      const newEx = {
+                                        id: 'manual_' + Date.now(),
+                                        name: nameInput.value,
+                                        sets,
+                                        reps,
+                                        weight: 'Livre',
+                                        status: 'pendente'
+                                      };
+                                      const currentExs = workout.exercises || [];
+                                      await updateWorkoutByProfessor(viewingStudent.id, { exercises: [...currentExs, newEx], isVip: false });
+                                      nameInput.value = '';
+                                      repsInput.value = '';
+                                    }
+                                  }}
+                                  style={{ marginTop: '10px', width: '100%', background: 'transparent', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)', padding: '8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
+                                >
+                                  Adicionar à Ficha
+                                </button>
+                              </div>
                             </div>
                           );
                         }
