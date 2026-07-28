@@ -531,12 +531,16 @@ const Professor = () => {
                 <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
                   <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>Plano Atual: <strong style={{ color: 'var(--accent-primary)' }}>{viewingStudent.plano || 'Nenhum'}</strong></p>
                   <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>Status Pagamento: <strong style={{ color: viewingStudent.pagamentoStatus === 'Pago' ? '#22c55e' : '#ef4444' }}>{viewingStudent.pagamentoStatus || 'Pendente'}</strong></p>
-                  <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Cadastro em: <strong>{new Date(viewingStudent.data_cadastro).toLocaleDateString()}</strong></p>
+                  <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Cadastro em: <strong>{viewingStudent.data_cadastro ? new Date(viewingStudent.data_cadastro).toLocaleDateString() : 'N/I'}</strong></p>
                 </div>
 
                 {(() => {
                     const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
-                    const latestEval = allEvals.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).find(e => e.student_id === viewingStudent?.id);
+                    const latestEval = allEvals.sort((a, b) => {
+                      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                      return dateB - dateA;
+                    }).find(e => e.userId === viewingStudent?.id || e.student_id === viewingStudent?.id);
                     const studentEval = latestEval?.formData;
                     if (!studentEval) return (
                       <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
