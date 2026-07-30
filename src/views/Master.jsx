@@ -983,20 +983,29 @@ const Master = () => {
                                   Aluno com Plano VIP (Edição Visual Ativada).<br/>
                                   <span style={{ color: 'var(--text-secondary)' }}>Clique em qualquer texto abaixo e digite para editar.</span>
                                 </p>
-                                <iframe
-                                  id={`iframe-editor-${viewingStudent.id}`}
-                                  srcDoc={workout.vipHtml || ''}
-                                  onLoad={(e) => {
-                                    const doc = e.target.contentDocument;
-                                    if (doc) {
-                                      doc.designMode = "on";
-                                    }
-                                  }}
-                                  style={{ 
-                                    width: '100%', height: '500px',
-                                    background: '#fff', border: '2px solid var(--primary-color)', borderRadius: '6px' 
-                                  }}
-                                />
+                                <div style={{
+                                    width: '100%', 
+                                    overflowX: 'auto', 
+                                    WebkitOverflowScrolling: 'touch',
+                                    border: '2px solid var(--primary-color)', 
+                                    borderRadius: '6px',
+                                    background: '#fff'
+                                }}>
+                                  <iframe
+                                    id={`iframe-editor-${viewingStudent.id}`}
+                                    srcDoc={workout.vipHtml || ''}
+                                    onLoad={(e) => {
+                                      const doc = e.target.contentDocument;
+                                      if (doc) {
+                                        doc.designMode = "on";
+                                      }
+                                    }}
+                                    style={{ 
+                                      width: '100%', minWidth: '800px', height: '500px',
+                                      border: 'none', display: 'block'
+                                    }}
+                                  />
+                                </div>
                                 <button 
                                   onClick={async () => {
                                     const iframe = document.getElementById(`iframe-editor-${viewingStudent.id}`);
