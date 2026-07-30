@@ -1755,6 +1755,7 @@ const styles = {
   },
   tabsContainer: {
     display: 'flex',
+    flexWrap: 'wrap',
     gap: '10px',
     borderBottom: '1px solid var(--border-color)',
     paddingBottom: '8px'
@@ -1811,6 +1812,7 @@ const styles = {
   },
   crudTabs: {
     display: 'flex',
+    flexWrap: 'wrap',
     gap: '16px',
     borderBottom: '1px solid var(--border-color)',
     marginBottom: '20px',

@@ -1240,6 +1240,7 @@ const styles = {
   },
   tabsContainer: {
     display: 'flex',
+    flexWrap: 'wrap',
     gap: '10px',
     borderBottom: '1px solid var(--border-color)',
     paddingBottom: '8px'
