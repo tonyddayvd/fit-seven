@@ -60,6 +60,8 @@ const Header = () => {
 const styles = {
   header: {
     display: 'flex',
+    flexWrap: 'wrap',
+    gap: '16px',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '12px 24px',
@@ -97,6 +99,7 @@ const styles = {
   },
   rightSection: {
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: '16px',
   },
