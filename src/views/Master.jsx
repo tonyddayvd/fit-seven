@@ -600,7 +600,7 @@ const Master = () => {
                     <Plus size={16} /> Cadastrar Academia
                   </button>
                 </div>
-                <table style={styles.table}>
+                <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableCellHeader}>Nome</th>
@@ -648,7 +648,7 @@ const Master = () => {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             )}
 
@@ -660,7 +660,7 @@ const Master = () => {
                     <Plus size={16} /> Cadastrar Professor
                   </button>
                 </div>
-                <table style={styles.table}>
+                <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableCellHeader}>Nome</th>
@@ -700,7 +700,7 @@ const Master = () => {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             )}
 
@@ -712,7 +712,7 @@ const Master = () => {
                     <Plus size={16} /> Cadastrar Aluno
                   </button>
                 </div>
-                <table style={styles.table}>
+                <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableCellHeader}>Nome</th>
@@ -759,7 +759,7 @@ const Master = () => {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             )}
 
@@ -1104,7 +1104,7 @@ const Master = () => {
                     <Plus size={16} /> Cadastrar Administrador
                   </button>
                 </div>
-                <table style={styles.table}>
+                <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableCellHeader}>Nome</th>
@@ -1142,7 +1142,7 @@ const Master = () => {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             )}
           </div>

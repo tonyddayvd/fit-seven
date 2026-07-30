@@ -422,7 +422,7 @@ const Professor = () => {
                 </div>
               ) : (
                 <div style={styles.tableResponsive}>
-                  <table style={styles.table}>
+                  <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                     <thead>
                       <tr style={styles.tableHeaderRow}>
                         <th style={styles.tableCellHeader}>Nome</th>
@@ -505,7 +505,7 @@ const Professor = () => {
                         );
                       })}
                     </tbody>
-                  </table>
+                  </table></div>
                 </div>
               )}
             </div>
@@ -876,7 +876,7 @@ const Professor = () => {
 
             <h3 style={styles.sectionTitle}>Controle de Recebimentos</h3>
             <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-              <table style={styles.table}>
+              <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                 <thead>
                   <tr style={styles.tableHeaderRow}>
                     <th style={styles.tableCellHeader}>Aluno</th>
@@ -919,7 +919,7 @@ const Professor = () => {
                     })
                   )}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           </div>
         </div>
@@ -1127,7 +1127,7 @@ const Professor = () => {
               <h3 style={styles.sectionTitle}>Treinos Gerados pela IA Pendentes de Revisão</h3>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>O Master gerou os rascunhos de treino para os seus alunos abaixo. Revise, edite se necessário e aprove para liberá-los.</p>
               <div style={styles.tableResponsive}>
-                <table style={styles.table}>
+                <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableCellHeader}>Aluno</th>
@@ -1168,7 +1168,7 @@ const Professor = () => {
                       ))
                     )}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             </div>
           )}
