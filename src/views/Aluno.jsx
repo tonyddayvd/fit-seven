@@ -370,7 +370,10 @@ const Aluno = () => {
           // Se o banco de dados já possuir exercises com status/realLoad salvos, mescla para não perder o progresso
           if (studentData?.exercises && studentData.exercises.length > 0) {
             const merged = finalParsed.map(pEx => {
-              const savedEx = studentData.exercises.find(se => se.name === pEx.name);
+              const savedEx = studentData.exercises.find(se => se.name === pEx.name || se.id === pEx.id);
+              const customVideo = getSavedCustomVideo(user?.id, pEx) || savedEx?.video_personalizado_url || pEx.video_personalizado_url || '';
+              const officialVideo = pEx.video_oficial_url || savedEx?.video_oficial_url || getDefaultOfficialVideo(pEx.name);
+
               if (savedEx) {
                 return {
                   ...pEx,
@@ -378,30 +381,32 @@ const Aluno = () => {
                   completedAt: savedEx.completedAt,
                   realSets: savedEx.realSets,
                   realLoad: savedEx.realLoad,
-                  video_personalizado_url: localStorage.getItem(`fitseven-custom-video-${user?.id || 'u3'}-${pEx.id}`) || savedEx.video_personalizado_url || pEx.video_personalizado_url,
+                  video_personalizado_url: customVideo,
+                  video_oficial_url: officialVideo,
                   metaAtingida100: savedEx.metaAtingida100,
                   feedbackDificuldade: savedEx.feedbackDificuldade
                 };
               }
-              // Caso o exercício esteja no localStorage mas ainda não no banco
-              const localUrl = localStorage.getItem(`fitseven-custom-video-${user?.id || 'u3'}-${pEx.id}`);
-              if (localUrl) {
-                return { ...pEx, video_personalizado_url: localUrl };
-              }
-              return pEx;
+              return {
+                ...pEx,
+                video_personalizado_url: customVideo,
+                video_oficial_url: officialVideo
+              };
             });
             console.log(`[VIP Parser] Mesclado com status do banco. Total: ${merged.length} exercícios.`);
             setExercises(loadExercises(merged));
             return;
           }
 
-          // Se não há exercícios no banco mas há URLs salvas no local
+          // Se não há exercícios no banco mas há URLs salvas no local ou biblioteca padrão
           const finalWithLocal = finalParsed.map(ex => {
-            const localUrl = localStorage.getItem(`fitseven-custom-video-${user?.id || 'u3'}-${ex.id}`);
-            if (localUrl) {
-              return { ...ex, video_personalizado_url: localUrl };
-            }
-            return ex;
+            const customVideo = getSavedCustomVideo(user?.id, ex) || ex.video_personalizado_url || '';
+            const officialVideo = ex.video_oficial_url || getDefaultOfficialVideo(ex.name);
+            return {
+              ...ex,
+              video_personalizado_url: customVideo,
+              video_oficial_url: officialVideo
+            };
           });
 
           console.log(`[VIP Parser] OK: ${finalWithLocal.length} exercícios.`);
@@ -415,8 +420,13 @@ const Aluno = () => {
             setFinishedSplits(studentData.finishedSplits);
             localStorage.setItem(`fitseven-finished-splits-${user.id}`, JSON.stringify(studentData.finishedSplits));
           }
-          console.log(`[VIP Fallback] Usando ${studentData.exercises.length} exercícios pré-estruturados do banco.`);
-          setExercises(loadExercises(studentData.exercises));
+          const enrichedSaved = studentData.exercises.map(ex => ({
+            ...ex,
+            video_personalizado_url: getSavedCustomVideo(user?.id, ex) || ex.video_personalizado_url || '',
+            video_oficial_url: ex.video_oficial_url || getDefaultOfficialVideo(ex.name)
+          }));
+          console.log(`[VIP Fallback] Usando ${enrichedSaved.length} exercícios pré-estruturados do banco.`);
+          setExercises(loadExercises(enrichedSaved));
           return;
         }
         
@@ -426,7 +436,12 @@ const Aluno = () => {
       }
     } else {
       // Fallback: exercícios do banco (não-VIP ou parser sem resultado)
-      setExercises(loadExercises(currentStudentExercises));
+      const enrichedFree = (currentStudentExercises || []).map(ex => ({
+        ...ex,
+        video_personalizado_url: getSavedCustomVideo(user?.id, ex) || ex.video_personalizado_url || '',
+        video_oficial_url: ex.video_oficial_url || getDefaultOfficialVideo(ex.name)
+      }));
+      setExercises(loadExercises(enrichedFree));
     }
   }, [currentStudentExercises, workoutsByStudent, user?.id]);
 
@@ -917,6 +932,140 @@ const Aluno = () => {
     };
   };
 
+  // Normaliza o nome do exercício para chaves de busca seguras (sem acentos, pontuação, etc.)
+  const sanitizeExName = (name) => {
+    if (!name) return '';
+    return name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '_')
+      .replace(/_+/g, '_')
+      .trim();
+  };
+
+  // Formata links do YouTube para a versão correta de embed do player
+  const formatYouTubeEmbedUrl = (rawUrl) => {
+    if (!rawUrl || typeof rawUrl !== 'string') return '';
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return '';
+
+    if (trimmed.includes('youtube.com/embed/')) {
+      const parts = trimmed.split('youtube.com/embed/')[1];
+      const vid = parts?.split('?')[0]?.split('&')[0];
+      return vid ? `https://www.youtube.com/embed/${vid}` : trimmed;
+    }
+
+    const watchMatch = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i);
+    if (watchMatch && watchMatch[1]) {
+      return `https://www.youtube.com/embed/${watchMatch[1]}`;
+    }
+
+    if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+      return `https://www.youtube.com/embed/${trimmed}`;
+    }
+
+    return trimmed;
+  };
+
+  // Biblioteca oficial de demonstrações de exercícios padrão
+  const OFFICIAL_EXERCISE_VIDEOS = {
+    'puxada alta na polia': 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    'puxada frontal alta (polia)': 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    'puxada frontal alta': 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    'puxada frontal': 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    'puxada alta': 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    'puxada articulada': 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    'remada curvada pronada': 'https://www.youtube.com/embed/H5_p5r8K9H8',
+    'remada curvada': 'https://www.youtube.com/embed/H5_p5r8K9H8',
+    'remada baixa': 'https://www.youtube.com/embed/H5_p5r8K9H8',
+    'remada cavalinho': 'https://www.youtube.com/embed/H5_p5r8K9H8',
+    'supino reto com barra': 'https://www.youtube.com/embed/sqOw2Y6u9Xs',
+    'supino reto': 'https://www.youtube.com/embed/sqOw2Y6u9Xs',
+    'supino inclinado': 'https://www.youtube.com/embed/sqOw2Y6u9Xs',
+    'crossover na polia media': 'https://www.youtube.com/embed/l5MhN6l3s88',
+    'crossover': 'https://www.youtube.com/embed/l5MhN6l3s88',
+    'agachamento livre': 'https://www.youtube.com/embed/Vn83S-A-9yU',
+    'agachamento': 'https://www.youtube.com/embed/Vn83S-A-9yU',
+    'leg press 45 graus': 'https://www.youtube.com/embed/vO-FwS1YhNA',
+    'leg press': 'https://www.youtube.com/embed/vO-FwS1YhNA',
+    'cadeira extensora': 'https://www.youtube.com/embed/vO-FwS1YhNA',
+    'mesa flexora': 'https://www.youtube.com/embed/vO-FwS1YhNA',
+    'rosca direta com barra w': 'https://www.youtube.com/embed/ly7TepL4pco',
+    'rosca direta': 'https://www.youtube.com/embed/ly7TepL4pco',
+    'triceps testa com halter': 'https://www.youtube.com/embed/HlJ_nKpxJg8',
+    'triceps testa': 'https://www.youtube.com/embed/HlJ_nKpxJg8',
+    'triceps corda': 'https://www.youtube.com/embed/HlJ_nKpxJg8',
+    'elevacao lateral': 'https://www.youtube.com/embed/HlJ_nKpxJg8',
+    'desenvolvimento com halteres': 'https://www.youtube.com/embed/sqOw2Y6u9Xs',
+    'prancha frontal': 'https://www.youtube.com/embed/0pkjOk0EiAk',
+    'prancha frontal (isometria)': 'https://www.youtube.com/embed/0pkjOk0EiAk',
+    'prancha isometrica': 'https://www.youtube.com/embed/0pkjOk0EiAk',
+    'burpee completo': 'https://www.youtube.com/embed/0pkjOk0EiAk',
+    'burpee': 'https://www.youtube.com/embed/0pkjOk0EiAk',
+    'corrida na esteira': 'https://www.youtube.com/embed/sqOw2Y6u9Xs',
+    'esteira': 'https://www.youtube.com/embed/sqOw2Y6u9Xs'
+  };
+
+  const getDefaultOfficialVideo = (name) => {
+    if (!name) return '';
+    const clean = sanitizeExName(name).replace(/_/g, ' ');
+    if (OFFICIAL_EXERCISE_VIDEOS[clean]) return OFFICIAL_EXERCISE_VIDEOS[clean];
+    for (const [key, url] of Object.entries(OFFICIAL_EXERCISE_VIDEOS)) {
+      if (clean.includes(key) || key.includes(clean)) return url;
+    }
+    return '';
+  };
+
+  // Recupera vídeo customizado do aluno de forma resiliente (por ID, Nome ou Mapa)
+  const getSavedCustomVideo = (userId, ex) => {
+    if (!ex) return '';
+    const uid = userId || 'u3';
+    const nameKey = sanitizeExName(ex.name);
+
+    if (ex.id) {
+      const byId = localStorage.getItem(`fitseven-custom-video-${uid}-${ex.id}`);
+      if (byId) return byId;
+    }
+
+    if (nameKey) {
+      const byName = localStorage.getItem(`fitseven-custom-video-by-name-${uid}-${nameKey}`);
+      if (byName) return byName;
+    }
+
+    try {
+      const globalVideos = JSON.parse(localStorage.getItem(`fitseven-user-videos-${uid}`) || '{}');
+      if (nameKey && globalVideos[nameKey]) return globalVideos[nameKey];
+      if (ex.id && globalVideos[ex.id]) return globalVideos[ex.id];
+    } catch (e) {
+      // ignore
+    }
+
+    return ex.video_personalizado_url || '';
+  };
+
+  // Salva vídeo customizado em múltiplas chaves para nunca perder
+  const saveCustomVideoStorage = (userId, ex, formattedUrl) => {
+    if (!ex) return;
+    const uid = userId || 'u3';
+    const nameKey = sanitizeExName(ex.name);
+
+    if (ex.id) {
+      localStorage.setItem(`fitseven-custom-video-${uid}-${ex.id}`, formattedUrl);
+    }
+    if (nameKey) {
+      localStorage.setItem(`fitseven-custom-video-by-name-${uid}-${nameKey}`, formattedUrl);
+    }
+    try {
+      const globalVideos = JSON.parse(localStorage.getItem(`fitseven-user-videos-${uid}`) || '{}');
+      if (nameKey) globalVideos[nameKey] = formattedUrl;
+      if (ex.id) globalVideos[ex.id] = formattedUrl;
+      localStorage.setItem(`fitseven-user-videos-${uid}`, JSON.stringify(globalVideos));
+    } catch (e) {
+      // ignore
+    }
+  };
+
   // Parser de HTML VIP gerado pela IA externa → exercícios estruturados para a ferramenta interativa
   const parseVipHtmlToExercises = (html) => {
     if (!html) return [];
@@ -1047,35 +1196,36 @@ const Aluno = () => {
   };
 
   const openVideoModal = (ex) => {
-    setActiveVideoEx(ex);
-    setTempCustomUrl(ex.video_personalizado_url || '');
+    const customUrl = getSavedCustomVideo(user?.id, ex) || ex.video_personalizado_url || '';
+    const officialUrl = ex.video_oficial_url || getDefaultOfficialVideo(ex.name) || '';
+    const resolvedEx = {
+      ...ex,
+      video_personalizado_url: customUrl,
+      video_oficial_url: officialUrl
+    };
+    setActiveVideoEx(resolvedEx);
+    setTempCustomUrl(customUrl);
   };
 
   const saveCustomVideoUrl = (e) => {
     e.preventDefault();
     if (!activeVideoEx) return;
 
-    let formattedUrl = tempCustomUrl;
-    if (tempCustomUrl.includes('youtube.com/watch?v=')) {
-      const vid = tempCustomUrl.split('v=')[1]?.split('&')[0];
-      if (vid) formattedUrl = `https://www.youtube.com/embed/${vid}`;
-    } else if (tempCustomUrl.includes('youtu.be/')) {
-      const vid = tempCustomUrl.split('youtu.be/')[1]?.split('?')[0];
-      if (vid) formattedUrl = `https://www.youtube.com/embed/${vid}`;
-    } else if (tempCustomUrl.includes('youtube.com/shorts/')) {
-      const vid = tempCustomUrl.split('shorts/')[1]?.split('?')[0];
-      if (vid) formattedUrl = `https://www.youtube.com/embed/${vid}`;
+    const formattedUrl = formatYouTubeEmbedUrl(tempCustomUrl);
+    if (!formattedUrl && tempCustomUrl.trim() !== '') {
+      alert('Por favor, insira um link válido do YouTube.');
+      return;
     }
 
     const updated = exercises.map(ex => 
-      ex.id === activeVideoEx.id ? { ...ex, video_personalizado_url: formattedUrl } : ex
+      (ex.id === activeVideoEx.id || ex.name === activeVideoEx.name) ? { ...ex, video_personalizado_url: formattedUrl } : ex
     );
     setExercises(updated);
     updateStudentExercises(updated, finishedSplits);
     setActiveVideoEx(prev => ({ ...prev, video_personalizado_url: formattedUrl }));
     
-    // Salva de forma persistente e instantânea localmente para garantir funcionamento
-    localStorage.setItem(`fitseven-custom-video-${user?.id || 'u3'}-${activeVideoEx.id}`, formattedUrl);
+    // Salva com redundância total no localStorage
+    saveCustomVideoStorage(user?.id, activeVideoEx, formattedUrl);
     alert('Link do influenciador favorito salvo com sucesso e priorizado!');
   };
 
@@ -3015,15 +3165,28 @@ const Aluno = () => {
             
             <p style={{ ...styles.exName, margin: '4px 0 16px 0' }}>{activeVideoEx.name}</p>
 
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: activeVideoEx.video_personalizado_url ? 'var(--status-success)' : 'var(--primary)' }}>
+                {activeVideoEx.video_personalizado_url ? '★ Seu Vídeo Priorizado Ativo' : '📺 Demonstração de Execução'}
+              </span>
+            </div>
+
             <div style={styles.videoWrapper}>
-              <iframe
-                src={activeVideoEx.video_personalizado_url || activeVideoEx.video_oficial_url}
-                title={`Instruções de execução`}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                style={styles.iframe}
-              />
+              {(activeVideoEx.video_personalizado_url || activeVideoEx.video_oficial_url) ? (
+                <iframe
+                  src={activeVideoEx.video_personalizado_url || activeVideoEx.video_oficial_url}
+                  title={`Instruções de execução - ${activeVideoEx.name}`}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  style={styles.iframe}
+                />
+              ) : (
+                <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  <p style={{ margin: '0 0 6px 0', fontWeight: '700', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Nenhum vídeo cadastrado para este exercício</p>
+                  <p style={{ margin: 0, fontSize: '0.8rem' }}>Cole o link do seu influenciador ou canal favorito abaixo para salvar e assistir sempre que treinar!</p>
+                </div>
+              )}
             </div>
 
             <div style={styles.dualLinkBox}>
