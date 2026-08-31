@@ -102,13 +102,45 @@ const gerarHistoricoPagamentos = (diaVencimento, historicoAtual = []) => {
   return novoHistorico;
 };
 
+export const DEFAULT_TENANTS = {
+  'academia-vibe': { id: 't1', name: 'Academia Vibe & Energia', subdomain: 'academia-vibe', plano: 'Grow', limiteAlunos: 50 },
+  'cross-pulse': { id: 't2', name: 'Cross Pulse Studio', subdomain: 'cross-pulse', plano: 'Start', limiteAlunos: 20 },
+  'fit-seven-master': { id: 'master', name: 'Fit Seven Corporate', subdomain: 'master', plano: 'Scale', limiteAlunos: 9999 }
+};
+
+export const DEFAULT_USERS = [
+  { id: 'u8', name: 'Tony (MASTER)', email: 'tonyddayvd@gmail.com', tenantId: 'master', role: 'master', password: '123', isVip: true, data_cadastro: '2026-05-10T12:00:00.000Z' },
+  { id: 'u7', name: 'Suporte Master System', email: 'master@fitseven.com', tenantId: 'master', role: 'master', password: '123', isVip: true, data_cadastro: '2026-05-10T12:00:00.000Z' },
+  { id: 'u2', name: 'Prof. Carlos Santos', email: 'carlos@vibe.com', tenantId: 't1', role: 'professor', password: '123', limiteAlunos: 20, data_cadastro: '2026-05-10T12:00:00.000Z' },
+  { id: 'u5', name: 'Prof. Pedro Souza', email: 'pedro@pulse.com', tenantId: 't2', role: 'professor', password: '123', limiteAlunos: 20, data_cadastro: '2026-05-10T12:00:00.000Z' },
+  { id: 'u3', name: 'Tony (Aluno)', email: 'tony@fitseven.com', tenantId: 't1', role: 'aluno', password: '123', isVip: true, plano: 'VIP Performance', data_cadastro: '2026-05-10T12:00:00.000Z', data_ativacao_vip: '2026-06-01T12:00:00.000Z' },
+  { id: 'u3_lucas', name: 'Lucas Aluno', email: 'lucas@vibe.com', tenantId: 't1', role: 'aluno', password: '123', isVip: true, plano: 'VIP Performance', data_cadastro: '2026-05-10T12:00:00.000Z', data_ativacao_vip: '2026-06-01T12:00:00.000Z' },
+  { id: 'u6', name: 'Juliana Aluna', email: 'juliana@pulse.com', tenantId: 't2', role: 'aluno', password: '123', isVip: true, plano: 'VIP Performance', data_cadastro: '2026-05-10T12:00:00.000Z', data_ativacao_vip: '2026-06-01T12:00:00.000Z' },
+  { id: 'u1', name: 'Alice Silva (Estabelec.)', email: 'admin@vibe.com', tenantId: 't1', role: 'estabelecimento', password: '123', data_cadastro: '2026-05-10T12:00:00.000Z' },
+  { id: 'u4', name: 'Mariana Lima (Estabelec.)', email: 'admin@pulse.com', tenantId: 't2', role: 'estabelecimento', password: '123', data_cadastro: '2026-05-10T12:00:00.000Z' }
+];
+
 export const AppProvider = ({ children }) => {
   // Rota Virtual
   const [virtualRoute, setVirtualRoute] = useState('app');
 
-  // Estados carregados do Supabase
-  const [tenants, setTenants] = useState({});
-  const [usersList, setUsersList] = useState([]);
+  // Estados carregados do Supabase com fallback garantido
+  const [tenants, setTenants] = useState(() => {
+    const saved = localStorage.getItem('fitseven-tenants');
+    return saved ? JSON.parse(saved) : DEFAULT_TENANTS;
+  });
+
+  const [usersList, setUsersList] = useState(() => {
+    const saved = localStorage.getItem('fitseven-users');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return DEFAULT_USERS;
+  });
+
   const [workoutsByStudent, setWorkoutsByStudent] = useState({});
   const [pendingEvaluations, setPendingEvaluations] = useState([]);
   const [approvedEvaluations, setApprovedEvaluations] = useState([]);
@@ -150,7 +182,7 @@ export const AppProvider = ({ children }) => {
     try {
       // 1. Carregar Tenants
       const { data: tenantsData, error: tenantsErr } = await supabase.from('tenants').select('*');
-      if (!tenantsErr && tenantsData) {
+      if (!tenantsErr && tenantsData && tenantsData.length > 0) {
         const tenantMap = {};
         tenantsData.forEach(t => {
           tenantMap[t.subdomain] = {
@@ -162,11 +194,12 @@ export const AppProvider = ({ children }) => {
           };
         });
         setTenants(tenantMap);
+        localStorage.setItem('fitseven-tenants', JSON.stringify(tenantMap));
       }
 
       // 2. Carregar Users
       const { data: usersData, error: usersErr } = await supabase.from('users').select('*');
-      if (!usersErr && usersData) {
+      if (!usersErr && usersData && usersData.length > 0) {
         const mappedUsers = usersData.map(u => ({
           id: u.id,
           tenantId: u.tenant_id,
@@ -186,7 +219,20 @@ export const AppProvider = ({ children }) => {
           dia_vencimento: u.dados_pessoais?.dia_vencimento || '',
           historico_pagamentos: u.dados_pessoais?.historico_pagamentos || []
         }));
-        setUsersList(mappedUsers);
+
+        // Mescla garantindo que os usuários essenciais de teste existam
+        const mergedUsers = [...DEFAULT_USERS];
+        mappedUsers.forEach(mu => {
+          const idx = mergedUsers.findIndex(u => (u.id === mu.id) || (u.email && mu.email && u.email.toLowerCase() === mu.email.toLowerCase()));
+          if (idx >= 0) {
+            mergedUsers[idx] = { ...mergedUsers[idx], ...mu };
+          } else {
+            mergedUsers.push(mu);
+          }
+        });
+
+        setUsersList(mergedUsers);
+        localStorage.setItem('fitseven-users', JSON.stringify(mergedUsers));
       }
 
       // 3. Carregar Avaliacoes com Parsing Robusto do campo JSONB medidas
