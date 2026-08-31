@@ -835,6 +835,88 @@ const Aluno = () => {
     return { reps: repsNum, sets: setsNum };
   };
 
+  // Identifica se o exercício é de Isometria (Pranchas), Peso Corporal (Abdominais, Calistenia) ou Cardio
+  const getExerciseTypeInfo = (ex) => {
+    if (!ex) return { type: 'weight', isTimeBased: false, isBodyweight: false, targetSeconds: 30, labelSets: 'Séries Reais Realizadas', labelLoad: 'Carga Utilizada (kg)', placeholderLoad: 'Ex: 25' };
+
+    const name = (ex.name || '').toLowerCase();
+    const category = (ex.category || '').toLowerCase();
+    const reps = (ex.reps || '').toLowerCase();
+    const load = (ex.load || '').toLowerCase();
+
+    // 1. Cardio
+    if (category === 'cardio' || name.includes('esteira') || name.includes('bicicleta') || name.includes('elíptico') || name.includes('bike') || name.includes('cardio') || name.includes('caminhada') || name.includes('corrida') || name.includes('pular corda')) {
+      const defaultRepsSets = getExRepsAndSets(ex);
+      return {
+        type: 'cardio',
+        isTimeBased: true,
+        isBodyweight: false,
+        targetSeconds: defaultRepsSets.reps * 60,
+        labelSets: 'Tempo Real (min)',
+        labelLoad: 'Velocidade/Ritmo',
+        placeholderLoad: 'Ex: 6.5 km/h'
+      };
+    }
+
+    // 2. Isometria / Tempo (Prancha, Plank, Ponte, Wall Sit, Vácuo, Alongamento, etc.)
+    const isIsometricKeywords = [
+      'isometria', 'prancha', 'plank', 'ponte', 'wall sit', 'hollow', 'vácuo', 'vacuum', 
+      'alongamento', 'mobilidade', 'flexibilidade'
+    ];
+    const hasTimePattern = /\b(\d+)\s*(?:seg|segundos|s|min|minutos)\b/i.test(reps);
+    const isIsometric = isIsometricKeywords.some(k => name.includes(k) || reps.includes(k) || load.includes(k)) || hasTimePattern;
+
+    if (isIsometric) {
+      const defaultRepsSets = getExRepsAndSets(ex);
+      let seconds = defaultRepsSets.reps;
+      if (reps.includes('min')) {
+        seconds = defaultRepsSets.reps * 60;
+      }
+      return {
+        type: 'isometria',
+        isTimeBased: true,
+        isBodyweight: true,
+        targetSeconds: seconds,
+        labelSets: 'Séries Realizadas',
+        labelLoad: 'Carga / Peso (Opcional)',
+        placeholderLoad: 'Peso Corporal (0 kg)'
+      };
+    }
+
+    // 3. Peso Corporal / Calistenia / Sem Carga Obrigatória
+    const isBodyweightKeywords = [
+      'peso corporal', 'peso do corpo', 'corpo livre', 'calistenia', 'próprio peso', 'livre', 'sem carga', 'corporal',
+      'abdominal', 'crunch', 'infra', 'supra', 'elevação de pernas', 'perdigueiro', 'superman', 
+      'flexão de braço', 'flexão solo', 'flexões', 'burpee', 'polichinelo', 'mountain climber', 'escalador', 'barra fixa', 'paralelas'
+    ];
+    const isBodyweight = isBodyweightKeywords.some(k => name.includes(k) || load.includes(k) || reps.includes(k));
+
+    if (isBodyweight) {
+      const defaultRepsSets = getExRepsAndSets(ex);
+      return {
+        type: 'peso_corporal',
+        isTimeBased: false,
+        isBodyweight: true,
+        targetSeconds: defaultRepsSets.reps * 3,
+        labelSets: 'Séries Realizadas',
+        labelLoad: 'Carga Adicional (Opcional)',
+        placeholderLoad: 'Peso Corporal (0 kg)'
+      };
+    }
+
+    // 4. Convencional com pesos (Musculação)
+    const defaultRepsSets = getExRepsAndSets(ex);
+    return {
+      type: 'weight',
+      isTimeBased: false,
+      isBodyweight: false,
+      targetSeconds: defaultRepsSets.reps * 3,
+      labelSets: 'Séries Reais Realizadas',
+      labelLoad: 'Carga Utilizada (kg)',
+      placeholderLoad: 'Ex: 25'
+    };
+  };
+
   // Parser de HTML VIP gerado pela IA externa → exercícios estruturados para a ferramenta interativa
   const parseVipHtmlToExercises = (html) => {
     if (!html) return [];
@@ -934,8 +1016,8 @@ const Aluno = () => {
       setAssistantPhase('execucao');
       // Calcula cadência dinâmica baseada no exercício em foco
       const currentEx = exercises.find(ex => ex.id === activeAssistantExId);
-      const reps = currentEx ? getExRepsAndSets(currentEx).reps : 10;
-      const dynamicExecutionTime = currentEx && currentEx.category === 'Cardio' ? reps * 60 : reps * 3;
+      const exType = getExerciseTypeInfo(currentEx);
+      const dynamicExecutionTime = exType.targetSeconds;
       
       setAssistantTimer(dynamicExecutionTime);
       speakText(`Descanso finalizado. Força, inicie a próxima série agora!`, () => {
@@ -946,8 +1028,8 @@ const Aluno = () => {
 
   const startAssistant = (exId) => {
     const currentEx = exercises.find(ex => ex.id === exId);
-    const reps = currentEx ? getExRepsAndSets(currentEx).reps : 10;
-    const dynamicExecutionTime = currentEx && currentEx.category === 'Cardio' ? reps * 60 : reps * 3;
+    const exType = getExerciseTypeInfo(currentEx);
+    const dynamicExecutionTime = exType.targetSeconds;
 
     setActiveAssistantExId(exId);
     setAssistantPhase('execucao');
@@ -1351,6 +1433,7 @@ const Aluno = () => {
                     <div style={styles.exercisesGrid}>
                       {exercisesForActiveSplit.map((ex) => {
                         const defaultRepsSets = getExRepsAndSets(ex);
+                        const exTypeInfo = getExerciseTypeInfo(ex);
                         
                         // Estados locais ou derivados para carga e séries editáveis por card de exercício
                         const realSetsKey = `sets-${ex.id}`;
@@ -1361,7 +1444,7 @@ const Aluno = () => {
                         const currentSetsVal = formData[realSetsKey] !== undefined ? formData[realSetsKey] : historicalSets;
                         const currentLoadVal = formData[realLoadKey] !== undefined ? formData[realLoadKey] : historicalLoad;
                         const repsCount = defaultRepsSets.reps;
-                        const dynamicTimeText = ex.category === 'Cardio' ? `${repsCount}min` : `${repsCount * 3}s`;
+                        const dynamicTimeText = exTypeInfo.type === 'cardio' ? `${repsCount}min` : exTypeInfo.type === 'isometria' ? `${exTypeInfo.targetSeconds}s` : `${repsCount * 3}s`;
 
                         const isSplitFinished = isSplitDone(activeSplit);
 
@@ -1388,7 +1471,7 @@ const Aluno = () => {
                               <h4 style={styles.exName}>{ex.name}</h4>
                               <div style={styles.exMetaRow}>
                                 <span style={styles.exMetaItem}>Meta Prescrita: <strong>{ex.reps}</strong></span>
-                                <span style={styles.exMetaItem}>{ex.category === 'Cardio' ? 'Duração Alvo' : 'Cadência (3s/rep)'}: <strong>{dynamicTimeText}</strong></span>
+                                <span style={styles.exMetaItem}>{exTypeInfo.type === 'cardio' ? 'Duração Alvo' : exTypeInfo.type === 'isometria' ? 'Tempo Alvo' : 'Cadência (3s/rep)'}: <strong>{dynamicTimeText}</strong></span>
                               </div>
 
                                {/* Inputs interativos de Carga e Séries (Se pendente) */}
@@ -1396,9 +1479,9 @@ const Aluno = () => {
                                 <div style={styles.metricsFormRow}>
                                   <div style={styles.metricField}>
                                     <label style={styles.metricLabel}>
-                                      {ex.category === 'Cardio' ? 'Tempo Real (min)' : 'Séries Reais Realizadas'}
+                                      {exTypeInfo.labelSets}
                                     </label>
-                                    {ex.category === 'Cardio' ? (
+                                    {exTypeInfo.type === 'cardio' ? (
                                       <input 
                                         type="number"
                                         placeholder="Ex: 10"
@@ -1424,11 +1507,11 @@ const Aluno = () => {
                                   </div>
                                   <div style={styles.metricField}>
                                     <label style={styles.metricLabel}>
-                                      {ex.category === 'Cardio' ? 'Velocidade/Ritmo' : 'Carga Utilizada (kg)'}
+                                      {exTypeInfo.labelLoad}
                                     </label>
                                     <input 
-                                      type={ex.category === 'Cardio' ? 'text' : 'number'}
-                                      placeholder={ex.category === 'Cardio' ? 'Ex: 6.5 km/h' : 'Ex: 25'}
+                                      type={exTypeInfo.type === 'cardio' || exTypeInfo.isBodyweight ? 'text' : 'number'}
+                                      placeholder={exTypeInfo.placeholderLoad}
                                       value={currentLoadVal}
                                       onChange={(e) => handleInputChange(realLoadKey, e.target.value)}
                                       style={styles.loadInput}
@@ -1483,25 +1566,35 @@ const Aluno = () => {
                                   <button onClick={() => {
                                     if (activeAssistantExId === ex.id) setActiveAssistantExId(null);
                                     
-                                    // Para Cardio, a carga (velocidade) e o tempo real (séries) são textuais ou numéricos sem obrigatoriedade estrita de kg
-                                    if (ex.category === 'Cardio') {
+                                    let finalLoadFormatted = currentLoadVal;
+
+                                    if (exTypeInfo.type === 'cardio') {
                                       if (!currentSetsVal || !currentLoadVal) {
                                         alert('Por favor, preencha o tempo e velocidade antes de concluir.');
                                         return;
                                       }
+                                      finalLoadFormatted = currentLoadVal;
+                                    } else if (exTypeInfo.isBodyweight) {
+                                      // Para isometria e peso corporal, carga NÃO é obrigatória
+                                      if (!currentLoadVal || String(currentLoadVal).trim() === '' || String(currentLoadVal).trim() === '0') {
+                                        finalLoadFormatted = 'Peso do Corpo';
+                                      } else {
+                                        finalLoadFormatted = isNaN(parseFloat(currentLoadVal)) ? currentLoadVal : `${currentLoadVal} kg`;
+                                      }
                                     } else {
-                                      // Valida se preencheu a carga antes de completar
+                                      // Valida se preencheu a carga antes de completar (exercícios convencionais com pesos)
                                       if (!currentLoadVal || isNaN(parseFloat(currentLoadVal))) {
                                         alert('Por favor, informe a Carga Utilizada (kg) antes de concluir o exercício.');
                                         return;
                                       }
+                                      finalLoadFormatted = `${currentLoadVal} kg`;
                                     }
                                     
                                     // Abre o modal de validação passando o exercício e os valores reais preenchidos
                                     setConfirmModalEx({
                                       ...ex,
                                       currentSetsVal,
-                                      currentLoadVal: ex.category === 'Cardio' ? currentLoadVal : `${currentLoadVal} kg`
+                                      currentLoadVal: finalLoadFormatted
                                     });
                                     setConfirmReached100(null);
                                     setConfirmObs('');
