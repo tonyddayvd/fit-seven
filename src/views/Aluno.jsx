@@ -883,10 +883,20 @@ const Aluno = () => {
 
     if (isIsometric) {
       const defaultRepsSets = getExRepsAndSets(ex);
-      let seconds = defaultRepsSets.reps;
-      if (reps.includes('min')) {
-        seconds = defaultRepsSets.reps * 60;
+      let seconds = defaultRepsSets.reps || 30;
+
+      // Procura especificamente por padrões explícitos de segundos / minutos na string de reps
+      const secMatch = reps.match(/(\d+)\s*(?:seg|segundos|s\b)/i);
+      const minMatch = reps.match(/(\d+)\s*(?:min|minutos|m\b)/i);
+
+      if (secMatch) {
+        seconds = parseInt(secMatch[1], 10) || seconds;
+      } else if (minMatch) {
+        seconds = (parseInt(minMatch[1], 10) || 1) * 60;
+      } else if (reps.includes('min')) {
+        seconds = (defaultRepsSets.reps || 1) * 60;
       }
+
       return {
         type: 'isometria',
         isTimeBased: true,
