@@ -21,7 +21,13 @@ import {
   Check,
   AlertTriangle,
   TrendingUp,
-  FileText
+  FileText,
+  Calendar,
+  History,
+  Clock,
+  Layers,
+  Filter,
+  ChevronRight
 } from 'lucide-react';
 
 const INITIAL_EXERCISES = [
@@ -46,7 +52,8 @@ const Professor = () => {
     approveAndPublishWorkout,
     workoutsByStudent,
     updateWorkoutByProfessor,
-    approvedEvaluations
+    approvedEvaluations,
+    workoutSessionsHistory
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('alunos'); // 'alunos' ou 'prescribe'
@@ -71,6 +78,11 @@ const Professor = () => {
   const [activeModalTab, setActiveModalTab] = useState('medidas'); // 'medidas', 'fotos', 'treinos', 'dificuldades', 'editor', 'financeiro'
   const [editWorkoutHtml, setEditWorkoutHtml] = useState('');
   const [lightboxPhoto, setLightboxPhoto] = useState(null);
+
+  // Histórico de Treinos e Falhas states
+  const [historyPeriod, setHistoryPeriod] = useState('atual'); // 'atual', 'anteriores', 'meses', 'todos'
+  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState('todos');
+  const [selectedFailureMonth, setSelectedFailureMonth] = useState('todos');
 
   // Revisão IA state
   const [reviewingStudentId, setReviewingStudentId] = useState(null);
@@ -670,7 +682,7 @@ const Professor = () => {
                   </div>
                 )}
 
-                {/* ── ABA 2: FOTOS DE EVOLUÇÃO (LINHA DO TEMPO + LIGHTBOX) ── */}
+                {/* ── ABA 2: FOTOS DE EVOLUÇÃO (LINHA DO TEMPO + LIGHTBOX COM DATAS VISÍVEIS) ── */}
                 {activeModalTab === 'fotos' && (
                   <div className="animate-fade-in">
                     {(() => {
@@ -678,76 +690,161 @@ const Professor = () => {
                       const studentEvals = allEvals
                         .filter(e => e.userId === viewingStudent?.id || e.student_id === viewingStudent?.id)
                         .sort((a, b) => {
-                          const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-                          const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                          const dateA = a.created_at ? new Date(a.created_at).getTime() : (a.date ? new Date(a.date).getTime() : 0);
+                          const dateB = b.created_at ? new Date(b.created_at).getTime() : (b.date ? new Date(b.date).getTime() : 0);
                           return dateB - dateA;
                         });
 
                       if (studentEvals.length === 0) {
                         return (
-                          <div style={{ background: 'var(--bg-primary)', padding: '30px', borderRadius: '8px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            <Camera size={36} style={{ opacity: 0.4, marginBottom: '10px' }} />
-                            <h5 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Nenhuma foto enviada</h5>
-                            <p style={{ margin: 0, fontSize: '0.82rem' }}>O aluno ainda não enviou fotos de evolução nas avaliações físicas.</p>
+                          <div style={{ background: 'var(--bg-primary)', padding: '36px', borderRadius: '10px', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border-color)' }}>
+                            <Camera size={40} style={{ opacity: 0.35, marginBottom: '12px', color: 'var(--primary)' }} />
+                            <h5 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: '700' }}>Nenhuma foto enviada</h5>
+                            <p style={{ margin: 0, fontSize: '0.85rem' }}>O aluno ainda não anexou fotos corporais de evolução nas avaliações físicas.</p>
                           </div>
                         );
                       }
 
+                      const diasSemana = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+
                       return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                          <p style={{ margin: '0 0 4px 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                            Clique em qualquer foto para ampliar em tela cheia e analisar a postura e composição corporal do aluno.
-                          </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                          <div style={{ background: 'rgba(139, 92, 246, 0.08)', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(139, 92, 246, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                              📸 <strong>{studentEvals.length} avaliação(ões) fotográfica(s) registrada(s)</strong>
+                            </span>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                              Clique em qualquer foto para ampliar em tela cheia (Lightbox)
+                            </span>
+                          </div>
 
                           {studentEvals.map((ev, evIdx) => {
-                            const dataEnvio = ev.created_at ? new Date(ev.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : `Avaliação #${studentEvals.length - evIdx}`;
+                            const rawDate = ev.created_at || ev.date || null;
+                            const dObj = rawDate ? new Date(rawDate) : null;
+                            const diaSemana = dObj && !isNaN(dObj.getTime()) ? diasSemana[dObj.getDay()] : '';
+                            const dataExtensa = dObj && !isNaN(dObj.getTime()) 
+                              ? `${diaSemana}, ${dObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })} às ${dObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                              : `Avaliação #${studentEvals.length - evIdx}`;
+                            
+                            const dataCurta = dObj && !isNaN(dObj.getTime()) 
+                              ? dObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                              : '';
+
                             const frenteUrl = ev.fotoFrenteBase64 || ev.formData?.fotoFrenteBase64 || null;
                             const costasUrl = ev.fotoCostasBase64 || ev.formData?.fotoCostasBase64 || null;
                             const perfilUrl = ev.fotoPerfilBase64 || ev.formData?.fotoPerfilBase64 || null;
                             const hasAnyPhoto = frenteUrl || costasUrl || perfilUrl;
 
                             return (
-                              <div key={ev.id || evIdx} style={{ background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                                  <span style={{ fontWeight: '700', color: 'var(--primary)', fontSize: '0.9rem' }}>
-                                    📅 {dataEnvio}
-                                  </span>
-                                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                                    Peso: {ev.formData?.peso ? `${ev.formData.peso} kg` : '-'} | BF: {ev.formData?.percentualGordura ? `${ev.formData.percentualGordura}%` : '-'}
-                                  </span>
+                              <div key={ev.id || evIdx} style={{ 
+                                background: 'var(--bg-primary)', 
+                                padding: '18px', 
+                                borderRadius: '10px', 
+                                border: '1px solid var(--border-color)',
+                                boxShadow: '0 4px 14px rgba(0,0,0,0.15)'
+                              }}>
+                                {/* CABEÇALHO DO BLOCO DE FOTOS COM DATA EM DESTAQUE */}
+                                <div style={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center', 
+                                  marginBottom: '14px', 
+                                  borderBottom: '1px solid var(--border-color)', 
+                                  paddingBottom: '10px',
+                                  flexWrap: 'wrap',
+                                  gap: '8px'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ 
+                                      backgroundColor: 'rgba(139, 92, 246, 0.15)', 
+                                      color: 'var(--primary)', 
+                                      padding: '6px 10px', 
+                                      borderRadius: '6px',
+                                      fontWeight: '800',
+                                      fontSize: '0.85rem',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px'
+                                    }}>
+                                      <Calendar size={15} /> 📅 {dataExtensa}
+                                    </div>
+                                    {evIdx === 0 && (
+                                      <span style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', fontSize: '0.72rem', fontWeight: '700', padding: '2px 8px', borderRadius: '12px' }}>
+                                        Mais Recente
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', gap: '12px' }}>
+                                    <span>⚖️ <strong>Peso:</strong> {ev.formData?.peso ? `${ev.formData.peso} kg` : '-'}</span>
+                                    <span>📊 <strong>BF:</strong> {ev.formData?.percentualGordura ? `${ev.formData.percentualGordura}%` : '-'}</span>
+                                  </div>
                                 </div>
 
                                 {!hasAnyPhoto ? (
-                                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0, textAlign: 'center', padding: '12px 0' }}>
-                                    Fotos não anexadas nesta avaliação.
+                                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0, textAlign: 'center', padding: '16px 0' }}>
+                                    Fotos não anexadas nesta avaliação física.
                                   </p>
                                 ) : (
-                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '14px' }}>
                                     {frenteUrl && (
                                       <div 
-                                        onClick={() => setLightboxPhoto({ url: frenteUrl, label: `${viewingStudent.name} - Frente (${dataEnvio})` })}
-                                        style={{ cursor: 'pointer', textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}
+                                        onClick={() => setLightboxPhoto({ url: frenteUrl, label: `${viewingStudent.name} • Vista Frontal (Enviada em ${dataExtensa})` })}
+                                        style={{ 
+                                          cursor: 'pointer', 
+                                          textAlign: 'center', 
+                                          background: 'rgba(0,0,0,0.3)', 
+                                          padding: '10px', 
+                                          borderRadius: '8px', 
+                                          border: '1px solid rgba(255,255,255,0.06)',
+                                          transition: 'transform 0.15s ease'
+                                        }}
                                       >
-                                        <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Frente</span>
-                                        <img src={frenteUrl} alt="Frente" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '4px' }} />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                          <span style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-primary)' }}>Frente</span>
+                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{dataCurta}</span>
+                                        </div>
+                                        <img src={frenteUrl} alt="Frente" style={{ width: '100%', height: '190px', objectFit: 'cover', borderRadius: '6px' }} />
                                       </div>
                                     )}
                                     {costasUrl && (
                                       <div 
-                                        onClick={() => setLightboxPhoto({ url: costasUrl, label: `${viewingStudent.name} - Costas (${dataEnvio})` })}
-                                        style={{ cursor: 'pointer', textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}
+                                        onClick={() => setLightboxPhoto({ url: costasUrl, label: `${viewingStudent.name} • Vista Posterior (Costas) (Enviada em ${dataExtensa})` })}
+                                        style={{ 
+                                          cursor: 'pointer', 
+                                          textAlign: 'center', 
+                                          background: 'rgba(0,0,0,0.3)', 
+                                          padding: '10px', 
+                                          borderRadius: '8px', 
+                                          border: '1px solid rgba(255,255,255,0.06)',
+                                          transition: 'transform 0.15s ease'
+                                        }}
                                       >
-                                        <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Costas</span>
-                                        <img src={costasUrl} alt="Costas" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '4px' }} />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                          <span style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-primary)' }}>Costas</span>
+                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{dataCurta}</span>
+                                        </div>
+                                        <img src={costasUrl} alt="Costas" style={{ width: '100%', height: '190px', objectFit: 'cover', borderRadius: '6px' }} />
                                       </div>
                                     )}
                                     {perfilUrl && (
                                       <div 
-                                        onClick={() => setLightboxPhoto({ url: perfilUrl, label: `${viewingStudent.name} - Perfil (${dataEnvio})` })}
-                                        style={{ cursor: 'pointer', textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}
+                                        onClick={() => setLightboxPhoto({ url: perfilUrl, label: `${viewingStudent.name} • Vista Lateral (Perfil) (Enviada em ${dataExtensa})` })}
+                                        style={{ 
+                                          cursor: 'pointer', 
+                                          textAlign: 'center', 
+                                          background: 'rgba(0,0,0,0.3)', 
+                                          padding: '10px', 
+                                          borderRadius: '8px', 
+                                          border: '1px solid rgba(255,255,255,0.06)',
+                                          transition: 'transform 0.15s ease'
+                                        }}
                                       >
-                                        <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Perfil</span>
-                                        <img src={perfilUrl} alt="Perfil" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '4px' }} />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                          <span style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-primary)' }}>Perfil</span>
+                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{dataCurta}</span>
+                                        </div>
+                                        <img src={perfilUrl} alt="Perfil" style={{ width: '100%', height: '190px', objectFit: 'cover', borderRadius: '6px' }} />
                                       </div>
                                     )}
                                   </div>
@@ -761,206 +858,563 @@ const Professor = () => {
                   </div>
                 )}
 
-                {/* ── ABA 3: EXECUÇÕES & CARGAS REAIS (HISTÓRICO) ── */}
+                {/* ── ABA 3: EXECUÇÕES & CARGAS REAIS (HISTÓRICO MULTISSEMANAL & MENSAL COM DATAS VISÍVEIS) ── */}
                 {activeModalTab === 'treinos' && (
                   <div className="animate-fade-in">
-                    {/* Acompanhamento Semanal */}
-                    <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', borderLeft: '4px solid var(--accent-primary)' }}>
-                      <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                        📈 Acompanhamento da Semana
-                      </h4>
-                      {(() => {
-                        const workout = workoutsByStudent[viewingStudent.id];
-                        const concluidos = workout?.finishedSplits || [];
-                        if (concluidos.length === 0) {
-                          return <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>O aluno ainda não concluiu splits nesta semana.</p>;
-                        }
-                        return (
-                          <div>
-                            <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              Splits concluídos nesta semana: <strong style={{ color: 'var(--accent-primary)' }}>{concluidos.length}</strong>
-                            </p>
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                              {concluidos.map((split, idx) => (
-                                <span key={idx} style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', padding: '4px 10px', borderRadius: '15px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                                  ✓ Treino {split} Concluído
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                    {/* Histórico Detalhado de Exercícios & Cargas */}
-                    <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                      <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>🏋️ Execução de Exercícios & Cargas Registradas</span>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>Dados em tempo real</span>
-                      </h4>
-
-                      {(() => {
-                        const workout = workoutsByStudent[viewingStudent.id];
-                        const exercisesList = workout?.exercises || [];
-                        
-                        if (exercisesList.length === 0) {
-                          return (
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
-                              Nenhum exercício estruturado registrado ainda para este aluno.
-                            </p>
-                          );
-                        }
-
-                        const splits = ['A', 'B', 'C', 'D', 'E'];
-                        return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {splits.map(letter => {
-                              const splitExs = exercisesList.filter(e => e.split === letter);
-                              if (splitExs.length === 0) return null;
-
-                              return (
-                                <div key={letter} style={{ background: 'rgba(0,0,0,0.15)', padding: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                    <strong style={{ color: 'var(--primary)', fontSize: '0.9rem' }}>Treino {letter}</strong>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                      {splitExs.filter(e => e.status === 'concluido').length} / {splitExs.length} concluídos
-                                    </span>
-                                  </div>
-
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {splitExs.map((ex, idx) => {
-                                      const isDone = ex.status === 'concluido';
-                                      const isSkipped = ex.status === 'pulado';
-                                      const hasFeedback = ex.feedbackDificuldade && ex.feedbackDificuldade.trim().length > 0;
-
-                                      return (
-                                        <div key={ex.id || idx} style={{
-                                          padding: '10px',
-                                          borderRadius: '6px',
-                                          background: isDone ? 'rgba(34, 197, 94, 0.05)' : isSkipped ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255,255,255,0.02)',
-                                          border: '1px solid ' + (isDone ? 'rgba(34, 197, 94, 0.2)' : isSkipped ? 'rgba(239, 68, 68, 0.2)' : 'var(--border-color)')
-                                        }}>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '6px' }}>
-                                            <div>
-                                              <strong style={{ color: 'var(--text-primary)', fontSize: '0.88rem' }}>{ex.name}</strong>
-                                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '8px' }}>
-                                                Prescrito: {ex.reps}
-                                              </span>
-                                            </div>
-                                            <div>
-                                              {isDone ? (
-                                                <span style={{ background: ex.metaAtingida100 === false ? 'rgba(234, 179, 8, 0.2)' : 'rgba(34, 197, 94, 0.2)', color: ex.metaAtingida100 === false ? '#eab308' : '#22c55e', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                                                  {ex.metaAtingida100 === false ? '⚠️ Sub-máximo' : '✓ 100% Batido'}
-                                                </span>
-                                              ) : isSkipped ? (
-                                                <span style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                                                  ✕ Pulado
-                                                </span>
-                                              ) : (
-                                                <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem' }}>
-                                                  ⏳ Pendente
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-
-                                          {isDone && (
-                                            <div style={{ marginTop: '8px', display: 'flex', gap: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                                              <span>📊 <strong>Carga Real:</strong> <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{ex.realLoad || 'Não inf.'}</span></span>
-                                              <span>🔁 <strong>Séries Feitas:</strong> <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{ex.realSets !== undefined ? ex.realSets : '-'}</span></span>
-                                              {ex.completedAt && (
-                                                <span>🕒 {new Date(ex.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(ex.completedAt).toLocaleDateString()})</span>
-                                              )}
-                                            </div>
-                                          )}
-
-                                          {hasFeedback && (
-                                            <div style={{ marginTop: '8px', padding: '6px 10px', background: 'rgba(234, 179, 8, 0.12)', borderRadius: '4px', borderLeft: '3px solid #eab308' }}>
-                                              <p style={{ margin: 0, fontSize: '0.78rem', color: '#fef08a' }}>
-                                                <strong>💬 Relato do Aluno:</strong> "{ex.feedbackDificuldade}"
-                                              </p>
-                                            </div>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                )}
-
-                {/* ── ABA 4: RELATÓRIO DE FALHAS & DIFICULDADES (CONSOLIDADO) ── */}
-                {activeModalTab === 'dificuldades' && (
-                  <div className="animate-fade-in">
-                    <div style={{ background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', marginBottom: '20px', borderLeft: '4px solid #eab308' }}>
-                      <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <AlertTriangle size={18} style={{ color: '#eab308' }} /> Relatório de Falhas & Ajustes Clínicos
-                      </h4>
-                      <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                        Compilação inteligente de todos os exercícios em que o aluno relatou falha prematura, dor ou dificuldade técnica para guiar intervenções.
-                      </p>
-                    </div>
-
                     {(() => {
-                      const workout = workoutsByStudent[viewingStudent.id];
-                      const exercisesList = workout?.exercises || [];
-                      const difficultExs = exercisesList.filter(e => 
-                        e.metaAtingida100 === false || 
-                        (e.feedbackDificuldade && e.feedbackDificuldade.trim().length > 0) ||
-                        e.status === 'pulado'
-                      );
+                      const diasSemana = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+                      const currentWorkout = workoutsByStudent[viewingStudent?.id] || {};
+                      const currentExercises = currentWorkout.exercises || [];
+                      const currentSplitsDone = currentWorkout.finishedSplits || [];
 
-                      if (difficultExs.length === 0) {
-                        return (
-                          <div style={{ background: 'var(--bg-primary)', padding: '30px', borderRadius: '8px', textAlign: 'center' }}>
-                            <Check size={32} style={{ color: 'var(--status-success)', margin: '0 auto 8px auto' }} />
-                            <h5 style={{ margin: '0 0 4px 0', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Nenhuma falha ou dificuldade registrada</h5>
-                            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
-                              O aluno está conseguindo atingir 100% das metas prescritas sem relatos de desconforto ou falhas mecânicas.
-                            </p>
-                          </div>
-                        );
+                      // Sessões históricas concluídas do aluno
+                      const allSessions = (workoutSessionsHistory || [])
+                        .filter(s => s.userId === viewingStudent?.id || s.user_id === viewingStudent?.id || s.formData?.userId === viewingStudent?.id)
+                        .sort((a, b) => {
+                          const timeA = new Date(a.completedAt || a.formData?.completedAt || a.created_at || a.date || 0).getTime();
+                          const timeB = new Date(b.completedAt || b.formData?.completedAt || b.created_at || b.date || 0).getTime();
+                          return timeB - timeA;
+                        });
+
+                      // Extrai meses disponíveis no histórico
+                      const availableMonths = Array.from(new Set(allSessions.map(s => {
+                        const raw = s.completedAt || s.formData?.completedAt || s.created_at || s.date;
+                        if (!raw) return null;
+                        const d = new Date(raw);
+                        if (isNaN(d.getTime())) return null;
+                        const nomeMes = d.toLocaleString('pt-BR', { month: 'long' });
+                        return `${nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1)}/${d.getFullYear()}`;
+                      }).filter(Boolean)));
+
+                      // Filtra sessões de acordo com o período selecionado
+                      let filteredSessions = allSessions;
+                      if (historyPeriod === 'meses' && selectedHistoryMonth !== 'todos') {
+                        filteredSessions = allSessions.filter(s => {
+                          const raw = s.completedAt || s.formData?.completedAt || s.created_at || s.date;
+                          if (!raw) return false;
+                          const d = new Date(raw);
+                          const mKey = `${d.toLocaleString('pt-BR', { month: 'long' })}/${d.getFullYear()}`;
+                          return mKey.toLowerCase() === selectedHistoryMonth.toLowerCase();
+                        });
                       }
 
                       return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          {difficultExs.map((ex, idx) => (
-                            <div key={ex.id || idx} style={{
-                              background: 'var(--bg-primary)',
-                              padding: '14px',
-                              borderRadius: '8px',
-                              border: '1px solid rgba(234, 179, 8, 0.3)',
-                              borderLeft: '4px solid #eab308'
-                            }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                <span style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: '0.9rem' }}>
-                                  Split {ex.split}: {ex.name}
-                                </span>
-                                <span style={{ background: ex.status === 'pulado' ? 'rgba(239,68,68,0.2)' : 'rgba(234,179,8,0.2)', color: ex.status === 'pulado' ? '#ef4444' : '#eab308', padding: '2px 8px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                                  {ex.status === 'pulado' ? 'Pulado' : 'Sub-máximo'}
-                                </span>
-                              </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                          {/* ── BARRA SELETORA DE PERÍODO ── */}
+                          <div style={{ 
+                            display: 'flex', 
+                            background: 'var(--bg-primary)', 
+                            padding: '6px', 
+                            borderRadius: '10px', 
+                            border: '1px solid var(--border-color)',
+                            flexWrap: 'wrap',
+                            gap: '6px'
+                          }}>
+                            <button
+                              type="button"
+                              onClick={() => setHistoryPeriod('atual')}
+                              style={{
+                                flex: '1 1 auto',
+                                padding: '8px 14px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: historyPeriod === 'atual' ? 'var(--primary)' : 'transparent',
+                                color: historyPeriod === 'atual' ? '#fff' : 'var(--text-secondary)',
+                                fontWeight: '700',
+                                fontSize: '0.82rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              <Activity size={15} /> 🌟 Semana Atual (Tempo Real)
+                            </button>
 
-                              <div style={{ display: 'flex', gap: '15px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px', flexWrap: 'wrap' }}>
-                                <span>Prescrito: <strong>{ex.reps}</strong></span>
-                                <span>Carga Usada: <strong>{ex.realLoad || 'N/I'}</strong></span>
-                                <span>Séries Feitas: <strong>{ex.realSets !== undefined ? ex.realSets : '-'}</strong></span>
-                              </div>
+                            <button
+                              type="button"
+                              onClick={() => setHistoryPeriod('anteriores')}
+                              style={{
+                                flex: '1 1 auto',
+                                padding: '8px 14px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: historyPeriod === 'anteriores' ? 'var(--primary)' : 'transparent',
+                                color: historyPeriod === 'anteriores' ? '#fff' : 'var(--text-secondary)',
+                                fontWeight: '700',
+                                fontSize: '0.82rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              <History size={15} /> 📅 Semanas Anteriores ({allSessions.length})
+                            </button>
 
-                              {ex.feedbackDificuldade && (
-                                <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 12px', borderRadius: '6px' }}>
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>Relato do Aluno:</span>
-                                  <span style={{ fontSize: '0.85rem', color: '#fef08a', fontWeight: '500' }}>"{ex.feedbackDificuldade}"</span>
+                            <button
+                              type="button"
+                              onClick={() => setHistoryPeriod('meses')}
+                              style={{
+                                flex: '1 1 auto',
+                                padding: '8px 14px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: historyPeriod === 'meses' ? 'var(--primary)' : 'transparent',
+                                color: historyPeriod === 'meses' ? '#fff' : 'var(--text-secondary)',
+                                fontWeight: '700',
+                                fontSize: '0.82rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              <Calendar size={15} /> 🗓️ Visão por Mês
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setHistoryPeriod('todos')}
+                              style={{
+                                flex: '1 1 auto',
+                                padding: '8px 14px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: historyPeriod === 'todos' ? 'var(--primary)' : 'transparent',
+                                color: historyPeriod === 'todos' ? '#fff' : 'var(--text-secondary)',
+                                fontWeight: '700',
+                                fontSize: '0.82rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              <Layers size={15} /> 📊 Todas as Sessões
+                            </button>
+                          </div>
+
+                          {/* SUB-FILTRO DE MÊS (SE APLICÁVEL) */}
+                          {historyPeriod === 'meses' && availableMonths.length > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-primary)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                              <Filter size={16} color="var(--primary)" />
+                              <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)' }}>Selecione o Mês:</span>
+                              <select
+                                value={selectedHistoryMonth}
+                                onChange={(e) => setSelectedHistoryMonth(e.target.value)}
+                                style={{
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  border: '1px solid var(--border-color)',
+                                  background: 'var(--bg-secondary)',
+                                  color: 'var(--text-primary)',
+                                  fontSize: '0.85rem',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                <option value="todos">Todos os Meses</option>
+                                {availableMonths.map(m => (
+                                  <option key={m} value={m}>{m}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          {/* ── CONTEÚDO: SEMANA ATUAL ── */}
+                          {historyPeriod === 'atual' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                              {/* Painel da Semana */}
+                              <div style={{ background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', borderLeft: '4px solid var(--accent-primary)', border: '1px solid var(--border-color)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                                  <h4 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    📈 Acompanhamento da Semana Atual
+                                  </h4>
+                                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                    Splits finalizados: <strong style={{ color: 'var(--accent-primary)' }}>{currentSplitsDone.length}</strong>
+                                  </span>
                                 </div>
+
+                                {currentSplitsDone.length === 0 ? (
+                                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>O aluno ainda não finalizou treinos nesta semana corrente.</p>
+                                ) : (
+                                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    {currentSplitsDone.map((split, idx) => (
+                                      <span key={idx} style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', padding: '4px 12px', borderRadius: '15px', fontSize: '0.82rem', fontWeight: 'bold', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                                        ✓ Treino {split} Concluído
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Exercícios da Semana com Cargas e Horários */}
+                              {currentExercises.length === 0 ? (
+                                <div style={{ background: 'var(--bg-primary)', padding: '24px', borderRadius: '8px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                  Nenhum exercício estruturado para este aluno nesta semana.
+                                </div>
+                              ) : (
+                                ['A', 'B', 'C', 'D', 'E'].map(letter => {
+                                  const splitExs = currentExercises.filter(e => (e.split || 'A') === letter);
+                                  if (splitExs.length === 0) return null;
+                                  const doneCount = splitExs.filter(e => e.status === 'concluido').length;
+
+                                  return (
+                                    <div key={letter} style={{ background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                                        <strong style={{ color: 'var(--primary)', fontSize: '0.95rem' }}>🏋️ Treino {letter}</strong>
+                                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                          {doneCount} de {splitExs.length} exercícios concluídos
+                                        </span>
+                                      </div>
+
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {splitExs.map((ex, idx) => {
+                                          const isDone = ex.status === 'concluido';
+                                          const isSkipped = ex.status === 'pulado';
+                                          const exCompletedAt = ex.completedAt ? new Date(ex.completedAt) : null;
+                                          const dataHoraEx = exCompletedAt && !isNaN(exCompletedAt.getTime())
+                                            ? `${diasSemana[exCompletedAt.getDay()]}, ${exCompletedAt.toLocaleDateString('pt-BR')} às ${exCompletedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                                            : null;
+
+                                          return (
+                                            <div key={ex.id || idx} style={{
+                                              padding: '12px',
+                                              borderRadius: '6px',
+                                              background: isDone ? 'rgba(34, 197, 94, 0.04)' : isSkipped ? 'rgba(239, 68, 68, 0.04)' : 'rgba(255,255,255,0.02)',
+                                              border: '1px solid ' + (isDone ? 'rgba(34, 197, 94, 0.2)' : isSkipped ? 'rgba(239, 68, 68, 0.2)' : 'var(--border-color)')
+                                            }}>
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '6px' }}>
+                                                <div>
+                                                  <strong style={{ color: 'var(--text-primary)', fontSize: '0.88rem' }}>{ex.name}</strong>
+                                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '8px' }}>
+                                                    Prescrito: {ex.reps}
+                                                  </span>
+                                                </div>
+                                                <div>
+                                                  {isDone ? (
+                                                    <span style={{ background: ex.metaAtingida100 === false ? 'rgba(234, 179, 8, 0.2)' : 'rgba(34, 197, 94, 0.2)', color: ex.metaAtingida100 === false ? '#eab308' : '#22c55e', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                                      {ex.metaAtingida100 === false ? '⚠️ Sub-máximo' : '✓ 100% Batido'}
+                                                    </span>
+                                                  ) : isSkipped ? (
+                                                    <span style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                                      ✕ Pulado
+                                                    </span>
+                                                  ) : (
+                                                    <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem' }}>
+                                                      ⏳ Pendente
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </div>
+
+                                              {isDone && (
+                                                <div style={{ marginTop: '8px', display: 'flex', gap: '14px', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                                                  <span>📊 <strong>Carga Real:</strong> <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{ex.realLoad || 'Peso do Corpo'}</span></span>
+                                                  <span>🔁 <strong>Séries Feitas:</strong> <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{ex.realSets !== undefined ? ex.realSets : '-'}</span></span>
+                                                  {dataHoraEx && (
+                                                    <span>🕒 <strong>Concluído em:</strong> 📅 {dataHoraEx}</span>
+                                                  )}
+                                                </div>
+                                              )}
+
+                                              {ex.feedbackDificuldade && (
+                                                <div style={{ marginTop: '8px', padding: '6px 10px', background: 'rgba(234, 179, 8, 0.12)', borderRadius: '4px', borderLeft: '3px solid #eab308' }}>
+                                                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#fef08a' }}>
+                                                    <strong>💬 Relato do Aluno:</strong> "{ex.feedbackDificuldade}"
+                                                  </p>
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                })
                               )}
                             </div>
-                          ))}
+                          )}
+
+                          {/* ── CONTEÚDO: HISTÓRICO DE SESSÕES ANTERIORES & MESES ── */}
+                          {historyPeriod !== 'atual' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                              {filteredSessions.length === 0 ? (
+                                <div style={{ background: 'var(--bg-primary)', padding: '36px', borderRadius: '10px', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border-color)' }}>
+                                  <History size={36} style={{ opacity: 0.35, marginBottom: '10px', color: 'var(--primary)' }} />
+                                  <h5 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Nenhum registro histórico neste período</h5>
+                                  <p style={{ margin: 0, fontSize: '0.82rem' }}>As sessões finalizadas pelos alunos nos meses e semanas anteriores aparecerão listadas aqui com todas as cargas e datas.</p>
+                                </div>
+                              ) : (
+                                filteredSessions.map((session, sIdx) => {
+                                  const rawTime = session.completedAt || session.formData?.completedAt || session.created_at || session.date;
+                                  const dObj = rawTime ? new Date(rawTime) : null;
+                                  const diaSemana = dObj && !isNaN(dObj.getTime()) ? diasSemana[dObj.getDay()] : '';
+                                  const dataFormatada = dObj && !isNaN(dObj.getTime())
+                                    ? `${diaSemana}, ${dObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })} às ${dObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                                    : `Sessão #${filteredSessions.length - sIdx}`;
+
+                                  const splitName = session.split || session.formData?.split || 'Treino';
+                                  const exercisesList = session.exercisesSnapshot || session.formData?.exercisesSnapshot || session.exercises || [];
+
+                                  return (
+                                    <div key={session.id || sIdx} style={{
+                                      background: 'var(--bg-primary)',
+                                      padding: '18px',
+                                      borderRadius: '10px',
+                                      border: '1px solid var(--border-color)',
+                                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                    }}>
+                                      {/* TOPO DO CARD DE SESSÃO HISTÓRICA */}
+                                      <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        marginBottom: '12px',
+                                        borderBottom: '1px solid var(--border-color)',
+                                        paddingBottom: '10px',
+                                        flexWrap: 'wrap',
+                                        gap: '8px'
+                                      }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <span style={{ 
+                                            background: 'rgba(139, 92, 246, 0.2)', 
+                                            color: '#c084fc', 
+                                            padding: '4px 10px', 
+                                            borderRadius: '6px', 
+                                            fontWeight: '800', 
+                                            fontSize: '0.85rem' 
+                                          }}>
+                                            Treino {splitName}
+                                          </span>
+                                          <span style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: '0.88rem' }}>
+                                            📅 {dataFormatada}
+                                          </span>
+                                        </div>
+
+                                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                          {exercisesList.length > 0 ? `${exercisesList.length} exercícios gravados` : 'Sessão concluída'}
+                                        </span>
+                                      </div>
+
+                                      {/* LISTA DE EXERCÍCIOS DAQUELA SESSÃO */}
+                                      {exercisesList.length === 0 ? (
+                                        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                          {session.observations || session.formData?.observations || 'Treino registrado e finalizado pelo aluno.'}
+                                        </p>
+                                      ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                          {exercisesList.map((ex, exIdx) => {
+                                            const isDone = ex.status === 'concluido' || ex.status === undefined;
+                                            return (
+                                              <div key={ex.id || exIdx} style={{
+                                                padding: '10px 14px',
+                                                borderRadius: '6px',
+                                                background: 'rgba(255,255,255,0.02)',
+                                                border: '1px solid rgba(255,255,255,0.05)',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '6px'
+                                              }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                  <strong style={{ color: 'var(--text-primary)', fontSize: '0.86rem' }}>{ex.name}</strong>
+                                                  <span style={{ 
+                                                    background: ex.metaAtingida100 === false ? 'rgba(234, 179, 8, 0.2)' : 'rgba(34, 197, 94, 0.2)', 
+                                                    color: ex.metaAtingida100 === false ? '#eab308' : '#22c55e', 
+                                                    padding: '2px 8px', 
+                                                    borderRadius: '10px', 
+                                                    fontSize: '0.72rem', 
+                                                    fontWeight: '700' 
+                                                  }}>
+                                                    {ex.metaAtingida100 === false ? '⚠️ Sub-máximo' : '✓ 100% Batido'}
+                                                  </span>
+                                                </div>
+
+                                                <div style={{ display: 'flex', gap: '14px', fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                                                  <span>Prescrito: <strong>{ex.reps}</strong></span>
+                                                  <span>Carga Usada: <strong style={{ color: 'var(--text-primary)' }}>{ex.realLoad || ex.load || 'Peso Corporal'}</strong></span>
+                                                  <span>Séries: <strong style={{ color: 'var(--text-primary)' }}>{ex.realSets !== undefined ? ex.realSets : '-'}</strong></span>
+                                                </div>
+
+                                                {ex.feedbackDificuldade && (
+                                                  <div style={{ padding: '6px 10px', background: 'rgba(234, 179, 8, 0.1)', borderRadius: '4px', borderLeft: '3px solid #eab308' }}>
+                                                    <span style={{ fontSize: '0.76rem', color: '#fef08a' }}>
+                                                      <strong>💬 Relato:</strong> "{ex.feedbackDificuldade}"
+                                                    </span>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* ── ABA 4: RELATÓRIO DE FALHAS & DIFICULDADES (HISTÓRICO MENSAL COM DATAS VISÍVEIS) ── */}
+                {activeModalTab === 'dificuldades' && (
+                  <div className="animate-fade-in">
+                    {(() => {
+                      const diasSemana = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+                      const currentWorkout = workoutsByStudent[viewingStudent?.id] || {};
+                      const currentExercises = currentWorkout.exercises || [];
+
+                      // Compila falhas da semana atual
+                      const currentDifficulties = currentExercises
+                        .filter(e => e.metaAtingida100 === false || (e.feedbackDificuldade && e.feedbackDificuldade.trim().length > 0) || e.status === 'pulado')
+                        .map(e => ({
+                          ...e,
+                          origem: 'Semana Atual',
+                          dataOcorrencia: e.completedAt || new Date().toISOString()
+                        }));
+
+                      // Compila falhas de sessões históricas anteriores
+                      const historyDifficulties = [];
+                      (workoutSessionsHistory || [])
+                        .filter(s => s.userId === viewingStudent?.id || s.user_id === viewingStudent?.id || s.formData?.userId === viewingStudent?.id)
+                        .forEach(s => {
+                          const sDate = s.completedAt || s.formData?.completedAt || s.created_at || s.date || new Date().toISOString();
+                          const exs = s.exercisesSnapshot || s.formData?.exercisesSnapshot || [];
+                          exs.forEach(e => {
+                            if (e.metaAtingida100 === false || (e.feedbackDificuldade && e.feedbackDificuldade.trim().length > 0) || e.status === 'pulado') {
+                              historyDifficulties.push({
+                                ...e,
+                                origem: `Sessão Histórica (Split ${s.split || s.formData?.split || 'Treino'})`,
+                                dataOcorrencia: sDate
+                              });
+                            }
+                          });
+                        });
+
+                      const allDifficulties = [...currentDifficulties, ...historyDifficulties].sort((a, b) => {
+                        return new Date(b.dataOcorrencia).getTime() - new Date(a.dataOcorrencia).getTime();
+                      });
+
+                      // Extrai meses disponíveis
+                      const failureMonths = Array.from(new Set(allDifficulties.map(d => {
+                        const dateObj = new Date(d.dataOcorrencia);
+                        if (isNaN(dateObj.getTime())) return null;
+                        const nomeMes = dateObj.toLocaleString('pt-BR', { month: 'long' });
+                        return `${nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1)}/${dateObj.getFullYear()}`;
+                      }).filter(Boolean)));
+
+                      // Filtra pelo mês selecionado
+                      let displayedDifficulties = allDifficulties;
+                      if (selectedFailureMonth !== 'todos') {
+                        displayedDifficulties = allDifficulties.filter(d => {
+                          const dateObj = new Date(d.dataOcorrencia);
+                          const mKey = `${dateObj.toLocaleString('pt-BR', { month: 'long' })}/${dateObj.getFullYear()}`;
+                          return mKey.toLowerCase() === selectedFailureMonth.toLowerCase();
+                        });
+                      }
+
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          <div style={{ background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #eab308', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                            <div>
+                              <h4 style={{ margin: '0 0 4px 0', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <AlertTriangle size={18} style={{ color: '#eab308' }} /> Relatório Analítico de Falhas & Dificuldades
+                              </h4>
+                              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                                Histórico consolidado de falhas prematuras, dores e dificuldades relatadas pelo aluno.
+                              </p>
+                            </div>
+
+                            {failureMonths.length > 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Mês:</span>
+                                <select
+                                  value={selectedFailureMonth}
+                                  onChange={(e) => setSelectedFailureMonth(e.target.value)}
+                                  style={{
+                                    padding: '6px 10px',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border-color)',
+                                    background: 'var(--bg-secondary)',
+                                    color: 'var(--text-primary)',
+                                    fontSize: '0.82rem',
+                                    fontWeight: '600'
+                                  }}
+                                >
+                                  <option value="todos">Todos os Meses ({allDifficulties.length})</option>
+                                  {failureMonths.map(m => (
+                                    <option key={m} value={m}>{m}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+
+                          {displayedDifficulties.length === 0 ? (
+                            <div style={{ background: 'var(--bg-primary)', padding: '36px', borderRadius: '8px', textAlign: 'center', border: '1px dashed var(--border-color)' }}>
+                              <Check size={36} style={{ color: 'var(--status-success)', margin: '0 auto 8px auto' }} />
+                              <h5 style={{ margin: '0 0 4px 0', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Nenhuma dificuldade registrada neste período</h5>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                                O aluno executou seus treinos atingindo 100% das metas sem relatos de falha mecânica ou dor.
+                              </p>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              {displayedDifficulties.map((ex, idx) => {
+                                const dateObj = ex.dataOcorrencia ? new Date(ex.dataOcorrencia) : null;
+                                const diaSemana = dateObj && !isNaN(dateObj.getTime()) ? diasSemana[dateObj.getDay()] : '';
+                                const dataFmt = dateObj && !isNaN(dateObj.getTime())
+                                  ? `${diaSemana}, ${dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })} às ${dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                                  : 'Data não registrada';
+
+                                return (
+                                  <div key={ex.id || idx} style={{
+                                    background: 'var(--bg-primary)',
+                                    padding: '14px',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(234, 179, 8, 0.3)',
+                                    borderLeft: '4px solid #eab308'
+                                  }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                                      <div>
+                                        <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                                          Split {ex.split || 'A'}: {ex.name}
+                                        </strong>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '8px' }}>
+                                          ({ex.origem})
+                                        </span>
+                                      </div>
+                                      <span style={{ background: ex.status === 'pulado' ? 'rgba(239,68,68,0.2)' : 'rgba(234,179,8,0.2)', color: ex.status === 'pulado' ? '#ef4444' : '#eab308', padding: '2px 8px', borderRadius: '10px', fontSize: '0.72rem', fontWeight: 'bold' }}>
+                                        {ex.status === 'pulado' ? 'Pulado' : 'Sub-máximo'}
+                                      </span>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '14px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px', flexWrap: 'wrap' }}>
+                                      <span>📅 <strong>Data:</strong> {dataFmt}</span>
+                                      <span>Prescrito: <strong>{ex.reps}</strong></span>
+                                      <span>Carga Usada: <strong style={{ color: 'var(--text-primary)' }}>{ex.realLoad || ex.load || 'N/I'}</strong></span>
+                                      <span>Séries Feitas: <strong style={{ color: 'var(--text-primary)' }}>{ex.realSets !== undefined ? ex.realSets : '-'}</strong></span>
+                                    </div>
+
+                                    {ex.feedbackDificuldade && (
+                                      <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(234, 179, 8, 0.2)' }}>
+                                        <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>Relato do Aluno:</span>
+                                        <span style={{ fontSize: '0.84rem', color: '#fef08a', fontWeight: '600' }}>"{ex.feedbackDificuldade}"</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       );
                     })()}

@@ -144,6 +144,10 @@ export const AppProvider = ({ children }) => {
   const [workoutsByStudent, setWorkoutsByStudent] = useState({});
   const [pendingEvaluations, setPendingEvaluations] = useState([]);
   const [approvedEvaluations, setApprovedEvaluations] = useState([]);
+  const [workoutSessionsHistory, setWorkoutSessionsHistory] = useState(() => {
+    const saved = localStorage.getItem('fitseven-workout-sessions');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [bugReports, setBugReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -270,6 +274,13 @@ export const AppProvider = ({ children }) => {
         // Separar pendentes das aprovadas
         setPendingEvaluations(validEvals.filter(ev => ev._status !== 'approved'));
         setApprovedEvaluations(validEvals.filter(ev => ev._status === 'approved'));
+
+        // Sessões históricas de treino concluído
+        const sessions = mappedEvals.filter(ev => ev.formData?.workoutCompleted || ev._type === 'workout_completed');
+        if (sessions.length > 0) {
+          setWorkoutSessionsHistory(sessions);
+          localStorage.setItem('fitseven-workout-sessions', JSON.stringify(sessions));
+        }
       }
 
       // 4. Carregar Treinos
@@ -923,6 +934,7 @@ export const AppProvider = ({ children }) => {
       bugReports,
       reportBug,
       deleteBug,
+      workoutSessionsHistory,
       isLoading
     }}>
       {children}

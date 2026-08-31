@@ -1514,11 +1514,15 @@ const Aluno = () => {
                           try {
                             await updateStudentExercises(exercises, updatedSplits);
                             
-                            // Cria um registro no Histórico (Evolução) conforme a nova regra
+                            // Cria um registro no Histórico (Evolução) com snapshot completo de cargas e data/hora
+                            const currentSplitExs = exercises.filter(ex => (ex.split || 'A') === activeSplit);
                             await submitEvaluation({
                               workoutCompleted: true,
                               split: activeSplit,
+                              completedAt: new Date().toISOString(),
                               observations: `Treino do split ${activeSplit} concluído com sucesso.`,
+                              exercisesSnapshot: currentSplitExs,
+                              totalExercises: currentSplitExs.length,
                               peso: null // Para não quebrar o gráfico de evolução
                             });
                           } catch (err) {
