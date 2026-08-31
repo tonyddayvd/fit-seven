@@ -20,7 +20,9 @@ import {
   Building,
   Users,
   Check,
-  User
+  User,
+  Camera,
+  AlertTriangle
 } from 'lucide-react';
 
 const TABLES_SCHEMA = [
@@ -112,8 +114,9 @@ const Master = () => {
 
   // Estado para o Cartão do Aluno
   const [viewingStudent, setViewingStudent] = useState(null);
-  const [activeModalTab, setActiveModalTab] = useState('medidas'); // 'medidas', 'treinos', 'financeiro'
+  const [activeModalTab, setActiveModalTab] = useState('medidas'); // 'medidas', 'fotos', 'treinos', 'dificuldades', 'editor', 'financeiro'
   const [editWorkoutHtml, setEditWorkoutHtml] = useState('');
+  const [lightboxPhoto, setLightboxPhoto] = useState(null);
 
   // Estados dos formulários CRUD
   const [showForm, setShowForm] = useState(null); // 'tenant', 'user', null
@@ -783,77 +786,50 @@ const Master = () => {
                      </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
                     <button 
                       onClick={() => setActiveModalTab('medidas')} 
-                      style={{ background: activeModalTab === 'medidas' ? 'var(--primary-color)' : 'transparent', color: activeModalTab === 'medidas' ? '#fff' : 'var(--text-secondary)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: activeModalTab === 'medidas' ? 'bold' : 'normal' }}
+                      style={{ background: activeModalTab === 'medidas' ? 'var(--primary-color)' : 'transparent', color: activeModalTab === 'medidas' ? '#fff' : 'var(--text-secondary)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: activeModalTab === 'medidas' ? 'bold' : 'normal' }}
                     >
                       📋 Medidas & Anamnese
                     </button>
                     <button 
+                      onClick={() => setActiveModalTab('fotos')} 
+                      style={{ background: activeModalTab === 'fotos' ? 'var(--primary-color)' : 'transparent', color: activeModalTab === 'fotos' ? '#fff' : 'var(--text-secondary)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: activeModalTab === 'fotos' ? 'bold' : 'normal' }}
+                    >
+                      📸 Fotos de Evolução
+                    </button>
+                    <button 
+                      onClick={() => setActiveModalTab('treinos')} 
+                      style={{ background: activeModalTab === 'treinos' ? 'var(--primary-color)' : 'transparent', color: activeModalTab === 'treinos' ? '#fff' : 'var(--text-secondary)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: activeModalTab === 'treinos' ? 'bold' : 'normal' }}
+                    >
+                      🏋️ Execuções & Cargas
+                    </button>
+                    <button 
+                      onClick={() => setActiveModalTab('dificuldades')} 
+                      style={{ background: activeModalTab === 'dificuldades' ? 'var(--primary-color)' : 'transparent', color: activeModalTab === 'dificuldades' ? '#fff' : 'var(--text-secondary)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: activeModalTab === 'dificuldades' ? 'bold' : 'normal' }}
+                    >
+                      🚨 Relatório de Falhas
+                    </button>
+                    <button 
                       onClick={() => {
-                        setActiveModalTab('treinos');
+                        setActiveModalTab('editor');
                         const w = workoutsByStudent[viewingStudent.id];
                         if (w && w.isVip) setEditWorkoutHtml(w.vipHtml || '');
                       }} 
-                      style={{ background: activeModalTab === 'treinos' ? 'var(--primary-color)' : 'transparent', color: activeModalTab === 'treinos' ? '#fff' : 'var(--text-secondary)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: activeModalTab === 'treinos' ? 'bold' : 'normal' }}
+                      style={{ background: activeModalTab === 'editor' ? 'var(--primary-color)' : 'transparent', color: activeModalTab === 'editor' ? '#fff' : 'var(--text-secondary)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: activeModalTab === 'editor' ? 'bold' : 'normal' }}
                     >
-                      🏋️‍♂️ Treino Atual
+                      ✏️ Editar Ficha
                     </button>
                     <button 
                       onClick={() => setActiveModalTab('financeiro')} 
-                      style={{ background: activeModalTab === 'financeiro' ? 'var(--primary-color)' : 'transparent', color: activeModalTab === 'financeiro' ? '#fff' : 'var(--text-secondary)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: activeModalTab === 'financeiro' ? 'bold' : 'normal' }}
+                      style={{ background: activeModalTab === 'financeiro' ? 'var(--primary-color)' : 'transparent', color: activeModalTab === 'financeiro' ? '#fff' : 'var(--text-secondary)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: activeModalTab === 'financeiro' ? 'bold' : 'normal' }}
                     >
                       💳 CRM / Financeiro
                     </button>
                   </div>
 
-                  {activeModalTab === 'financeiro' && (
-                    <div className="animate-fade-in">
-                      <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Contato e Endereço</h4>
-                        <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Telefone: <strong style={{color: 'var(--text-primary)'}}>{viewingStudent.telefone || 'Não informado'}</strong></p>
-                        <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Endereço: <strong style={{color: 'var(--text-primary)'}}>{viewingStudent.endereco || 'Não informado'}</strong></p>
-                        <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Plano Atual: <strong style={{color: 'var(--accent-primary)'}}>{viewingStudent.plano || 'Nenhum'}</strong></p>
-                        <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Cadastro: <strong style={{color: 'var(--text-primary)'}}>{viewingStudent.data_cadastro ? new Date(viewingStudent.data_cadastro).toLocaleDateString() : 'N/I'}</strong></p>
-                      </div>
-                      
-                      <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                          Histórico Financeiro (Venc. Dia {viewingStudent.dia_vencimento || '?'})
-                        </h4>
-                        
-                        {!viewingStudent.historico_pagamentos || viewingStudent.historico_pagamentos.length === 0 ? (
-                           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Nenhum histórico gerado. Configure o dia de vencimento.</p>
-                        ) : (
-                          <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
-                            {viewingStudent.historico_pagamentos.map(parcela => (
-                              <div key={parcela.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <div>
-                                  <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{parcela.mes}</span>
-                                  <span style={{ marginLeft: '10px', fontSize: '0.8rem', padding: '2px 6px', borderRadius: '4px', background: parcela.status === 'Pago' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: parcela.status === 'Pago' ? '#22c55e' : '#ef4444' }}>
-                                    {parcela.status}
-                                  </span>
-                                </div>
-                                <button 
-                                  onClick={() => {
-                                    const novoStatus = parcela.status === 'Pago' ? 'Pendente' : 'Pago';
-                                    const novoHistorico = viewingStudent.historico_pagamentos.map(p => p.id === parcela.id ? { ...p, status: novoStatus } : p);
-                                    updateUser(viewingStudent.id, { historico_pagamentos: novoHistorico });
-                                    setViewingStudent({ ...viewingStudent, historico_pagamentos: novoHistorico });
-                                  }}
-                                  style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                >
-                                  Marcar como {parcela.status === 'Pago' ? 'Pendente' : 'Pago'}
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
+                  {/* ── ABA 1: MEDIDAS & ANAMNESE ── */}
                   {activeModalTab === 'medidas' && (
                     <div className="animate-fade-in">
                     {(() => {
@@ -866,68 +842,76 @@ const Master = () => {
                         const studentEval = latestEval?.formData;
                         
                         if (!studentEval) return (
-                          <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            Nenhuma Avaliação Física enviada ainda.
+                          <div style={{ background: 'var(--bg-primary)', padding: '24px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            Nenhuma Avaliação Física enviada ainda por este aluno.
                           </div>
                         );
 
                         return (
-                          <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Perfil Completo / Avaliação Fisiológica</h4>
+                          <div style={{ background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                              <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem' }}>Perfil Completo & Medidas Corporais</h4>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: 'bold' }}>
+                                Enviado em: {latestEval.created_at ? new Date(latestEval.created_at).toLocaleDateString() : 'Recente'}
+                              </span>
+                            </div>
                             
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginBottom: '16px', background: 'rgba(0,0,0,0.15)', padding: '12px', borderRadius: '6px' }}>
                               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Sexo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.sexoBiologico || '-'}</strong></p>
                               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Idade: <strong style={{color: 'var(--text-primary)'}}>{studentEval.idade || '-'} anos</strong></p>
-                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Peso: <strong style={{color: 'var(--text-primary)'}}>{studentEval.peso || '-'} kg</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Peso: <strong style={{color: 'var(--accent-primary)'}}>{studentEval.peso || '-'} kg</strong></p>
                               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Altura: <strong style={{color: 'var(--text-primary)'}}>{studentEval.altura || '-'} cm</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>BF Est.: <strong style={{color: '#eab308'}}>{studentEval.percentualGordura ? `${studentEval.percentualGordura}%` : '-'}</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Massa Magra: <strong style={{color: '#22c55e'}}>{studentEval.massaMagra ? `${studentEval.massaMagra} kg` : '-'}</strong></p>
                               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Tórax: <strong style={{color: 'var(--text-primary)'}}>{studentEval.torax || '-'} cm</strong></p>
                               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Cintura: <strong style={{color: 'var(--text-primary)'}}>{studentEval.cintura || '-'} cm</strong></p>
                               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Abdômen: <strong style={{color: 'var(--text-primary)'}}>{studentEval.abdomen || '-'} cm</strong></p>
                               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Quadril: <strong style={{color: 'var(--text-primary)'}}>{studentEval.quadril || '-'} cm</strong></p>
-                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Bíceps Dir/Esq: <strong style={{color: 'var(--text-primary)'}}>{studentEval.bicepsDir || '-'} / {studentEval.bicepsEsq || '-'} cm</strong></p>
-                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Coxa Dir/Esq: <strong style={{color: 'var(--text-primary)'}}>{studentEval.coxaDir || '-'} / {studentEval.coxaEsq || '-'} cm</strong></p>
-                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Pant. Dir/Esq: <strong style={{color: 'var(--text-primary)'}}>{studentEval.panturrilhaDir || '-'} / {studentEval.panturrilhaEsq || '-'} cm</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Bíceps (D/E): <strong style={{color: 'var(--text-primary)'}}>{studentEval.bicepsDir || '-'}/{studentEval.bicepsEsq || '-'} cm</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Coxa (D/E): <strong style={{color: 'var(--text-primary)'}}>{studentEval.coxaDir || '-'}/{studentEval.coxaEsq || '-'} cm</strong></p>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Panturrilha (D/E): <strong style={{color: 'var(--text-primary)'}}>{studentEval.panturrilhaDir || '-'}/{studentEval.panturrilhaEsq || '-'} cm</strong></p>
                             </div>
                             
                             <div style={{ marginBottom: '15px' }}>
-                              <h5 style={{ margin: '0 0 5px 0', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>Objetivos e Rotina</h5>
-                              <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Objetivo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.objetivo || '-'}</strong></p>
-                              <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Frequência: <strong style={{color: 'var(--text-primary)'}}>{studentEval.frequenciaSemanal || '-'} dias/semana</strong></p>
-                              <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Tempo/Sessão: <strong style={{color: 'var(--text-primary)'}}>{studentEval.tempoSessao || '-'} min</strong></p>
-                              <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Nível de Ativ.: <strong style={{color: 'var(--text-primary)'}}>{studentEval.nivelAtividade || '-'}</strong></p>
-                              <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Horário Pref.: <strong style={{color: 'var(--text-primary)'}}>{studentEval.horarioTreino || '-'}</strong></p>
-                              <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Sono: <strong style={{color: 'var(--text-primary)'}}>{studentEval.qualidadeSono || '-'}</strong></p>
-                              <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Alimentação: <strong style={{color: 'var(--text-primary)'}}>{studentEval.alimentacao || '-'}</strong></p>
+                              <h5 style={{ margin: '0 0 8px 0', color: 'var(--accent-primary)', fontSize: '0.9rem' }}>🎯 Objetivos e Rotina</h5>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.85rem' }}>
+                                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Objetivo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.objetivo || '-'}</strong></p>
+                                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Frequência: <strong style={{color: 'var(--text-primary)'}}>{studentEval.frequenciaSemanal || '-'} dias/semana</strong></p>
+                                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Tempo por Sessão: <strong style={{color: 'var(--text-primary)'}}>{studentEval.tempoSessao || '-'} min</strong></p>
+                                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Nível de Atividade: <strong style={{color: 'var(--text-primary)'}}>{studentEval.nivelAtividade || '-'}</strong></p>
+                                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Horário Preferido: <strong style={{color: 'var(--text-primary)'}}>{studentEval.horarioTreino || '-'}</strong></p>
+                                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Qualidade do Sono: <strong style={{color: 'var(--text-primary)'}}>{studentEval.qualidadeSono || '-'}</strong></p>
+                              </div>
                             </div>
 
                             {studentEval.lesoes && (
-                              <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
-                                <p style={{ margin: 0, color: '#ef4444', fontSize: '0.85rem' }}><strong>⚠️ Histórico/Lesões:</strong> {studentEval.lesoes}</p>
+                              <div style={{ padding: '10px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '8px', borderLeft: '3px solid #ef4444' }}>
+                                <p style={{ margin: 0, color: '#ef4444', fontSize: '0.85rem' }}><strong>⚠️ Histórico de Lesões / Dores:</strong> {studentEval.lesoes}</p>
                               </div>
                             )}
                             {studentEval.limitacoesMovimento && (
-                              <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
+                              <div style={{ padding: '10px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '8px', borderLeft: '3px solid #ef4444' }}>
                                 <p style={{ margin: 0, color: '#ef4444', fontSize: '0.85rem' }}><strong>⚠️ Limitações de Movimento:</strong> {studentEval.limitacoesMovimento}</p>
                               </div>
                             )}
                             {studentEval.condicoesMedicas && (
-                              <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
+                              <div style={{ padding: '10px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '8px', borderLeft: '3px solid #ef4444' }}>
                                 <p style={{ margin: 0, color: '#ef4444', fontSize: '0.85rem' }}><strong>⚠️ Condições Médicas:</strong> {studentEval.condicoesMedicas}</p>
                               </div>
                             )}
                             {studentEval.medicamentos && (
-                              <div style={{ padding: '8px', background: 'rgba(239, 137, 68, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
+                              <div style={{ padding: '10px', background: 'rgba(239, 137, 68, 0.1)', borderRadius: '6px', marginBottom: '8px', borderLeft: '3px solid #ef8944' }}>
                                 <p style={{ margin: 0, color: '#ef8944', fontSize: '0.85rem' }}><strong>💊 Medicamentos:</strong> {studentEval.medicamentos}</p>
                               </div>
                             )}
                             {studentEval.suplementos && (
-                              <div style={{ padding: '8px', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
+                              <div style={{ padding: '10px', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '6px', marginBottom: '8px', borderLeft: '3px solid #22c55e' }}>
                                 <p style={{ margin: 0, color: '#22c55e', fontSize: '0.85rem' }}><strong>🥤 Suplementos:</strong> {studentEval.suplementos}</p>
                               </div>
                             )}
                             {studentEval.observacoes && (
-                              <div style={{ padding: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px' }}>
-                                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}><strong>💡 Observações Adicionais:</strong> {studentEval.observacoes}</p>
+                              <div style={{ padding: '10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px' }}>
+                                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}><strong>💡 Observações do Aluno:</strong> {studentEval.observacoes}</p>
                               </div>
                             )}
                           </div>
@@ -936,9 +920,101 @@ const Master = () => {
                     </div>
                   )}
 
+                  {/* ── ABA 2: FOTOS DE EVOLUÇÃO (LINHA DO TEMPO + LIGHTBOX) ── */}
+                  {activeModalTab === 'fotos' && (
+                    <div className="animate-fade-in">
+                      {(() => {
+                        const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
+                        const studentEvals = allEvals
+                          .filter(e => e.userId === viewingStudent?.id || e.student_id === viewingStudent?.id)
+                          .sort((a, b) => {
+                            const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                            const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                            return dateB - dateA;
+                          });
+
+                        if (studentEvals.length === 0) {
+                          return (
+                            <div style={{ background: 'var(--bg-primary)', padding: '30px', borderRadius: '8px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                              <Camera size={36} style={{ opacity: 0.4, marginBottom: '10px' }} />
+                              <h5 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Nenhuma foto enviada</h5>
+                              <p style={{ margin: 0, fontSize: '0.82rem' }}>O aluno ainda não enviou fotos de evolução nas avaliações físicas.</p>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <p style={{ margin: '0 0 4px 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                              Clique em qualquer foto para ampliar em tela cheia e analisar a postura e composição corporal do aluno.
+                            </p>
+
+                            {studentEvals.map((ev, evIdx) => {
+                              const dataEnvio = ev.created_at ? new Date(ev.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : `Avaliação #${studentEvals.length - evIdx}`;
+                              const frenteUrl = ev.fotoFrenteBase64 || ev.formData?.fotoFrenteBase64 || null;
+                              const costasUrl = ev.fotoCostasBase64 || ev.formData?.fotoCostasBase64 || null;
+                              const perfilUrl = ev.fotoPerfilBase64 || ev.formData?.fotoPerfilBase64 || null;
+                              const hasAnyPhoto = frenteUrl || costasUrl || perfilUrl;
+
+                              return (
+                                <div key={ev.id || evIdx} style={{ background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
+                                    <span style={{ fontWeight: '700', color: 'var(--primary)', fontSize: '0.9rem' }}>
+                                      📅 {dataEnvio}
+                                    </span>
+                                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                      Peso: {ev.formData?.peso ? `${ev.formData.peso} kg` : '-'} | BF: {ev.formData?.percentualGordura ? `${ev.formData.percentualGordura}%` : '-'}
+                                    </span>
+                                  </div>
+
+                                {!hasAnyPhoto ? (
+                                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0, textAlign: 'center', padding: '12px 0' }}>
+                                    Fotos não anexadas nesta avaliação.
+                                  </p>
+                                ) : (
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+                                    {frenteUrl && (
+                                      <div 
+                                        onClick={() => setLightboxPhoto({ url: frenteUrl, label: `${viewingStudent.name} - Frente (${dataEnvio})` })}
+                                        style={{ cursor: 'pointer', textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}
+                                      >
+                                        <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Frente</span>
+                                        <img src={frenteUrl} alt="Frente" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '4px' }} />
+                                      </div>
+                                    )}
+                                    {costasUrl && (
+                                      <div 
+                                        onClick={() => setLightboxPhoto({ url: costasUrl, label: `${viewingStudent.name} - Costas (${dataEnvio})` })}
+                                        style={{ cursor: 'pointer', textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}
+                                      >
+                                        <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Costas</span>
+                                        <img src={costasUrl} alt="Costas" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '4px' }} />
+                                      </div>
+                                    )}
+                                    {perfilUrl && (
+                                      <div 
+                                        onClick={() => setLightboxPhoto({ url: perfilUrl, label: `${viewingStudent.name} - Perfil (${dataEnvio})` })}
+                                        style={{ cursor: 'pointer', textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}
+                                      >
+                                        <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Perfil</span>
+                                        <img src={perfilUrl} alt="Perfil" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '4px' }} />
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* ── ABA 3: EXECUÇÕES & CARGAS REAIS (HISTÓRICO) ── */}
                   {activeModalTab === 'treinos' && (
                     <div className="animate-fade-in">
-                      {/* Acompanhamento / Tracking */}
+                      {/* Acompanhamento Semanal */}
                       <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', borderLeft: '4px solid var(--accent-primary)' }}>
                         <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
                           📈 Acompanhamento da Semana
@@ -947,17 +1023,17 @@ const Master = () => {
                           const workout = workoutsByStudent[viewingStudent.id];
                           const concluidos = workout?.finishedSplits || [];
                           if (concluidos.length === 0) {
-                            return <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>O aluno ainda não iniciou os treinos desta semana.</p>;
+                            return <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>O aluno ainda não concluiu splits nesta semana.</p>;
                           }
                           return (
                             <div>
                               <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                                Treinos concluídos: <strong style={{ color: 'var(--accent-primary)' }}>{concluidos.length}</strong>
+                                Splits concluídos nesta semana: <strong style={{ color: 'var(--accent-primary)' }}>{concluidos.length}</strong>
                               </p>
                               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                 {concluidos.map((split, idx) => (
                                   <span key={idx} style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', padding: '4px 10px', borderRadius: '15px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                                    ✓ Treino {split}
+                                    ✓ Treino {split} Concluído
                                   </span>
                                 ))}
                               </div>
@@ -966,9 +1042,187 @@ const Master = () => {
                         })()}
                       </div>
 
+                      {/* Histórico Detalhado de Exercícios & Cargas */}
+                      <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>🏋️ Execução de Exercícios & Cargas Registradas</span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>Dados em tempo real</span>
+                        </h4>
+
+                        {(() => {
+                          const workout = workoutsByStudent[viewingStudent.id];
+                          const exercisesList = workout?.exercises || [];
+                          
+                          if (exercisesList.length === 0) {
+                            return (
+                              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                                Nenhum exercício estruturado registrado ainda para este aluno.
+                              </p>
+                            );
+                          }
+
+                          const splits = ['A', 'B', 'C', 'D', 'E'];
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                              {splits.map(letter => {
+                                const splitExs = exercisesList.filter(e => e.split === letter);
+                                if (splitExs.length === 0) return null;
+
+                                return (
+                                  <div key={letter} style={{ background: 'rgba(0,0,0,0.15)', padding: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                      <strong style={{ color: 'var(--primary)', fontSize: '0.9rem' }}>Treino {letter}</strong>
+                                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                        {splitExs.filter(e => e.status === 'concluido').length} / {splitExs.length} concluídos
+                                      </span>
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                      {splitExs.map((ex, idx) => {
+                                        const isDone = ex.status === 'concluido';
+                                        const isSkipped = ex.status === 'pulado';
+                                        const hasFeedback = ex.feedbackDificuldade && ex.feedbackDificuldade.trim().length > 0;
+
+                                        return (
+                                          <div key={ex.id || idx} style={{
+                                            padding: '10px',
+                                            borderRadius: '6px',
+                                            background: isDone ? 'rgba(34, 197, 94, 0.05)' : isSkipped ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255,255,255,0.02)',
+                                            border: '1px solid ' + (isDone ? 'rgba(34, 197, 94, 0.2)' : isSkipped ? 'rgba(239, 68, 68, 0.2)' : 'var(--border-color)')
+                                          }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '6px' }}>
+                                              <div>
+                                                <strong style={{ color: 'var(--text-primary)', fontSize: '0.88rem' }}>{ex.name}</strong>
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '8px' }}>
+                                                  Prescrito: {ex.reps}
+                                                </span>
+                                              </div>
+                                              <div>
+                                                {isDone ? (
+                                                  <span style={{ background: ex.metaAtingida100 === false ? 'rgba(234, 179, 8, 0.2)' : 'rgba(34, 197, 94, 0.2)', color: ex.metaAtingida100 === false ? '#eab308' : '#22c55e', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                                    {ex.metaAtingida100 === false ? '⚠️ Sub-máximo' : '✓ 100% Batido'}
+                                                  </span>
+                                                ) : isSkipped ? (
+                                                  <span style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                                    ✕ Pulado
+                                                  </span>
+                                                ) : (
+                                                  <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem' }}>
+                                                    ⏳ Pendente
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+
+                                            {isDone && (
+                                              <div style={{ marginTop: '8px', display: 'flex', gap: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                                                <span>📊 <strong>Carga Real:</strong> <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{ex.realLoad || 'Não inf.'}</span></span>
+                                                <span>🔁 <strong>Séries Feitas:</strong> <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{ex.realSets !== undefined ? ex.realSets : '-'}</span></span>
+                                                {ex.completedAt && (
+                                                  <span>🕒 {new Date(ex.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(ex.completedAt).toLocaleDateString()})</span>
+                                                )}
+                                              </div>
+                                            )}
+
+                                            {hasFeedback && (
+                                              <div style={{ marginTop: '8px', padding: '6px 10px', background: 'rgba(234, 179, 8, 0.12)', borderRadius: '4px', borderLeft: '3px solid #eab308' }}>
+                                                <p style={{ margin: 0, fontSize: '0.78rem', color: '#fef08a' }}>
+                                                  <strong>💬 Relato do Aluno:</strong> "{ex.feedbackDificuldade}"
+                                                </p>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── ABA 4: RELATÓRIO DE FALHAS & DIFICULDADES (CONSOLIDADO) ── */}
+                  {activeModalTab === 'dificuldades' && (
+                    <div className="animate-fade-in">
+                      <div style={{ background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', marginBottom: '20px', borderLeft: '4px solid #eab308' }}>
+                        <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <AlertTriangle size={18} style={{ color: '#eab308' }} /> Relatório de Falhas & Ajustes Clínicos
+                        </h4>
+                        <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                          Compilação inteligente de todos os exercícios em que o aluno relatou falha prematura, dor ou dificuldade técnica para guiar intervenções.
+                        </p>
+                      </div>
+
+                      {(() => {
+                        const workout = workoutsByStudent[viewingStudent.id];
+                        const exercisesList = workout?.exercises || [];
+                        const difficultExs = exercisesList.filter(e => 
+                          e.metaAtingida100 === false || 
+                          (e.feedbackDificuldade && e.feedbackDificuldade.trim().length > 0) ||
+                          e.status === 'pulado'
+                        );
+
+                        if (difficultExs.length === 0) {
+                          return (
+                            <div style={{ background: 'var(--bg-primary)', padding: '30px', borderRadius: '8px', textAlign: 'center' }}>
+                              <Check size={32} style={{ color: 'var(--status-success)', margin: '0 auto 8px auto' }} />
+                              <h5 style={{ margin: '0 0 4px 0', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Nenhuma falha ou dificuldade registrada</h5>
+                              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                                O aluno está conseguindo atingir 100% das metas prescritas sem relatos de desconforto ou falhas mecânicas.
+                              </p>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {difficultExs.map((ex, idx) => (
+                              <div key={ex.id || idx} style={{
+                                background: 'var(--bg-primary)',
+                                padding: '14px',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(234, 179, 8, 0.3)',
+                                borderLeft: '4px solid #eab308'
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                  <span style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                                    Split {ex.split}: {ex.name}
+                                  </span>
+                                  <span style={{ background: ex.status === 'pulado' ? 'rgba(239,68,68,0.2)' : 'rgba(234,179,8,0.2)', color: ex.status === 'pulado' ? '#ef4444' : '#eab308', padding: '2px 8px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                    {ex.status === 'pulado' ? 'Pulado' : 'Sub-máximo'}
+                                  </span>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '15px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px', flexWrap: 'wrap' }}>
+                                  <span>Prescrito: <strong>{ex.reps}</strong></span>
+                                  <span>Carga Usada: <strong>{ex.realLoad || 'N/I'}</strong></span>
+                                  <span>Séries Feitas: <strong>{ex.realSets !== undefined ? ex.realSets : '-'}</strong></span>
+                                </div>
+
+                                {ex.feedbackDificuldade && (
+                                  <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 12px', borderRadius: '6px' }}>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>Relato do Aluno:</span>
+                                    <span style={{ fontSize: '0.85rem', color: '#fef08a', fontWeight: '500' }}>"{ex.feedbackDificuldade}"</span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* ── ABA 5: EDITAR FICHA (VIP / MANUAL) ── */}
+                  {activeModalTab === 'editor' && (
+                    <div className="animate-fade-in">
                       <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
                         <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                          Ficha de Treino Atual
+                          Ficha de Treino & Edição Técnica
                         </h4>
                         {(() => {
                           const workout = workoutsByStudent[viewingStudent.id];
@@ -981,7 +1235,7 @@ const Master = () => {
                               <div>
                                 <p style={{ margin: '0 0 10px 0', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
                                   Aluno com Plano VIP (Edição Visual Ativada).<br/>
-                                  <span style={{ color: 'var(--text-secondary)' }}>Clique em qualquer texto abaixo e digite para editar.</span>
+                                  <span style={{ color: 'var(--text-secondary)' }}>Clique em qualquer texto abaixo e digite para editar. As alterações serão salvas no PDF do aluno.</span>
                                 </p>
                                 <div style={{
                                     width: '100%', 
@@ -1034,7 +1288,7 @@ const Master = () => {
                                     {workout.exercises.map((ex, i) => (
                                       <li key={i} style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div>
-                                          <strong style={{ color: 'var(--text-primary)' }}>{ex.name}</strong> - {ex.sets}x{ex.reps} (Carga: {ex.weight})
+                                          <strong style={{ color: 'var(--text-primary)' }}>{ex.name}</strong> - {ex.sets}x{ex.reps} (Carga: {ex.weight || ex.realLoad || 'Livre'})
                                         </div>
                                         <button 
                                           onClick={async () => {
@@ -1088,6 +1342,53 @@ const Master = () => {
                             );
                           }
                         })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── ABA 6: CRM / FINANCEIRO ── */}
+                  {activeModalTab === 'financeiro' && (
+                    <div className="animate-fade-in">
+                      <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Contato e Endereço</h4>
+                        <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Telefone: <strong style={{color: 'var(--text-primary)'}}>{viewingStudent.telefone || 'Não informado'}</strong></p>
+                        <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Endereço: <strong style={{color: 'var(--text-primary)'}}>{viewingStudent.endereco || 'Não informado'}</strong></p>
+                        <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Plano Atual: <strong style={{color: 'var(--accent-primary)'}}>{viewingStudent.plano || 'Nenhum'}</strong></p>
+                        <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Cadastro: <strong style={{color: 'var(--text-primary)'}}>{viewingStudent.data_cadastro ? new Date(viewingStudent.data_cadastro).toLocaleDateString() : 'N/I'}</strong></p>
+                      </div>
+                      
+                      <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                          Histórico Financeiro (Venc. Dia {viewingStudent.dia_vencimento || '?'})
+                        </h4>
+                        
+                        {!viewingStudent.historico_pagamentos || viewingStudent.historico_pagamentos.length === 0 ? (
+                           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Nenhum histórico gerado. Configure o dia de vencimento.</p>
+                        ) : (
+                          <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                            {viewingStudent.historico_pagamentos.map(parcela => (
+                              <div key={parcela.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <div>
+                                  <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{parcela.mes}</span>
+                                  <span style={{ marginLeft: '10px', fontSize: '0.8rem', padding: '2px 6px', borderRadius: '4px', background: parcela.status === 'Pago' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: parcela.status === 'Pago' ? '#22c55e' : '#ef4444' }}>
+                                    {parcela.status}
+                                  </span>
+                                </div>
+                                <button 
+                                  onClick={() => {
+                                    const novoStatus = parcela.status === 'Pago' ? 'Pendente' : 'Pago';
+                                    const novoHistorico = viewingStudent.historico_pagamentos.map(p => p.id === parcela.id ? { ...p, status: novoStatus } : p);
+                                    updateUser(viewingStudent.id, { historico_pagamentos: novoHistorico });
+                                    setViewingStudent({ ...viewingStudent, historico_pagamentos: novoHistorico });
+                                  }}
+                                  style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                >
+                                  Marcar como {parcela.status === 'Pago' ? 'Pendente' : 'Pago'}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1723,6 +2024,40 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
         </div>
       )}
 
+      {/* ── LIGHTBOX DE FOTOS ── */}
+      {lightboxPhoto && (
+        <div
+          onClick={() => setLightboxPhoto(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 99999,
+            backgroundColor: 'rgba(0,0,0,0.92)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: '20px', cursor: 'zoom-out'
+          }}
+        >
+          <div style={{
+            position: 'absolute', top: '16px', right: '20px',
+            color: '#fff', fontSize: '1.5rem', cursor: 'pointer',
+            fontWeight: '700', lineHeight: 1, opacity: 0.8
+          }} onClick={() => setLightboxPhoto(null)}>✕</div>
+          <span style={{
+            color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem',
+            marginBottom: '12px', letterSpacing: '0.05em', textTransform: 'uppercase'
+          }}>{lightboxPhoto.label}</span>
+          <img
+            src={lightboxPhoto.url}
+            alt={lightboxPhoto.label}
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: '90vw', maxHeight: '82vh',
+              objectFit: 'contain', borderRadius: '8px',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.6)'
+            }}
+          />
+          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', marginTop: '12px' }}>Clique fora da foto para fechar</span>
+        </div>
+      )}
     </div>
   );
 };
