@@ -52,7 +52,8 @@ const Professor = () => {
     approveAndPublishWorkout,
     workoutsByStudent,
     updateWorkoutByProfessor,
-    approvedEvaluations
+    approvedEvaluations,
+    workoutSessionsHistory
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('alunos'); // 'alunos', 'prescribe', 'planos', 'financeiro', 'revisao'
@@ -91,6 +92,28 @@ const Professor = () => {
   // Revisão IA state
   const [reviewingStudentId, setReviewingStudentId] = useState(null);
   const [reviewWorkoutData, setReviewWorkoutData] = useState(null);
+
+  const handleSaveExerciseVideo = async (newVideoUrl) => {
+    if (!viewingStudent || !editingVideoExercise) return;
+    const currentWorkout = workoutsByStudent[viewingStudent.id] || {};
+    
+    let exercisesList = (currentWorkout.exercises && currentWorkout.exercises.length > 0)
+      ? currentWorkout.exercises
+      : DEFAULT_WORKOUTS;
+    
+    const updatedExs = exercisesList.map(ex => 
+      (ex.id === editingVideoExercise.id || ex.name.trim().toLowerCase() === editingVideoExercise.name.trim().toLowerCase())
+        ? { ...ex, video_oficial_url: newVideoUrl, videoUrl: newVideoUrl }
+        : ex
+    );
+    
+    await updateWorkoutByProfessor(viewingStudent.id, { 
+      ...currentWorkout,
+      exercises: updatedExs, 
+      isVip: currentWorkout.isVip || false 
+    });
+    setEditingVideoExercise(prev => prev ? { ...prev, video_oficial_url: newVideoUrl, videoUrl: newVideoUrl } : null);
+  };
 
   // Filtrar apenas alunos do mesmo tenant (seja o ID do professor ou o tenantId do professor se ele estiver em uma academia)
   const myStudents = usersList.filter(u => u.role === 'aluno' && (u.tenantId === user.id || u.tenantId === user.tenantId));
@@ -592,7 +615,7 @@ const Professor = () => {
                 </div>
               ) : (
                 <div style={styles.tableResponsive}>
-                  <table style={styles.table}>
+                  <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                     <thead>
                       <tr style={styles.tableHeaderRow}>
                         <th style={styles.tableCellHeader}>Nome</th>
@@ -675,7 +698,7 @@ const Professor = () => {
                         );
                       })}
                     </tbody>
-                  </table>
+                  </table></div>
                 </div>
               )}
             </div>
@@ -1317,7 +1340,7 @@ const Professor = () => {
 
             <h3 style={styles.sectionTitle}>Controle de Recebimentos</h3>
             <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-              <table style={styles.table}>
+              <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                 <thead>
                   <tr style={styles.tableHeaderRow}>
                     <th style={styles.tableCellHeader}>Aluno</th>
@@ -1360,7 +1383,7 @@ const Professor = () => {
                     })
                   )}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           </div>
         </div>
@@ -1474,7 +1497,7 @@ const Professor = () => {
               <h3 style={styles.sectionTitle}>Treinos Gerados pela IA Pendentes de Revisão</h3>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>O Master gerou os rascunhos de treino para os seus alunos abaixo. Revise, edite se necessário e aprove para liberá-los.</p>
               <div style={styles.tableResponsive}>
-                <table style={styles.table}>
+                <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableCellHeader}>Aluno</th>
@@ -1515,7 +1538,7 @@ const Professor = () => {
                       ))
                     )}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             </div>
           )}
@@ -1614,6 +1637,7 @@ const styles = {
   },
   tabsContainer: {
     display: 'flex',
+    flexWrap: 'wrap',
     gap: '10px',
     borderBottom: '1px solid var(--border-color)',
     paddingBottom: '8px',

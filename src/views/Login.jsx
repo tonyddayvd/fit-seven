@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
-import { Dumbbell, Eye, EyeOff, Lock, Mail, ShieldAlert } from 'lucide-react';
+import { useApp, DEFAULT_USERS } from '../context/AppContext';
+import { Dumbbell, Eye, EyeOff, Lock, Mail, ShieldAlert, Sparkles, UserCheck } from 'lucide-react';
 
 const Login = () => {
   const { login, usersList } = useApp();
@@ -10,35 +10,60 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const displayUsers = (usersList && usersList.length > 0) ? usersList : DEFAULT_USERS;
+
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setError('');
     setLoading(true);
 
-    // Pequena simulação de delay para micro-animação de loading
     setTimeout(() => {
       const res = login(email, password);
       setLoading(false);
       if (!res.success) {
-        setError(res.message);
+        setError(res.message || 'Credenciais inválidas. Tente novamente.');
       }
-    }, 600);
+    }, 300);
   };
 
-  const selectDemoUser = (demoEmail) => {
+  const selectDemoUser = (demoEmail, demoPass = '123', autoLogin = false) => {
     setEmail(demoEmail);
-    setPassword('123');
+    setPassword(demoPass);
+    setError('');
+    if (autoLogin) {
+      setLoading(true);
+      setTimeout(() => {
+        const res = login(demoEmail, demoPass);
+        setLoading(false);
+        if (!res.success) {
+          setError(res.message || 'Credenciais inválidas');
+        }
+      }, 200);
+    }
+  };
+
+  const getRoleBadgeStyle = (role) => {
+    switch (role) {
+      case 'master':
+        return { bg: 'rgba(168, 85, 247, 0.15)', border: 'rgba(168, 85, 247, 0.4)', color: '#c084fc', label: '👑 MASTER' };
+      case 'professor':
+        return { bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.4)', color: '#60a5fa', label: '👨‍🏫 PROF' };
+      case 'aluno':
+        return { bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.4)', color: '#4ade80', label: '🏋️ ALUNO' };
+      default:
+        return { bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.4)', color: '#fb923c', label: '🏢 ACAD' };
+    }
   };
 
   return (
     <div style={styles.container} className="animate-fade-in">
       <div style={styles.card} className="glass">
         <div style={styles.logoContainer}>
-        <img 
-          src="/fit-seven/assets/logo.jpg" 
-          alt="Fit Seven Logo" 
-          style={styles.logoImg} 
-        />
+          <img 
+            src="/fit-seven/assets/logo.jpg" 
+            alt="Fit Seven Logo" 
+            style={styles.logoImg} 
+          />
           <h1 style={styles.title}>Fit Seven</h1>
           <p style={styles.subtitle}>Plataforma Fitness Multi-Tenant B2B2C</p>
         </div>
@@ -58,7 +83,7 @@ const Login = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="nome@academia.com"
+                placeholder="nome@fitseven.com"
                 style={styles.input}
                 required
               />
@@ -66,7 +91,7 @@ const Login = () => {
           </div>
 
           <div style={styles.inputGroup}>
-            <label style={styles.label}>Senha</label>
+            <label style={styles.label}>Senha (Padrão: 123)</label>
             <div style={styles.inputWrapper}>
               <Lock size={18} style={styles.inputIcon} />
               <input
@@ -93,23 +118,32 @@ const Login = () => {
         </form>
 
         <div style={styles.divider}>
-          <span style={styles.dividerText}>Acesso Rápido para Testes</span>
+          <span style={styles.dividerText}>⚡ Acesso Rápido para Testes (1 Clique)</span>
         </div>
 
         <div style={styles.demoSection}>
-          {usersList && usersList.map((u) => (
-            <button
-              key={u.id}
-              onClick={() => selectDemoUser(u.email)}
-              style={styles.demoBadge}
-              title={`Senha: 123 | Tenant: ${u.tenantId}`}
-            >
-              <span style={styles.demoBadgeRole}>
-                {u.role.toUpperCase()}
-              </span>
-              <span style={styles.demoBadgeName}>{u.name?.split(' ')[0]}</span>
-            </button>
-          ))}
+          {displayUsers.map((u) => {
+            const roleStyle = getRoleBadgeStyle(u.role);
+            return (
+              <button
+                key={u.id || u.email}
+                type="button"
+                onClick={() => selectDemoUser(u.email, u.password || '123', true)}
+                style={{
+                  ...styles.demoBadge,
+                  backgroundColor: roleStyle.bg,
+                  borderColor: roleStyle.border
+                }}
+                title={`Clique para entrar como ${u.name} (Senha: ${u.password || '123'})`}
+              >
+                <span style={{ ...styles.demoBadgeRole, color: roleStyle.color }}>
+                  {roleStyle.label}
+                </span>
+                <span style={styles.demoBadgeName}>{u.name}</span>
+                <span style={styles.demoBadgeEmail}>{u.email}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -253,25 +287,35 @@ const styles = {
     padding: '8px 10px',
     borderRadius: 'var(--radius-sm)',
     border: '1px solid var(--border-color)',
-    backgroundColor: 'var(--bg-secondary)',
     cursor: 'pointer',
-    transition: 'all var(--transition-fast)',
-    flex: '1 1 calc(33.33% - 8px)',
-    maxWidth: '120px',
+    transition: 'all 0.15s ease',
+    flex: '1 1 calc(50% - 8px)',
+    maxWidth: '180px',
+    textAlign: 'center',
   },
   demoBadgeRole: {
-    fontSize: '0.6rem',
-    fontWeight: '700',
-    color: 'var(--primary)',
+    fontSize: '0.62rem',
+    fontWeight: '800',
     letterSpacing: '0.5px',
+    marginBottom: '2px'
   },
   demoBadgeName: {
-    fontSize: '0.75rem',
-    color: 'var(--text-secondary)',
+    fontSize: '0.8rem',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    maxWidth: '90px',
+    maxWidth: '150px',
+  },
+  demoBadgeEmail: {
+    fontSize: '0.65rem',
+    color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    maxWidth: '150px',
+    marginTop: '1px'
   }
 };
 

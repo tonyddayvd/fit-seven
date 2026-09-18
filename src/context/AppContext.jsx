@@ -106,12 +106,30 @@ export const AppProvider = ({ children }) => {
   // Rota Virtual
   const [virtualRoute, setVirtualRoute] = useState('app');
 
-  // Estados carregados do Supabase
-  const [tenants, setTenants] = useState({});
-  const [usersList, setUsersList] = useState([]);
+  // Estados carregados do Supabase com fallback garantido
+  const [tenants, setTenants] = useState(() => {
+    const saved = localStorage.getItem('fitseven-tenants');
+    return saved ? JSON.parse(saved) : DEFAULT_TENANTS;
+  });
+
+  const [usersList, setUsersList] = useState(() => {
+    const saved = localStorage.getItem('fitseven-users');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return DEFAULT_USERS;
+  });
+
   const [workoutsByStudent, setWorkoutsByStudent] = useState({});
   const [pendingEvaluations, setPendingEvaluations] = useState([]);
   const [approvedEvaluations, setApprovedEvaluations] = useState([]);
+  const [workoutSessionsHistory, setWorkoutSessionsHistory] = useState(() => {
+    const saved = localStorage.getItem('fitseven-workout-sessions');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [bugReports, setBugReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -150,7 +168,7 @@ export const AppProvider = ({ children }) => {
     try {
       // 1. Carregar Tenants
       const { data: tenantsData, error: tenantsErr } = await supabase.from('tenants').select('*');
-      if (!tenantsErr && tenantsData) {
+      if (!tenantsErr && tenantsData && tenantsData.length > 0) {
         const tenantMap = {};
         tenantsData.forEach(t => {
           tenantMap[t.subdomain] = {
@@ -162,11 +180,12 @@ export const AppProvider = ({ children }) => {
           };
         });
         setTenants(tenantMap);
+        localStorage.setItem('fitseven-tenants', JSON.stringify(tenantMap));
       }
 
       // 2. Carregar Users
       const { data: usersData, error: usersErr } = await supabase.from('users').select('*');
-      if (!usersErr && usersData) {
+      if (!usersErr && usersData && usersData.length > 0) {
         const mappedUsers = usersData.map(u => ({
           id: u.id,
           tenantId: u.tenant_id,
@@ -186,7 +205,20 @@ export const AppProvider = ({ children }) => {
           dia_vencimento: u.dados_pessoais?.dia_vencimento || '',
           historico_pagamentos: u.dados_pessoais?.historico_pagamentos || []
         }));
-        setUsersList(mappedUsers);
+
+        // Mescla garantindo que os usuários essenciais de teste existam
+        const mergedUsers = [...DEFAULT_USERS];
+        mappedUsers.forEach(mu => {
+          const idx = mergedUsers.findIndex(u => (u.id === mu.id) || (u.email && mu.email && u.email.toLowerCase() === mu.email.toLowerCase()));
+          if (idx >= 0) {
+            mergedUsers[idx] = { ...mergedUsers[idx], ...mu };
+          } else {
+            mergedUsers.push(mu);
+          }
+        });
+
+        setUsersList(mergedUsers);
+        localStorage.setItem('fitseven-users', JSON.stringify(mergedUsers));
       }
 
       // 3. Carregar Avaliacoes com Parsing Robusto do campo JSONB medidas
@@ -224,6 +256,13 @@ export const AppProvider = ({ children }) => {
         // Separar pendentes das aprovadas
         setPendingEvaluations(validEvals.filter(ev => ev._status !== 'approved'));
         setApprovedEvaluations(validEvals.filter(ev => ev._status === 'approved'));
+
+        // Sessões históricas de treino concluído
+        const sessions = mappedEvals.filter(ev => ev.formData?.workoutCompleted || ev._type === 'workout_completed');
+        if (sessions.length > 0) {
+          setWorkoutSessionsHistory(sessions);
+          localStorage.setItem('fitseven-workout-sessions', JSON.stringify(sessions));
+        }
       }
 
       // 4. Carregar Treinos
@@ -900,6 +939,7 @@ export const AppProvider = ({ children }) => {
       bugReports,
       reportBug,
       deleteBug,
+      workoutSessionsHistory,
       isLoading
     }}>
       {children}

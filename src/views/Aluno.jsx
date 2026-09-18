@@ -33,9 +33,14 @@ import {
   ImageOff,
   BarChart2,
   Scale,
-  Download
+  Download,
+  GraduationCap,
+  Star,
+  Trash2,
+  Video
 } from 'lucide-react';
 import MedalComposer from '../components/MedalComposer';
+import { formatVideoEmbedUrl, getDefaultOfficialVideo } from '../utils/videoService';
 
 const TABS = [
   { id: 'treinos', label: 'Treinos', icon: Dumbbell, desc: 'Ficha de treinos ativa, séries e cronograma de exercícios.' },
@@ -370,7 +375,10 @@ const Aluno = () => {
           // Se o banco de dados já possuir exercises com status/realLoad salvos, mescla para não perder o progresso
           if (studentData?.exercises && studentData.exercises.length > 0) {
             const merged = finalParsed.map(pEx => {
-              const savedEx = studentData.exercises.find(se => se.name === pEx.name);
+              const savedEx = studentData.exercises.find(se => se.name === pEx.name || se.id === pEx.id);
+              const customVideo = getSavedCustomVideo(user?.id, pEx) || savedEx?.video_personalizado_url || pEx.video_personalizado_url || '';
+              const officialVideo = pEx.video_oficial_url || savedEx?.video_oficial_url || getDefaultOfficialVideo(pEx.name);
+
               if (savedEx) {
                 return {
                   ...pEx,
@@ -378,30 +386,32 @@ const Aluno = () => {
                   completedAt: savedEx.completedAt,
                   realSets: savedEx.realSets,
                   realLoad: savedEx.realLoad,
-                  video_personalizado_url: localStorage.getItem(`fitseven-custom-video-${user?.id || 'u3'}-${pEx.id}`) || savedEx.video_personalizado_url || pEx.video_personalizado_url,
+                  video_personalizado_url: customVideo,
+                  video_oficial_url: officialVideo,
                   metaAtingida100: savedEx.metaAtingida100,
                   feedbackDificuldade: savedEx.feedbackDificuldade
                 };
               }
-              // Caso o exercício esteja no localStorage mas ainda não no banco
-              const localUrl = localStorage.getItem(`fitseven-custom-video-${user?.id || 'u3'}-${pEx.id}`);
-              if (localUrl) {
-                return { ...pEx, video_personalizado_url: localUrl };
-              }
-              return pEx;
+              return {
+                ...pEx,
+                video_personalizado_url: customVideo,
+                video_oficial_url: officialVideo
+              };
             });
             console.log(`[VIP Parser] Mesclado com status do banco. Total: ${merged.length} exercícios.`);
             setExercises(loadExercises(merged));
             return;
           }
 
-          // Se não há exercícios no banco mas há URLs salvas no local
+          // Se não há exercícios no banco mas há URLs salvas no local ou biblioteca padrão
           const finalWithLocal = finalParsed.map(ex => {
-            const localUrl = localStorage.getItem(`fitseven-custom-video-${user?.id || 'u3'}-${ex.id}`);
-            if (localUrl) {
-              return { ...ex, video_personalizado_url: localUrl };
-            }
-            return ex;
+            const customVideo = getSavedCustomVideo(user?.id, ex) || ex.video_personalizado_url || '';
+            const officialVideo = ex.video_oficial_url || getDefaultOfficialVideo(ex.name);
+            return {
+              ...ex,
+              video_personalizado_url: customVideo,
+              video_oficial_url: officialVideo
+            };
           });
 
           console.log(`[VIP Parser] OK: ${finalWithLocal.length} exercícios.`);
@@ -415,8 +425,13 @@ const Aluno = () => {
             setFinishedSplits(studentData.finishedSplits);
             localStorage.setItem(`fitseven-finished-splits-${user.id}`, JSON.stringify(studentData.finishedSplits));
           }
-          console.log(`[VIP Fallback] Usando ${studentData.exercises.length} exercícios pré-estruturados do banco.`);
-          setExercises(loadExercises(studentData.exercises));
+          const enrichedSaved = studentData.exercises.map(ex => ({
+            ...ex,
+            video_personalizado_url: getSavedCustomVideo(user?.id, ex) || ex.video_personalizado_url || '',
+            video_oficial_url: ex.video_oficial_url || getDefaultOfficialVideo(ex.name)
+          }));
+          console.log(`[VIP Fallback] Usando ${enrichedSaved.length} exercícios pré-estruturados do banco.`);
+          setExercises(loadExercises(enrichedSaved));
           return;
         }
         
@@ -426,7 +441,12 @@ const Aluno = () => {
       }
     } else {
       // Fallback: exercícios do banco (não-VIP ou parser sem resultado)
-      setExercises(loadExercises(currentStudentExercises));
+      const enrichedFree = (currentStudentExercises || []).map(ex => ({
+        ...ex,
+        video_personalizado_url: getSavedCustomVideo(user?.id, ex) || ex.video_personalizado_url || '',
+        video_oficial_url: ex.video_oficial_url || getDefaultOfficialVideo(ex.name)
+      }));
+      setExercises(loadExercises(enrichedFree));
     }
   }, [currentStudentExercises, workoutsByStudent, user?.id]);
 
@@ -434,6 +454,7 @@ const Aluno = () => {
   const [activeVideoEx, setActiveVideoEx] = useState(null);
   const [videoSourceTab, setVideoSourceTab] = useState('professor'); // 'professor' ou 'aluno'
   const [tempCustomUrl, setTempCustomUrl] = useState('');
+  const [videoSourceTab, setVideoSourceTab] = useState('professor'); // 'professor' (prioritário por padrão) ou 'aluno'
 
   // Estados do Assistente em Tempo Real (Ativado por Exercício)
   const [activeAssistantExId, setActiveAssistantExId] = useState(null); // armazena o id do exercício ativo
@@ -836,6 +857,232 @@ const Aluno = () => {
     return { reps: repsNum, sets: setsNum };
   };
 
+  // Identifica se o exercício é de Isometria (Pranchas), Peso Corporal (Abdominais, Calistenia) ou Cardio
+  const getExerciseTypeInfo = (ex) => {
+    if (!ex) return { type: 'weight', isTimeBased: false, isBodyweight: false, targetSeconds: 30, labelSets: 'Séries Reais Realizadas', labelLoad: 'Carga Utilizada (kg)', placeholderLoad: 'Ex: 25' };
+
+    const name = (ex.name || '').toLowerCase();
+    const category = (ex.category || '').toLowerCase();
+    const reps = (ex.reps || '').toLowerCase();
+    const load = (ex.load || '').toLowerCase();
+
+    // 1. Cardio
+    if (category === 'cardio' || name.includes('esteira') || name.includes('bicicleta') || name.includes('elíptico') || name.includes('bike') || name.includes('cardio') || name.includes('caminhada') || name.includes('corrida') || name.includes('pular corda')) {
+      const defaultRepsSets = getExRepsAndSets(ex);
+      return {
+        type: 'cardio',
+        isTimeBased: true,
+        isBodyweight: false,
+        targetSeconds: defaultRepsSets.reps * 60,
+        labelSets: 'Tempo Real (min)',
+        labelLoad: 'Velocidade/Ritmo',
+        placeholderLoad: 'Ex: 6.5 km/h'
+      };
+    }
+
+    // 2. Isometria / Tempo (Prancha, Plank, Ponte, Wall Sit, Vácuo, Alongamento, etc.)
+    const isIsometricKeywords = [
+      'isometria', 'prancha', 'plank', 'ponte', 'wall sit', 'hollow', 'vácuo', 'vacuum', 
+      'alongamento', 'mobilidade', 'flexibilidade'
+    ];
+    const hasTimePattern = /\b(\d+)\s*(?:seg|segundos|s|min|minutos)\b/i.test(reps);
+    const isIsometric = isIsometricKeywords.some(k => name.includes(k) || reps.includes(k) || load.includes(k)) || hasTimePattern;
+
+    if (isIsometric) {
+      const defaultRepsSets = getExRepsAndSets(ex);
+      let seconds = defaultRepsSets.reps || 30;
+
+      // Procura especificamente por padrões explícitos de segundos / minutos na string de reps
+      const secMatch = reps.match(/(\d+)\s*(?:seg|segundos|s\b)/i);
+      const minMatch = reps.match(/(\d+)\s*(?:min|minutos|m\b)/i);
+
+      if (secMatch) {
+        seconds = parseInt(secMatch[1], 10) || seconds;
+      } else if (minMatch) {
+        seconds = (parseInt(minMatch[1], 10) || 1) * 60;
+      } else if (reps.includes('min')) {
+        seconds = (defaultRepsSets.reps || 1) * 60;
+      }
+
+      return {
+        type: 'isometria',
+        isTimeBased: true,
+        isBodyweight: true,
+        targetSeconds: seconds,
+        labelSets: 'Séries Realizadas',
+        labelLoad: 'Carga / Peso (Opcional)',
+        placeholderLoad: 'Peso Corporal (0 kg)'
+      };
+    }
+
+    // 3. Peso Corporal / Calistenia / Sem Carga Obrigatória
+    const isBodyweightKeywords = [
+      'peso corporal', 'peso do corpo', 'corpo livre', 'calistenia', 'próprio peso', 'livre', 'sem carga', 'corporal',
+      'abdominal', 'crunch', 'infra', 'supra', 'elevação de pernas', 'perdigueiro', 'superman', 
+      'flexão de braço', 'flexão solo', 'flexões', 'burpee', 'polichinelo', 'mountain climber', 'escalador', 'barra fixa', 'paralelas'
+    ];
+    const isBodyweight = isBodyweightKeywords.some(k => name.includes(k) || load.includes(k) || reps.includes(k));
+
+    if (isBodyweight) {
+      const defaultRepsSets = getExRepsAndSets(ex);
+      return {
+        type: 'peso_corporal',
+        isTimeBased: false,
+        isBodyweight: true,
+        targetSeconds: defaultRepsSets.reps * 3,
+        labelSets: 'Séries Realizadas',
+        labelLoad: 'Carga Adicional (Opcional)',
+        placeholderLoad: 'Peso Corporal (0 kg)'
+      };
+    }
+
+    // 4. Convencional com pesos (Musculação)
+    const defaultRepsSets = getExRepsAndSets(ex);
+    return {
+      type: 'weight',
+      isTimeBased: false,
+      isBodyweight: false,
+      targetSeconds: defaultRepsSets.reps * 3,
+      labelSets: 'Séries Reais Realizadas',
+      labelLoad: 'Carga Utilizada (kg)',
+      placeholderLoad: 'Ex: 25'
+    };
+  };
+
+  // Normaliza o nome do exercício para chaves de busca seguras (sem acentos, pontuação, etc.)
+  const sanitizeExName = (name) => {
+    if (!name) return '';
+    return name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '_')
+      .replace(/_+/g, '_')
+      .trim();
+  };
+
+  // Formata links do YouTube para a versão correta de embed do player
+  const formatYouTubeEmbedUrl = (rawUrl) => {
+    if (!rawUrl || typeof rawUrl !== 'string') return '';
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return '';
+
+    if (trimmed.includes('youtube.com/embed/')) {
+      const parts = trimmed.split('youtube.com/embed/')[1];
+      const vid = parts?.split('?')[0]?.split('&')[0];
+      return vid ? `https://www.youtube.com/embed/${vid}` : trimmed;
+    }
+
+    const watchMatch = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i);
+    if (watchMatch && watchMatch[1]) {
+      return `https://www.youtube.com/embed/${watchMatch[1]}`;
+    }
+
+    if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+      return `https://www.youtube.com/embed/${trimmed}`;
+    }
+
+    return trimmed;
+  };
+
+  // Biblioteca oficial de demonstrações de exercícios padrão
+  const OFFICIAL_EXERCISE_VIDEOS = {
+    'puxada alta na polia': 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    'puxada frontal alta (polia)': 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    'puxada frontal alta': 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    'puxada frontal': 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    'puxada alta': 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    'puxada articulada': 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    'remada curvada pronada': 'https://www.youtube.com/embed/H5_p5r8K9H8',
+    'remada curvada': 'https://www.youtube.com/embed/H5_p5r8K9H8',
+    'remada baixa': 'https://www.youtube.com/embed/H5_p5r8K9H8',
+    'remada cavalinho': 'https://www.youtube.com/embed/H5_p5r8K9H8',
+    'supino reto com barra': 'https://www.youtube.com/embed/sqOw2Y6u9Xs',
+    'supino reto': 'https://www.youtube.com/embed/sqOw2Y6u9Xs',
+    'supino inclinado': 'https://www.youtube.com/embed/sqOw2Y6u9Xs',
+    'crossover na polia media': 'https://www.youtube.com/embed/l5MhN6l3s88',
+    'crossover': 'https://www.youtube.com/embed/l5MhN6l3s88',
+    'agachamento livre': 'https://www.youtube.com/embed/Vn83S-A-9yU',
+    'agachamento': 'https://www.youtube.com/embed/Vn83S-A-9yU',
+    'leg press 45 graus': 'https://www.youtube.com/embed/vO-FwS1YhNA',
+    'leg press': 'https://www.youtube.com/embed/vO-FwS1YhNA',
+    'cadeira extensora': 'https://www.youtube.com/embed/vO-FwS1YhNA',
+    'mesa flexora': 'https://www.youtube.com/embed/vO-FwS1YhNA',
+    'rosca direta com barra w': 'https://www.youtube.com/embed/ly7TepL4pco',
+    'rosca direta': 'https://www.youtube.com/embed/ly7TepL4pco',
+    'triceps testa com halter': 'https://www.youtube.com/embed/HlJ_nKpxJg8',
+    'triceps testa': 'https://www.youtube.com/embed/HlJ_nKpxJg8',
+    'triceps corda': 'https://www.youtube.com/embed/HlJ_nKpxJg8',
+    'elevacao lateral': 'https://www.youtube.com/embed/HlJ_nKpxJg8',
+    'desenvolvimento com halteres': 'https://www.youtube.com/embed/sqOw2Y6u9Xs',
+    'prancha frontal': 'https://www.youtube.com/embed/0pkjOk0EiAk',
+    'prancha frontal (isometria)': 'https://www.youtube.com/embed/0pkjOk0EiAk',
+    'prancha isometrica': 'https://www.youtube.com/embed/0pkjOk0EiAk',
+    'burpee completo': 'https://www.youtube.com/embed/0pkjOk0EiAk',
+    'burpee': 'https://www.youtube.com/embed/0pkjOk0EiAk',
+    'corrida na esteira': 'https://www.youtube.com/embed/sqOw2Y6u9Xs',
+    'esteira': 'https://www.youtube.com/embed/sqOw2Y6u9Xs'
+  };
+
+  const getDefaultOfficialVideo = (name) => {
+    if (!name) return '';
+    const clean = sanitizeExName(name).replace(/_/g, ' ');
+    if (OFFICIAL_EXERCISE_VIDEOS[clean]) return OFFICIAL_EXERCISE_VIDEOS[clean];
+    for (const [key, url] of Object.entries(OFFICIAL_EXERCISE_VIDEOS)) {
+      if (clean.includes(key) || key.includes(clean)) return url;
+    }
+    return '';
+  };
+
+  // Recupera vídeo customizado do aluno de forma resiliente (por ID, Nome ou Mapa)
+  const getSavedCustomVideo = (userId, ex) => {
+    if (!ex) return '';
+    const uid = userId || 'u3';
+    const nameKey = sanitizeExName(ex.name);
+
+    if (ex.id) {
+      const byId = localStorage.getItem(`fitseven-custom-video-${uid}-${ex.id}`);
+      if (byId) return byId;
+    }
+
+    if (nameKey) {
+      const byName = localStorage.getItem(`fitseven-custom-video-by-name-${uid}-${nameKey}`);
+      if (byName) return byName;
+    }
+
+    try {
+      const globalVideos = JSON.parse(localStorage.getItem(`fitseven-user-videos-${uid}`) || '{}');
+      if (nameKey && globalVideos[nameKey]) return globalVideos[nameKey];
+      if (ex.id && globalVideos[ex.id]) return globalVideos[ex.id];
+    } catch (e) {
+      // ignore
+    }
+
+    return ex.video_personalizado_url || '';
+  };
+
+  // Salva vídeo customizado em múltiplas chaves para nunca perder
+  const saveCustomVideoStorage = (userId, ex, formattedUrl) => {
+    if (!ex) return;
+    const uid = userId || 'u3';
+    const nameKey = sanitizeExName(ex.name);
+
+    if (ex.id) {
+      localStorage.setItem(`fitseven-custom-video-${uid}-${ex.id}`, formattedUrl);
+    }
+    if (nameKey) {
+      localStorage.setItem(`fitseven-custom-video-by-name-${uid}-${nameKey}`, formattedUrl);
+    }
+    try {
+      const globalVideos = JSON.parse(localStorage.getItem(`fitseven-user-videos-${uid}`) || '{}');
+      if (nameKey) globalVideos[nameKey] = formattedUrl;
+      if (ex.id) globalVideos[ex.id] = formattedUrl;
+      localStorage.setItem(`fitseven-user-videos-${uid}`, JSON.stringify(globalVideos));
+    } catch (e) {
+      // ignore
+    }
+  };
+
   // Parser de HTML VIP gerado pela IA externa → exercícios estruturados para a ferramenta interativa
   const parseVipHtmlToExercises = (html) => {
     if (!html) return [];
@@ -935,8 +1182,8 @@ const Aluno = () => {
       setAssistantPhase('execucao');
       // Calcula cadência dinâmica baseada no exercício em foco
       const currentEx = exercises.find(ex => ex.id === activeAssistantExId);
-      const reps = currentEx ? getExRepsAndSets(currentEx).reps : 10;
-      const dynamicExecutionTime = currentEx && currentEx.category === 'Cardio' ? reps * 60 : reps * 3;
+      const exType = getExerciseTypeInfo(currentEx);
+      const dynamicExecutionTime = exType.targetSeconds;
       
       setAssistantTimer(dynamicExecutionTime);
       speakText(`Descanso finalizado. Força, inicie a próxima série agora!`, () => {
@@ -947,8 +1194,8 @@ const Aluno = () => {
 
   const startAssistant = (exId) => {
     const currentEx = exercises.find(ex => ex.id === exId);
-    const reps = currentEx ? getExRepsAndSets(currentEx).reps : 10;
-    const dynamicExecutionTime = currentEx && currentEx.category === 'Cardio' ? reps * 60 : reps * 3;
+    const exType = getExerciseTypeInfo(currentEx);
+    const dynamicExecutionTime = exType.targetSeconds;
 
     setActiveAssistantExId(exId);
     setAssistantPhase('execucao');
@@ -966,36 +1213,60 @@ const Aluno = () => {
   };
 
   const openVideoModal = (ex) => {
-    setActiveVideoEx(ex);
-    setTempCustomUrl(ex.video_personalizado_url || '');
+    const customUrl = getSavedCustomVideo(user?.id, ex) || ex.video_personalizado_url || '';
+    const officialUrl = ex.video_oficial_url || ex.videoUrl || getDefaultOfficialVideo(ex.name) || '';
+    const resolvedEx = {
+      ...ex,
+      video_personalizado_url: customUrl,
+      video_oficial_url: officialUrl
+    };
+    setActiveVideoEx(resolvedEx);
+    setTempCustomUrl(customUrl);
+    // Prioridade SEMPRE para o vídeo do professor caso exista
+    if (officialUrl) {
+      setVideoSourceTab('professor');
+    } else if (customUrl) {
+      setVideoSourceTab('aluno');
+    } else {
+      setVideoSourceTab('professor');
+    }
   };
 
   const saveCustomVideoUrl = (e) => {
     e.preventDefault();
     if (!activeVideoEx) return;
 
-    let formattedUrl = tempCustomUrl;
-    if (tempCustomUrl.includes('youtube.com/watch?v=')) {
-      const vid = tempCustomUrl.split('v=')[1]?.split('&')[0];
-      if (vid) formattedUrl = `https://www.youtube.com/embed/${vid}`;
-    } else if (tempCustomUrl.includes('youtu.be/')) {
-      const vid = tempCustomUrl.split('youtu.be/')[1]?.split('?')[0];
-      if (vid) formattedUrl = `https://www.youtube.com/embed/${vid}`;
-    } else if (tempCustomUrl.includes('youtube.com/shorts/')) {
-      const vid = tempCustomUrl.split('shorts/')[1]?.split('?')[0];
-      if (vid) formattedUrl = `https://www.youtube.com/embed/${vid}`;
+    const formattedUrl = formatVideoEmbedUrl(tempCustomUrl);
+    if (!formattedUrl && tempCustomUrl.trim() !== '') {
+      alert('Por favor, insira um link válido do YouTube ou de vídeo.');
+      return;
     }
 
     const updated = exercises.map(ex => 
-      ex.id === activeVideoEx.id ? { ...ex, video_personalizado_url: formattedUrl } : ex
+      (ex.id === activeVideoEx.id || ex.name === activeVideoEx.name) ? { ...ex, video_personalizado_url: formattedUrl } : ex
     );
     setExercises(updated);
     updateStudentExercises(updated, finishedSplits);
     setActiveVideoEx(prev => ({ ...prev, video_personalizado_url: formattedUrl }));
     
-    // Salva de forma persistente e instantânea localmente para garantir funcionamento
-    localStorage.setItem(`fitseven-custom-video-${user?.id || 'u3'}-${activeVideoEx.id}`, formattedUrl);
-    alert('Link do influenciador favorito salvo com sucesso e priorizado!');
+    // Salva com redundância total no localStorage
+    saveCustomVideoStorage(user?.id, activeVideoEx, formattedUrl);
+    setVideoSourceTab('aluno');
+    alert('Vídeo personalizado do YouTube salvo com sucesso!');
+  };
+
+  const removeCustomVideoUrl = () => {
+    if (!activeVideoEx) return;
+    const updated = exercises.map(ex => 
+      (ex.id === activeVideoEx.id || ex.name === activeVideoEx.name) ? { ...ex, video_personalizado_url: '' } : ex
+    );
+    setExercises(updated);
+    updateStudentExercises(updated, finishedSplits);
+    setActiveVideoEx(prev => ({ ...prev, video_personalizado_url: '' }));
+    saveCustomVideoStorage(user?.id, activeVideoEx, '');
+    setTempCustomUrl('');
+    setVideoSourceTab('professor');
+    alert('Vídeo personalizado removido. Exibindo orientação do professor!');
   };
 
   const handleCompleteExercise = (id, realSets, realLoad) => {
@@ -1273,11 +1544,15 @@ const Aluno = () => {
                           try {
                             await updateStudentExercises(exercises, updatedSplits);
                             
-                            // Cria um registro no Histórico (Evolução) conforme a nova regra
+                            // Cria um registro no Histórico (Evolução) com snapshot completo de cargas e data/hora
+                            const currentSplitExs = exercises.filter(ex => (ex.split || 'A') === activeSplit);
                             await submitEvaluation({
                               workoutCompleted: true,
                               split: activeSplit,
+                              completedAt: new Date().toISOString(),
                               observations: `Treino do split ${activeSplit} concluído com sucesso.`,
+                              exercisesSnapshot: currentSplitExs,
+                              totalExercises: currentSplitExs.length,
                               peso: null // Para não quebrar o gráfico de evolução
                             });
                           } catch (err) {
@@ -1352,6 +1627,7 @@ const Aluno = () => {
                     <div style={styles.exercisesGrid}>
                       {exercisesForActiveSplit.map((ex) => {
                         const defaultRepsSets = getExRepsAndSets(ex);
+                        const exTypeInfo = getExerciseTypeInfo(ex);
                         
                         // Estados locais ou derivados para carga e séries editáveis por card de exercício
                         const realSetsKey = `sets-${ex.id}`;
@@ -1362,7 +1638,7 @@ const Aluno = () => {
                         const currentSetsVal = formData[realSetsKey] !== undefined ? formData[realSetsKey] : historicalSets;
                         const currentLoadVal = formData[realLoadKey] !== undefined ? formData[realLoadKey] : historicalLoad;
                         const repsCount = defaultRepsSets.reps;
-                        const dynamicTimeText = ex.category === 'Cardio' ? `${repsCount}min` : `${repsCount * 3}s`;
+                        const dynamicTimeText = exTypeInfo.type === 'cardio' ? `${repsCount}min` : exTypeInfo.type === 'isometria' ? `${exTypeInfo.targetSeconds}s` : `${repsCount * 3}s`;
 
                         const isSplitFinished = isSplitDone(activeSplit);
 
@@ -1389,7 +1665,7 @@ const Aluno = () => {
                               <h4 style={styles.exName}>{ex.name}</h4>
                               <div style={styles.exMetaRow}>
                                 <span style={styles.exMetaItem}>Meta Prescrita: <strong>{ex.reps}</strong></span>
-                                <span style={styles.exMetaItem}>{ex.category === 'Cardio' ? 'Duração Alvo' : 'Cadência (3s/rep)'}: <strong>{dynamicTimeText}</strong></span>
+                                <span style={styles.exMetaItem}>{exTypeInfo.type === 'cardio' ? 'Duração Alvo' : exTypeInfo.type === 'isometria' ? 'Tempo Alvo' : 'Cadência (3s/rep)'}: <strong>{dynamicTimeText}</strong></span>
                               </div>
 
                                {/* Inputs interativos de Carga e Séries (Se pendente) */}
@@ -1397,9 +1673,9 @@ const Aluno = () => {
                                 <div style={styles.metricsFormRow}>
                                   <div style={styles.metricField}>
                                     <label style={styles.metricLabel}>
-                                      {ex.category === 'Cardio' ? 'Tempo Real (min)' : 'Séries Reais Realizadas'}
+                                      {exTypeInfo.labelSets}
                                     </label>
-                                    {ex.category === 'Cardio' ? (
+                                    {exTypeInfo.type === 'cardio' ? (
                                       <input 
                                         type="number"
                                         placeholder="Ex: 10"
@@ -1425,11 +1701,11 @@ const Aluno = () => {
                                   </div>
                                   <div style={styles.metricField}>
                                     <label style={styles.metricLabel}>
-                                      {ex.category === 'Cardio' ? 'Velocidade/Ritmo' : 'Carga Utilizada (kg)'}
+                                      {exTypeInfo.labelLoad}
                                     </label>
                                     <input 
-                                      type={ex.category === 'Cardio' ? 'text' : 'number'}
-                                      placeholder={ex.category === 'Cardio' ? 'Ex: 6.5 km/h' : 'Ex: 25'}
+                                      type={exTypeInfo.type === 'cardio' || exTypeInfo.isBodyweight ? 'text' : 'number'}
+                                      placeholder={exTypeInfo.placeholderLoad}
                                       value={currentLoadVal}
                                       onChange={(e) => handleInputChange(realLoadKey, e.target.value)}
                                       style={styles.loadInput}
@@ -1484,25 +1760,35 @@ const Aluno = () => {
                                   <button onClick={() => {
                                     if (activeAssistantExId === ex.id) setActiveAssistantExId(null);
                                     
-                                    // Para Cardio, a carga (velocidade) e o tempo real (séries) são textuais ou numéricos sem obrigatoriedade estrita de kg
-                                    if (ex.category === 'Cardio') {
+                                    let finalLoadFormatted = currentLoadVal;
+
+                                    if (exTypeInfo.type === 'cardio') {
                                       if (!currentSetsVal || !currentLoadVal) {
                                         alert('Por favor, preencha o tempo e velocidade antes de concluir.');
                                         return;
                                       }
+                                      finalLoadFormatted = currentLoadVal;
+                                    } else if (exTypeInfo.isBodyweight) {
+                                      // Para isometria e peso corporal, carga NÃO é obrigatória
+                                      if (!currentLoadVal || String(currentLoadVal).trim() === '' || String(currentLoadVal).trim() === '0') {
+                                        finalLoadFormatted = 'Peso do Corpo';
+                                      } else {
+                                        finalLoadFormatted = isNaN(parseFloat(currentLoadVal)) ? currentLoadVal : `${currentLoadVal} kg`;
+                                      }
                                     } else {
-                                      // Valida se preencheu a carga antes de completar
+                                      // Valida se preencheu a carga antes de completar (exercícios convencionais com pesos)
                                       if (!currentLoadVal || isNaN(parseFloat(currentLoadVal))) {
                                         alert('Por favor, informe a Carga Utilizada (kg) antes de concluir o exercício.');
                                         return;
                                       }
+                                      finalLoadFormatted = `${currentLoadVal} kg`;
                                     }
                                     
                                     // Abre o modal de validação passando o exercício e os valores reais preenchidos
                                     setConfirmModalEx({
                                       ...ex,
                                       currentSetsVal,
-                                      currentLoadVal: ex.category === 'Cardio' ? currentLoadVal : `${currentLoadVal} kg`
+                                      currentLoadVal: finalLoadFormatted
                                     });
                                     setConfirmReached100(null);
                                     setConfirmObs('');
@@ -3023,11 +3309,218 @@ const Aluno = () => {
                 <button type="submit" style={styles.dualSaveBtn} className="btn-primary">
                   Salvar Meu Vídeo
                 </button>
-              </form>
+              </div>
+              
+              <p style={{ ...styles.exName, margin: '6px 0 14px 0', fontSize: '1.1rem' }}>{activeVideoEx.name}</p>
+
+              {/* ABAS DE SELEÇÃO: VÍDEO DO PROFESSOR (PRIORITÁRIO) vs MEU VÍDEO DO YOUTUBE */}
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                marginBottom: '14px',
+                background: 'var(--bg-secondary)',
+                padding: '4px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setVideoSourceTab('professor')}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontSize: '0.8rem',
+                    fontWeight: videoSourceTab === 'professor' ? '800' : '600',
+                    backgroundColor: videoSourceTab === 'professor' ? 'var(--primary)' : 'transparent',
+                    color: videoSourceTab === 'professor' ? '#ffffff' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <GraduationCap size={15} />
+                  <span>Vídeo do Professor</span>
+                  <span style={{ 
+                    fontSize: '0.65rem', 
+                    padding: '1px 6px', 
+                    borderRadius: '10px', 
+                    background: videoSourceTab === 'professor' ? 'rgba(255,255,255,0.25)' : 'rgba(139,92,246,0.15)',
+                    color: videoSourceTab === 'professor' ? '#fff' : 'var(--primary)',
+                    fontWeight: '800'
+                  }}>
+                    Prioritário
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setVideoSourceTab('aluno')}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontSize: '0.8rem',
+                    fontWeight: videoSourceTab === 'aluno' ? '800' : '600',
+                    backgroundColor: videoSourceTab === 'aluno' ? 'var(--primary)' : 'transparent',
+                    color: videoSourceTab === 'aluno' ? '#ffffff' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Star size={14} style={{ color: customVideo ? '#eab308' : 'inherit' }} />
+                  <span>Meu Vídeo (YouTube)</span>
+                  {customVideo && (
+                    <span style={{ 
+                      fontSize: '0.65rem', 
+                      padding: '1px 6px', 
+                      borderRadius: '10px', 
+                      background: 'rgba(52, 211, 153, 0.2)', 
+                      color: 'var(--status-success)', 
+                      fontWeight: '800' 
+                    }}>
+                      Salvo
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* INDICADOR VISUAL DA FONTE DO VÍDEO ATUALMENTE EM EXIBIÇÃO */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ 
+                  fontSize: '0.75rem', 
+                  fontWeight: '700', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '5px',
+                  color: videoSourceTab === 'professor' ? 'var(--primary)' : 'var(--status-success)' 
+                }}>
+                  {videoSourceTab === 'professor' ? (
+                    <>
+                      <GraduationCap size={14} /> Recomendado pelo seu Professor/Treinador
+                    </>
+                  ) : (
+                    <>
+                      <Star size={14} /> Seu Vídeo Personalizado do YouTube
+                    </>
+                  )}
+                </span>
+              </div>
+
+              {/* PLAYER DE VÍDEO INTELIGENTE */}
+              <div style={styles.videoWrapper}>
+                {currentPlayingUrl ? (
+                  isDirectVideo ? (
+                    <video
+                      src={currentPlayingUrl}
+                      controls
+                      autoPlay
+                      playsInline
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        backgroundColor: '#000'
+                      }}
+                    />
+                  ) : (
+                    <iframe
+                      src={formatVideoEmbedUrl(currentPlayingUrl)}
+                      title={`Instruções de execução - ${activeVideoEx.name}`}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      style={styles.iframe}
+                    />
+                  )
+                ) : (
+                  <div style={{ 
+                    position: 'absolute', 
+                    top: 0, 
+                    left: 0, 
+                    width: '100%', 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    padding: '20px', 
+                    textAlign: 'center', 
+                    color: 'var(--text-secondary)' 
+                  }}>
+                    {videoSourceTab === 'aluno' ? (
+                      <>
+                        <Star size={32} style={{ opacity: 0.35, color: '#eab308', marginBottom: '8px' }} />
+                        <p style={{ margin: '0 0 6px 0', fontWeight: '700', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Nenhum vídeo personalizado salvo</p>
+                        <p style={{ margin: 0, fontSize: '0.78rem' }}>Cole o link do seu influenciador do YouTube no campo abaixo para salvar!</p>
+                      </>
+                    ) : (
+                      <>
+                        <Tv size={32} style={{ opacity: 0.35, color: 'var(--primary)', marginBottom: '8px' }} />
+                        <p style={{ margin: '0 0 6px 0', fontWeight: '700', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Nenhum vídeo do professor cadastrado</p>
+                        <p style={{ margin: 0, fontSize: '0.78rem' }}>O professor ainda não definiu um vídeo técnico para este exercício.</p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* SEÇÃO DO ALUNO: PERSONALIZAR SEU VÍDEO DO YOUTUBE */}
+              <div style={styles.dualLinkBox}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={styles.dualLinkLabel}>⭐ Link do Seu Influenciador / Canal Favorito:</span>
+                  {customVideo && (
+                    <button
+                      type="button"
+                      onClick={removeCustomVideoUrl}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--status-danger)',
+                        fontSize: '0.72rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontWeight: '600'
+                      }}
+                    >
+                      <Trash2 size={12} /> Remover meu link
+                    </button>
+                  )}
+                </div>
+                <form onSubmit={saveCustomVideoUrl} style={styles.dualForm}>
+                  <input
+                    type="url"
+                    placeholder="Ex: https://www.youtube.com/watch?v=..."
+                    value={tempCustomUrl}
+                    onChange={(e) => setTempCustomUrl(e.target.value)}
+                    style={styles.dualInput}
+                  />
+                  <button type="submit" style={styles.dualSaveBtn} className="btn-primary">
+                    Salvar Meu Vídeo
+                  </button>
+                </form>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>
+                  💡 Dica: O vídeo do professor sempre permanece como recomendação principal. Você pode alternar quando quiser usando as abas acima.
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Modal de Reportar Bug */}
       {reportModalEx && (

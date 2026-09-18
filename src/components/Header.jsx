@@ -1,9 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Sun, Moon, LogOut, Dumbbell, ShieldAlert } from 'lucide-react';
+import { Sun, Moon, LogOut, Dumbbell, ShieldAlert, Smartphone, Download } from 'lucide-react';
 
 const Header = () => {
   const { theme, toggleTheme, user, activeRole, activeTenant, logout, bypassRole } = useApp();
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const standalone = 
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true ||
+        document.referrer.includes('android-app://');
+      setIsStandalone(standalone);
+    }
+  }, []);
+
+  const triggerPwaInstall = () => {
+    window.dispatchEvent(new CustomEvent('fitseven-open-pwa-install'));
+  };
 
   return (
     <header className="glass header-container" style={styles.header}>
@@ -27,6 +42,18 @@ const Header = () => {
             <ShieldAlert size={16} />
             <span>MODO MASTER {bypassRole ? `(SIMULANDO: ${bypassRole.toUpperCase()})` : '(ORIGINAL)'}</span>
           </div>
+        )}
+
+        {/* Botão Compacto de Instalação PWA na Navbar */}
+        {!isStandalone && (
+          <button 
+            onClick={triggerPwaInstall}
+            style={styles.pwaHeaderBtn}
+            title="Instalar App / Criar Atalho na Tela Inicial"
+          >
+            <Smartphone size={15} />
+            <span>Instalar App</span>
+          </button>
         )}
 
         <button 
@@ -60,6 +87,8 @@ const Header = () => {
 const styles = {
   header: {
     display: 'flex',
+    flexWrap: 'wrap',
+    gap: '16px',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '12px 24px',
@@ -97,6 +126,7 @@ const styles = {
   },
   rightSection: {
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: '16px',
   },
@@ -143,6 +173,21 @@ const styles = {
   userRole: {
     fontSize: '0.75rem',
     color: 'var(--text-secondary)',
+  },
+  pwaHeaderBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(6, 182, 212, 0.2))',
+    color: 'var(--text-primary)',
+    border: '1px solid rgba(139, 92, 246, 0.4)',
+    padding: '7px 12px',
+    borderRadius: '8px',
+    fontSize: '0.8rem',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 8px rgba(139, 92, 246, 0.15)',
   }
 };
 

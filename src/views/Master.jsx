@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, DEFAULT_WORKOUTS } from '../context/AppContext';
 import { 
   ShieldAlert, 
   Database, 
@@ -20,8 +20,19 @@ import {
   Building,
   Users,
   Check,
-  User
+  User,
+  Camera,
+  AlertTriangle,
+  Calendar,
+  History,
+  Activity,
+  Layers,
+  Filter,
+  ChevronRight,
+  Video,
+  Play
 } from 'lucide-react';
+import ExerciseVideoManagerModal from '../components/ExerciseVideoManagerModal';
 
 const TABLES_SCHEMA = [
   { 
@@ -99,7 +110,10 @@ const Master = () => {
     importDatabase,
     user,
     bugReports,
-    deleteBug
+    deleteBug,
+    workoutsByStudent,
+    updateWorkoutByProfessor,
+    workoutSessionsHistory
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('kpis_crud'); // 'kpis_crud', 'pending_approvals', 'db_auditor'
@@ -597,7 +611,7 @@ const Master = () => {
                     <Plus size={16} /> Cadastrar Academia
                   </button>
                 </div>
-                <table style={styles.table}>
+                <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableCellHeader}>Nome</th>
@@ -645,7 +659,7 @@ const Master = () => {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             )}
 
@@ -657,7 +671,7 @@ const Master = () => {
                     <Plus size={16} /> Cadastrar Professor
                   </button>
                 </div>
-                <table style={styles.table}>
+                <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableCellHeader}>Nome</th>
@@ -697,7 +711,7 @@ const Master = () => {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             )}
 
@@ -709,7 +723,7 @@ const Master = () => {
                     <Plus size={16} /> Cadastrar Aluno
                   </button>
                 </div>
-                <table style={styles.table}>
+                <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableCellHeader}>Nome</th>
@@ -756,15 +770,16 @@ const Master = () => {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             )}
 
-            {/* Modal Cartão do Aluno */}
+            {/* Modal Cartão do Aluno (Dossiê) */}
             {viewingStudent && (
               <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '500px', border: '1px solid var(--border-color)', position: 'relative' }}>
-                  <button onClick={() => setViewingStudent(null)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px' }}>X</button>
+                <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)', position: 'relative' }}>
+                  <button onClick={() => { setViewingStudent(null); setActiveModalTab('medidas'); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px' }}>X</button>
+                  
                   <h3 style={{ marginTop: 0, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <User size={20} color="var(--primary-color)" /> CRM do Aluno (Visão Master)
                   </h3>
@@ -887,7 +902,7 @@ const Master = () => {
                     <Plus size={16} /> Cadastrar Administrador
                   </button>
                 </div>
-                <table style={styles.table}>
+                <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableCellHeader}>Nome</th>
@@ -925,7 +940,7 @@ const Master = () => {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             )}
           </div>
@@ -1506,6 +1521,49 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
         </div>
       )}
 
+      {/* ── LIGHTBOX DE FOTOS ── */}
+      {lightboxPhoto && (
+        <div
+          onClick={() => setLightboxPhoto(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 99999,
+            backgroundColor: 'rgba(0,0,0,0.92)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: '20px', cursor: 'zoom-out'
+          }}
+        >
+          <div style={{
+            position: 'absolute', top: '16px', right: '20px',
+            color: '#fff', fontSize: '1.5rem', cursor: 'pointer',
+            fontWeight: '700', lineHeight: 1, opacity: 0.8
+          }} onClick={() => setLightboxPhoto(null)}>✕</div>
+          <span style={{
+            color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem',
+            marginBottom: '12px', letterSpacing: '0.05em', textTransform: 'uppercase'
+          }}>{lightboxPhoto.label}</span>
+          <img
+            src={lightboxPhoto.url}
+            alt={lightboxPhoto.label}
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: '90vw', maxHeight: '82vh',
+              objectFit: 'contain', borderRadius: '8px',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.6)'
+            }}
+          />
+          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', marginTop: '12px' }}>Clique fora da foto para fechar</span>
+        </div>
+      )}
+
+      {/* ── MODAL ULTRA SIMPLES DE GESTÃO DE VÍDEO DO EXERCÍCIO (MASTER) ── */}
+      {editingVideoExercise && (
+        <ExerciseVideoManagerModal
+          exercise={editingVideoExercise}
+          onSave={handleSaveExerciseVideo}
+          onClose={() => setEditingVideoExercise(null)}
+        />
+      )}
     </div>
   );
 };
@@ -1538,6 +1596,7 @@ const styles = {
   },
   tabsContainer: {
     display: 'flex',
+    flexWrap: 'wrap',
     gap: '10px',
     borderBottom: '1px solid var(--border-color)',
     paddingBottom: '8px'
@@ -1594,6 +1653,7 @@ const styles = {
   },
   crudTabs: {
     display: 'flex',
+    flexWrap: 'wrap',
     gap: '16px',
     borderBottom: '1px solid var(--border-color)',
     marginBottom: '20px',
