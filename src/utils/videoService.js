@@ -28,11 +28,18 @@ export const EXERCISE_CATEGORIES = [
   'Peito',
   'Costas',
   'Pernas',
+  'Quadríceps',
+  'Posterior de Coxa',
+  'Glúteos',
+  'Panturrilhas',
   'Ombros',
   'Bíceps',
   'Tríceps',
+  'Antebraço',
   'Abdômen / Core',
-  'Cardio / Funcional'
+  'Cardio / Funcional',
+  'Alongamento / Mobilidade',
+  'Geral'
 ];
 
 export const EXERCISE_CATALOG = [

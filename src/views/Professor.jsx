@@ -1202,9 +1202,16 @@ const Professor = () => {
                             placeholder="Nome do exercício (ex: Supino Reto)"
                           />
                         </div>
-                        <span style={styles.exerciseCategoryBadge}>
-                          {ex.category || 'Geral'}
-                        </span>
+                        <select
+                          value={ex.category || 'Peito'}
+                          onChange={(e) => handleUpdateExerciseField(ex.id, 'category', e.target.value)}
+                          style={styles.exerciseCategorySelect}
+                          title="Selecione o Grupo Muscular deste exercício"
+                        >
+                          {EXERCISE_CATEGORIES.filter(c => c !== 'Todos').map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
                       </div>
 
                       {/* Linha de Metas: Séries/Reps e Carga */}
@@ -2161,6 +2168,18 @@ const styles = {
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
     color: '#3b82f6',
     fontWeight: '600'
+  },
+  exerciseCategorySelect: {
+    fontSize: '0.75rem',
+    padding: '4px 8px',
+    borderRadius: '6px',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    border: '1px solid rgba(59, 130, 246, 0.35)',
+    color: '#60a5fa',
+    fontWeight: '700',
+    cursor: 'pointer',
+    outline: 'none',
+    maxWidth: '160px'
   },
   exerciseMetaRow: {
     display: 'flex',
