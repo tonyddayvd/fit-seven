@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import React, { useState, useEffect } from 'react';
+import { useApp, DEFAULT_WORKOUTS } from '../context/AppContext';
 import { 
   Dumbbell, 
   PlusCircle, 
@@ -16,15 +16,26 @@ import {
   Award, 
   Key,
   Shield,
-  ClipboardList
+  ClipboardList,
+  Search,
+  Filter,
+  Video,
+  Play,
+  Save,
+  RefreshCw,
+  Sparkles,
+  ExternalLink,
+  X,
+  ChevronRight,
+  MoveRight,
+  Layers,
+  Check
 } from 'lucide-react';
-
-const INITIAL_EXERCISES = [
-  { id: 'e1', name: 'Supino Reto com Barra', category: 'Peito', reps: '4x10' },
-  { id: 'e2', name: 'Agachamento Livre', category: 'Pernas', reps: '4x12' },
-  { id: 'e3', name: 'Puxada Alta na Polia', category: 'Costas', reps: '3x12' },
-  { id: 'e4', name: 'Rosca Direta Biceps', category: 'Braços', reps: '3x15' },
-];
+import { 
+  EXERCISE_CATALOG, 
+  EXERCISE_CATEGORIES, 
+  formatVideoEmbedUrl 
+} from '../utils/videoService';
 
 const Professor = () => {
   const { 
@@ -44,13 +55,25 @@ const Professor = () => {
     approvedEvaluations
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState('alunos'); // 'alunos' ou 'prescribe'
+  const [activeTab, setActiveTab] = useState('alunos'); // 'alunos', 'prescribe', 'planos', 'financeiro', 'revisao'
   const [successMsg, setSuccessMsg] = useState('');
   
-  // Prescrição states
+  // Prescrição Studio states
   const [selectedStudent, setSelectedStudent] = useState('');
-  const [workoutName, setWorkoutName] = useState('');
-  const [selectedExercises, setSelectedExercises] = useState([]);
+  const [prescribeSplit, setPrescribeSplit] = useState('A');
+  const [availableSplits, setAvailableSplits] = useState(['A', 'B', 'C', 'D', 'E']);
+  const [studentExercises, setStudentExercises] = useState([]);
+  const [searchCatalog, setSearchCatalog] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('Todos');
+  const [customExercise, setCustomExercise] = useState({
+    name: '',
+    category: 'Peito',
+    reps: '4x10-12',
+    load: 'Carga Livre',
+    video_oficial_url: ''
+  });
+  const [previewVideoUrl, setPreviewVideoUrl] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Alunos CRUD states
   const [showForm, setShowForm] = useState(false);
@@ -63,6 +86,7 @@ const Professor = () => {
 
   // Cartão do Aluno state
   const [viewingStudent, setViewingStudent] = useState(null);
+  const [crmTab, setCrmTab] = useState('geral'); // 'geral', 'medidas', 'treinos'
 
   // Revisão IA state
   const [reviewingStudentId, setReviewingStudentId] = useState(null);
@@ -75,31 +99,185 @@ const Professor = () => {
   const ownStudentsCount = usersList.filter(u => u.role === 'aluno' && u.tenantId === user.id).length;
   const maxLimit = user.limiteAlunos || 10;
 
-  const handleAddExercise = (exercise) => {
-    if (selectedExercises.some(e => e.id === exercise.id)) {
-      setSelectedExercises(selectedExercises.filter(e => e.id !== exercise.id));
-    } else {
-      setSelectedExercises([...selectedExercises, exercise]);
+  // Quando o selectedStudent mudar, carrega seus exercícios
+  useEffect(() => {
+    if (selectedStudent) {
+      const studentWorkout = workoutsByStudent[selectedStudent];
+      if (studentWorkout && studentWorkout.exercises && studentWorkout.exercises.length > 0) {
+        setStudentExercises(studentWorkout.exercises);
+        const splitsFound = Array.from(new Set(studentWorkout.exercises.map(e => e.split || 'A'))).sort();
+        if (splitsFound.length > 0) {
+          const mergedSplits = Array.from(new Set([...availableSplits, ...splitsFound])).sort();
+          setAvailableSplits(mergedSplits);
+          if (!mergedSplits.includes(prescribeSplit)) {
+            setPrescribeSplit(mergedSplits[0]);
+          }
+        }
+      } else {
+        setStudentExercises(DEFAULT_WORKOUTS);
+      }
     }
+  }, [selectedStudent, workoutsByStudent]);
+
+  // Se o professor abrir a aba de prescrição e nenhum aluno estiver selecionado, seleciona o primeiro
+  useEffect(() => {
+    if (activeTab === 'prescribe' && !selectedStudent && myStudents.length > 0) {
+      setSelectedStudent(myStudents[0].id);
+    }
+  }, [activeTab, selectedStudent, myStudents]);
+
+  const handleStartPrescription = (studentId) => {
+    setSelectedStudent(studentId);
+    setActiveTab('prescribe');
+    setViewingStudent(null);
   };
 
-  const handlePrescribe = (e) => {
+  // Adicionar exercício do catálogo ao split atual
+  const handleAddFromCatalog = (catalogItem) => {
+    const newEx = {
+      id: `ex_presc_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      split: prescribeSplit,
+      name: catalogItem.name,
+      category: catalogItem.category,
+      reps: catalogItem.reps,
+      load: catalogItem.load,
+      status: 'pendente',
+      video_oficial_url: catalogItem.video_oficial_url || '',
+      video_personalizado_url: ''
+    };
+    setStudentExercises(prev => [...prev, newEx]);
+    setSuccessMsg(`"${catalogItem.name}" adicionado ao Treino ${prescribeSplit}!`);
+    setTimeout(() => setSuccessMsg(''), 2500);
+  };
+
+  // Criar exercício personalizado livre
+  const handleAddCustomExercise = (e) => {
     e.preventDefault();
-    if (!selectedStudent || !workoutName || selectedExercises.length === 0) {
-      alert('Preencha todos os campos e selecione ao menos um exercício.');
+    if (!customExercise.name.trim()) {
+      alert('Por favor, informe o nome do exercício.');
       return;
     }
 
-    const studentName = myStudents.find(s => s.id === selectedStudent)?.name;
+    const formattedVideo = formatVideoEmbedUrl(customExercise.video_oficial_url);
+    const newEx = {
+      id: `ex_cust_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      split: prescribeSplit,
+      name: customExercise.name.trim(),
+      category: customExercise.category || 'Geral',
+      reps: customExercise.reps.trim() || '4x10-12',
+      load: customExercise.load.trim() || 'Carga Livre',
+      status: 'pendente',
+      video_oficial_url: formattedVideo,
+      video_personalizado_url: ''
+    };
 
-    setSuccessMsg(`Treino "${workoutName}" prescrito com sucesso para ${studentName}!`);
-    setTimeout(() => {
-      setSuccessMsg('');
-      setWorkoutName('');
-      setSelectedStudent('');
-      setSelectedExercises([]);
-    }, 4000);
+    setStudentExercises(prev => [...prev, newEx]);
+    setCustomExercise({
+      name: '',
+      category: customExercise.category,
+      reps: '4x10-12',
+      load: 'Carga Livre',
+      video_oficial_url: ''
+    });
+
+    setSuccessMsg(`Exercício personalizado "${newEx.name}" adicionado ao Treino ${prescribeSplit}!`);
+    setTimeout(() => setSuccessMsg(''), 2500);
   };
+
+  // Alterar campo de um exercício na lista
+  const handleUpdateExerciseField = (id, field, value) => {
+    setStudentExercises(prev => prev.map(ex => {
+      if (ex.id === id) {
+        let finalValue = value;
+        if (field === 'video_oficial_url') {
+          finalValue = formatVideoEmbedUrl(value);
+        }
+        return { ...ex, [field]: finalValue };
+      }
+      return ex;
+    }));
+  };
+
+  // Remover exercício
+  const handleRemoveExercise = (id) => {
+    setStudentExercises(prev => prev.filter(ex => ex.id !== id));
+  };
+
+  // Mover exercício para outro split
+  const handleMoveSplit = (id, targetSplit) => {
+    setStudentExercises(prev => prev.map(ex => ex.id === id ? { ...ex, split: targetSplit } : ex));
+  };
+
+  // Adicionar novo Split (ex: F, G)
+  const handleAddNewSplit = () => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const nextLetter = letters[availableSplits.length] || `Split ${availableSplits.length + 1}`;
+    if (!availableSplits.includes(nextLetter)) {
+      setAvailableSplits(prev => [...prev, nextLetter]);
+      setPrescribeSplit(nextLetter);
+    }
+  };
+
+  // Restaurar Treinos Padrão
+  const handleResetToDefault = () => {
+    if (confirm('Deseja restaurar a lista padrão de treinos para este aluno? As alterações não salvas serão substituídas.')) {
+      setStudentExercises(DEFAULT_WORKOUTS);
+      setAvailableSplits(['A', 'B', 'C', 'D', 'E']);
+      setPrescribeSplit('A');
+    }
+  };
+
+  // Limpar todos os exercícios
+  const handleClearAllExercises = () => {
+    if (confirm('Tem certeza de que deseja limpar todos os exercícios desta ficha? Você poderá adicionar novos.')) {
+      setStudentExercises([]);
+    }
+  };
+
+  // Confirmar e Publicar Treino
+  const handleConfirmWorkout = async () => {
+    if (!selectedStudent) {
+      alert('Selecione um aluno para salvar a prescrição.');
+      return;
+    }
+
+    if (studentExercises.length === 0) {
+      if (!confirm('A ficha está sem exercícios. Deseja salvar mesmo assim?')) {
+        return;
+      }
+    }
+
+    setIsSaving(true);
+    const targetStudentObj = myStudents.find(s => s.id === selectedStudent);
+    try {
+      const currentData = workoutsByStudent[selectedStudent] || {};
+      await updateWorkoutByProfessor(selectedStudent, {
+        ...currentData,
+        exercises: studentExercises,
+        isVip: true,
+        status: 'published'
+      });
+
+      setSuccessMsg(`Treino publicado com sucesso para ${targetStudentObj?.name || 'o aluno'} (${studentExercises.length} exercícios em ${availableSplits.length} divisões)!`);
+      setTimeout(() => setSuccessMsg(''), 4500);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar treino: ' + (err.message || 'Verifique a conexão'));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Filtragem da biblioteca
+  const filteredCatalog = EXERCISE_CATALOG.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchCatalog.toLowerCase()) || 
+                          item.category.toLowerCase().includes(searchCatalog.toLowerCase());
+    const matchesCat = selectedCategory === 'Todos' || item.category.toLowerCase().includes(selectedCategory.toLowerCase());
+    return matchesSearch && matchesCat;
+  });
+
+  // Exercícios do split selecionado na tela de prescrição
+  const splitExercises = studentExercises.filter(ex => (ex.split || 'A') === prescribeSplit);
   const handleCreatePlan = async (e) => {
     e.preventDefault();
     const planId = 'cp_' + Date.now();
@@ -208,12 +386,6 @@ const Professor = () => {
       updateUser(id, { password: newPass });
       alert('Senha resetada com sucesso!');
     }
-  };
-
-  const handleStartPrescription = (studentId) => {
-    setSelectedStudent(studentId);
-    setWorkoutName('Treino Prescrito Personalizado');
-    setActiveTab('prescribe');
   };
 
   return (
@@ -490,9 +662,9 @@ const Professor = () => {
                                 </button>
                                 {isDirectStudent && (
                                   <button 
-                                    onClick={() => handleDeleteStudent(student.id)} 
-                                    style={{ ...styles.iconBtn, color: 'var(--status-danger)' }} 
-                                    title="Excluir Aluno"
+                                    onClick={() => { setViewingStudent(student); setShowMedidas(false); }}
+                                    style={{ ...styles.iconBtn, color: 'var(--primary)' }}
+                                    title="Ver CRM do Aluno"
                                   >
                                     <Trash2 size={13} />
                                   </button>
@@ -509,85 +681,194 @@ const Professor = () => {
             </div>
           )}
 
-          {/* Modal Cartão do Aluno */}
+          {/* Modal Cartão do Aluno Completo */}
           {viewingStudent && (
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '500px', border: '1px solid var(--border-color)', position: 'relative' }}>
-                <button onClick={() => setViewingStudent(null)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px' }}>X</button>
-                <h3 style={{ marginTop: 0, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <User size={20} color="var(--primary-color)" /> Cartão do Aluno
-                </h3>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', marginTop: '20px' }}>
-                   <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>
-                     {viewingStudent.name.charAt(0).toUpperCase()}
-                   </div>
-                   <div>
-                     <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.2rem' }}>{viewingStudent.name}</h4>
-                     <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>{viewingStudent.email}</p>
-                   </div>
-                </div>
-                
-                <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                  <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>Plano Atual: <strong style={{ color: 'var(--accent-primary)' }}>{viewingStudent.plano || 'Nenhum'}</strong></p>
-                  <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>Status Pagamento: <strong style={{ color: viewingStudent.pagamentoStatus === 'Pago' ? '#22c55e' : '#ef4444' }}>{viewingStudent.pagamentoStatus || 'Pendente'}</strong></p>
-                  <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Cadastro em: <strong>{viewingStudent.data_cadastro ? new Date(viewingStudent.data_cadastro).toLocaleDateString() : 'N/I'}</strong></p>
+            <div style={styles.modalOverlay}>
+              <div style={styles.modalContent}>
+                <button onClick={() => setViewingStudent(null)} style={styles.modalCloseBtn}>
+                  <X size={20} />
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+                  <div style={styles.avatarLarge}>
+                    {(viewingStudent.name || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.3rem' }}>
+                      {viewingStudent.name || 'Sem Nome'}
+                    </h3>
+                    <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                      {viewingStudent.email} • {viewingStudent.plano || 'Plano Básico'}
+                    </p>
+                  </div>
                 </div>
 
-                {(() => {
-                    const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
-                    const latestEval = allEvals.sort((a, b) => {
-                      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-                      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-                      return dateB - dateA;
-                    }).find(e => e.userId === viewingStudent?.id || e.student_id === viewingStudent?.id);
-                    const studentEval = latestEval?.formData;
-                    if (!studentEval) return (
-                      <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        Nenhuma Avaliação Física enviada ainda.
-                      </div>
-                    );
+                {/* Sub-abas do Cartão */}
+                <div style={styles.crmTabsRow}>
+                  <button 
+                    onClick={() => setCrmTab('geral')}
+                    style={{ ...styles.crmTabBtn, ...(crmTab === 'geral' ? styles.crmTabBtnActive : {}) }}
+                  >
+                    Contato & Financeiro
+                  </button>
+                  <button 
+                    onClick={() => setCrmTab('medidas')}
+                    style={{ ...styles.crmTabBtn, ...(crmTab === 'medidas' ? styles.crmTabBtnActive : {}) }}
+                  >
+                    Avaliação Física
+                  </button>
+                  <button 
+                    onClick={() => setCrmTab('treinos')}
+                    style={{ ...styles.crmTabBtn, ...(crmTab === 'treinos' ? styles.crmTabBtnActive : {}) }}
+                  >
+                    Ficha de Treinos
+                  </button>
+                </div>
 
-                    return (
-                      <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px', maxHeight: '200px', overflowY: 'auto' }}>
-                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Perfil Completo</h4>
-                        
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
-                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Sexo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.sexoBiologico || '-'}</strong></p>
-                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Idade: <strong style={{color: 'var(--text-primary)'}}>{studentEval.idade || '-'} anos</strong></p>
-                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Peso: <strong style={{color: 'var(--text-primary)'}}>{studentEval.peso || '-'} kg</strong></p>
-                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Altura: <strong style={{color: 'var(--text-primary)'}}>{studentEval.altura || '-'} cm</strong></p>
-                        </div>
-                        
-                        <div style={{ marginBottom: '15px' }}>
-                          <h5 style={{ margin: '0 0 5px 0', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>Objetivos e Rotina</h5>
-                          <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Objetivo: <strong style={{color: 'var(--text-primary)'}}>{studentEval.objetivo || '-'}</strong></p>
-                          <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Frequência: <strong style={{color: 'var(--text-primary)'}}>{studentEval.frequenciaSemanal || '-'} dias/semana</strong></p>
-                          <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Tempo/Sessão: <strong style={{color: 'var(--text-primary)'}}>{studentEval.tempoSessao || '-'} min</strong></p>
-                          <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Nível de Ativ.: <strong style={{color: 'var(--text-primary)'}}>{studentEval.nivelAtividade || '-'}</strong></p>
-                        </div>
+                {/* Conteúdo: Geral */}
+                {crmTab === 'geral' && (
+                  <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                    <div style={styles.crmBox}>
+                      <h4 style={styles.crmBoxTitle}>Contato e Endereço</h4>
+                      <p style={styles.crmText}>Telefone: <strong>{viewingStudent.telefone || 'Não informado'}</strong></p>
+                      <p style={styles.crmText}>Endereço: <strong>{viewingStudent.endereco || 'Não informado'}</strong></p>
+                      <p style={styles.crmText}>Plano: <strong style={{ color: 'var(--accent-primary)' }}>{viewingStudent.plano || 'Nenhum'}</strong></p>
+                      <p style={styles.crmText}>Cadastro: <strong>{viewingStudent.data_cadastro ? new Date(viewingStudent.data_cadastro).toLocaleDateString('pt-BR') : 'N/I'}</strong></p>
+                    </div>
 
-                        {studentEval.lesoes && (
-                          <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginBottom: '10px' }}>
-                            <p style={{ margin: 0, color: '#ef4444', fontSize: '0.85rem' }}><strong>⚠️ Histórico/Lesões:</strong> {studentEval.lesoes}</p>
+                    <div style={styles.crmBox}>
+                      <h4 style={styles.crmBoxTitle}>
+                        Histórico Financeiro (Venc. Dia {viewingStudent.dia_vencimento || '?'})
+                      </h4>
+                      {!viewingStudent.historico_pagamentos || viewingStudent.historico_pagamentos.length === 0 ? (
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>Nenhum histórico financeiro gerado.</p>
+                      ) : (
+                        <div style={{ maxHeight: '140px', overflowY: 'auto' }}>
+                          {viewingStudent.historico_pagamentos.map(parcela => (
+                            <div key={parcela.id} style={styles.paymentRow}>
+                              <div>
+                                <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{parcela.mes}</span>
+                                <span style={{ marginLeft: '8px', fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', background: parcela.status === 'Pago' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: parcela.status === 'Pago' ? '#22c55e' : '#ef4444' }}>
+                                  {parcela.status}
+                                </span>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  const novoStatus = parcela.status === 'Pago' ? 'Pendente' : 'Pago';
+                                  const novoHistorico = viewingStudent.historico_pagamentos.map(p => p.id === parcela.id ? { ...p, status: novoStatus } : p);
+                                  updateUser(viewingStudent.id, { historico_pagamentos: novoHistorico });
+                                  setViewingStudent({ ...viewingStudent, historico_pagamentos: novoHistorico });
+                                }}
+                                style={styles.paymentToggleBtn}
+                              >
+                                Marcar como {parcela.status === 'Pago' ? 'Pendente' : 'Pago'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Conteúdo: Medidas */}
+                {crmTab === 'medidas' && (
+                  <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                    {(() => {
+                      const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
+                      const latestEval = allEvals.sort((a, b) => {
+                        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                        return dateB - dateA;
+                      }).find(e => e.userId === viewingStudent?.id || e.student_id === viewingStudent?.id);
+                      const studentEval = latestEval?.formData;
+
+                      if (!studentEval) {
+                        return (
+                          <div style={styles.emptyBox}>
+                            <p>Nenhuma Avaliação Física enviada por este aluno ainda.</p>
                           </div>
-                        )}
-                        {studentEval.observacoes && (
-                          <div style={{ padding: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px' }}>
-                            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}><strong>💡 Observações:</strong> {studentEval.observacoes}</p>
+                        );
+                      }
+
+                      return (
+                        <div style={styles.crmBox}>
+                          <h4 style={styles.crmBoxTitle}>Perfil Fisiológico</h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                            <p style={styles.crmText}>Sexo: <strong>{studentEval.sexoBiologico || '-'}</strong></p>
+                            <p style={styles.crmText}>Idade: <strong>{studentEval.idade || '-'} anos</strong></p>
+                            <p style={styles.crmText}>Peso: <strong>{studentEval.peso || '-'} kg</strong></p>
+                            <p style={styles.crmText}>Altura: <strong>{studentEval.altura || '-'} cm</strong></p>
                           </div>
-                        )}
-                      </div>
-                    );
-                 })()}
-                
-                <div style={{ display: 'flex', gap: '10px' }}>
-                   <button onClick={() => { setViewingStudent(null); loginAsUser(viewingStudent); }} style={{ ...styles.saveBtn, flex: 1, padding: '12px' }} className="btn-primary">
-                     <Activity size={16} /> Ver Avaliação
-                   </button>
-                   <button onClick={() => { setViewingStudent(null); handleStartPrescription(viewingStudent.id); }} style={{ ...styles.saveBtn, flex: 1, background: '#a78bfa', padding: '12px' }} className="btn-primary">
-                     <Brain size={16} /> Prescrever
-                   </button>
+                          <h5 style={{ margin: '8px 0 4px 0', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>Objetivos e Rotina</h5>
+                          <p style={styles.crmText}>Objetivo: <strong>{studentEval.objetivo || '-'}</strong></p>
+                          <p style={styles.crmText}>Frequência: <strong>{studentEval.frequenciaSemanal || '-'} dias/sem</strong></p>
+                          <p style={styles.crmText}>Tempo/Sessão: <strong>{studentEval.tempoSessao || '-'} min</strong></p>
+                          {studentEval.lesoes && (
+                            <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginTop: '8px' }}>
+                              <p style={{ margin: 0, color: '#ef4444', fontSize: '0.8rem' }}><strong>⚠️ Histórico/Lesões:</strong> {studentEval.lesoes}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* Conteúdo: Treinos */}
+                {crmTab === 'treinos' && (
+                  <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                    {(() => {
+                      const studentWorkout = workoutsByStudent[viewingStudent.id] || { exercises: DEFAULT_WORKOUTS };
+                      const exList = studentWorkout.exercises || DEFAULT_WORKOUTS;
+                      return (
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                              Total de Exercícios: <strong>{exList.length}</strong>
+                            </span>
+                            <button 
+                              onClick={() => handleStartPrescription(viewingStudent.id)}
+                              style={{ ...styles.actionBtn, background: 'var(--primary)', color: '#fff' }}
+                            >
+                              <Edit2 size={13} style={{ marginRight: '4px' }} /> Editar no Studio
+                            </button>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {exList.map((ex, idx) => (
+                              <div key={ex.id || idx} style={styles.crmExerciseItem}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                                    {ex.name}
+                                  </span>
+                                  <span style={styles.splitTag}>Treino {ex.split || 'A'}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                  <span>{ex.category} • {ex.reps} • {ex.load}</span>
+                                  {ex.video_oficial_url && (
+                                    <button 
+                                      onClick={() => setPreviewVideoUrl(ex.video_oficial_url)}
+                                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', padding: 0 }}
+                                    >
+                                      <Play size={12} /> Ver Vídeo
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                  <button onClick={() => { setViewingStudent(null); loginAsUser(viewingStudent); }} style={{ ...styles.saveBtn, flex: 1, padding: '10px' }} className="btn-primary">
+                    <Activity size={15} /> Ver no Perfil Aluno
+                  </button>
+                  <button onClick={() => handleStartPrescription(viewingStudent.id)} style={{ ...styles.saveBtn, flex: 1, background: '#a78bfa', padding: '10px' }} className="btn-primary">
+                    <Dumbbell size={15} /> Abrir Studio de Prescrição
+                  </button>
                 </div>
               </div>
             </div>
@@ -595,6 +876,424 @@ const Professor = () => {
         </div>
       )}
 
+      {/* CONTEÚDO DA ABA DE PRESCREVER TREINOS (STUDIO COMPLETO) */}
+      {activeTab === 'prescribe' && (
+        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
+          {/* Barra Superior de Seleção de Aluno e Ações Globais */}
+          <div style={styles.studioHeaderCard} className="glass">
+            <div style={styles.studioHeaderTop}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '280px' }}>
+                <Dumbbell size={28} color="var(--primary)" />
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                    SELECIONE O ALUNO PARA PRESCRIÇÃO:
+                  </label>
+                  <select
+                    value={selectedStudent}
+                    onChange={(e) => setSelectedStudent(e.target.value)}
+                    style={styles.studioSelect}
+                  >
+                    <option value="">Selecione um aluno...</option>
+                    {myStudents.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.email}) {s.plano ? `• Plano ${s.plano}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Botões de Ação Rápida e Publicar */}
+              <div style={styles.studioActionButtonsRow}>
+                <button 
+                  onClick={handleResetToDefault}
+                  style={styles.actionBtnOutline}
+                  title="Restaurar ficha padrão ABCDE com 10 exercícios completos"
+                >
+                  <RefreshCw size={14} /> Padrão ABCDE
+                </button>
+                <button 
+                  onClick={handleClearAllExercises}
+                  style={{ ...styles.actionBtnOutline, color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                  title="Limpar todos os exercícios deste treino"
+                >
+                  <Trash2 size={14} /> Limpar Ficha
+                </button>
+                <button 
+                  onClick={handleConfirmWorkout}
+                  disabled={isSaving}
+                  style={styles.studioPublishBtn}
+                  className="btn-primary"
+                >
+                  <Save size={18} />
+                  {isSaving ? 'Gravando...' : `Confirmar & Publicar Treino (${studentExercises.length})`}
+                </button>
+              </div>
+            </div>
+
+            {/* Abas de Splits (Treino A, Treino B, Treino C...) */}
+            <div style={styles.splitsTabBar}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 'bold', marginRight: '6px' }}>
+                  DIVISÕES:
+                </span>
+                {availableSplits.map(splitLetter => {
+                  const count = studentExercises.filter(e => (e.split || 'A') === splitLetter).length;
+                  const isActive = prescribeSplit === splitLetter;
+                  return (
+                    <button
+                      key={splitLetter}
+                      onClick={() => setPrescribeSplit(splitLetter)}
+                      style={{
+                        ...styles.splitTabButton,
+                        ...(isActive ? styles.splitTabButtonActive : {})
+                      }}
+                    >
+                      <span>Treino {splitLetter}</span>
+                      <span style={{
+                        ...styles.splitCountPill,
+                        backgroundColor: isActive ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                        color: isActive ? '#fff' : 'var(--text-secondary)'
+                      }}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+                <button 
+                  onClick={handleAddNewSplit}
+                  style={styles.addSplitBtn}
+                  title="Adicionar mais uma divisão de treino (Split)"
+                >
+                  <Plus size={14} /> Novo Split
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Grid Principal: Esquerda = Exercícios do Treino Atual | Direita = Biblioteca & Criação Livre */}
+          <div style={styles.studioGrid}>
+            
+            {/* COLUNA DA ESQUERDA: EXERCÍCIOS DO SPLIT ATIVO */}
+            <div style={styles.studioColumnLeft} className="glass">
+              <div style={styles.columnHeader}>
+                <div>
+                  <h3 style={styles.columnTitle}>
+                    Exercícios do Treino {prescribeSplit}
+                  </h3>
+                  <p style={styles.columnSubtitle}>
+                    {splitExercises.length} exercício(s) configurados nesta divisão.
+                  </p>
+                </div>
+                <span style={styles.splitBigBadge}>
+                  Divisão {prescribeSplit}
+                </span>
+              </div>
+
+              {splitExercises.length === 0 ? (
+                <div style={styles.emptySplitBox}>
+                  <Dumbbell size={40} style={{ color: 'var(--text-muted)', marginBottom: '12px' }} />
+                  <p style={{ fontWeight: 'bold', margin: '0 0 6px 0', color: 'var(--text-primary)' }}>
+                    Nenhum exercício no Treino {prescribeSplit} ainda.
+                  </p>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center', maxWidth: '300px' }}>
+                    Escolha exercícios na biblioteca ao lado ou crie um exercício personalizado com o vídeo de sua preferência!
+                  </span>
+                </div>
+              ) : (
+                <div style={styles.exercisesVerticalList}>
+                  {splitExercises.map((ex, index) => (
+                    <div key={ex.id || index} style={styles.exerciseCardItem}>
+                      <div style={styles.exerciseCardTop}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                          <span style={styles.exerciseIndexPill}>{index + 1}</span>
+                          <input 
+                            type="text"
+                            value={ex.name}
+                            onChange={(e) => handleUpdateExerciseField(ex.id, 'name', e.target.value)}
+                            style={styles.exerciseNameInput}
+                            placeholder="Nome do exercício"
+                          />
+                        </div>
+                        <span style={styles.exerciseCategoryBadge}>
+                          {ex.category || 'Geral'}
+                        </span>
+                      </div>
+
+                      {/* Linha de Metas: Séries/Reps e Carga */}
+                      <div style={styles.exerciseMetaRow}>
+                        <div style={{ flex: 1, minWidth: '120px' }}>
+                          <label style={styles.microLabel}>Séries & Reps:</label>
+                          <input 
+                            type="text"
+                            value={ex.reps || ''}
+                            onChange={(e) => handleUpdateExerciseField(ex.id, 'reps', e.target.value)}
+                            style={styles.metaInput}
+                            placeholder="Ex: 4x10-12"
+                          />
+                        </div>
+                        <div style={{ flex: 1, minWidth: '120px' }}>
+                          <label style={styles.microLabel}>Carga Sugerida:</label>
+                          <input 
+                            type="text"
+                            value={ex.load || ''}
+                            onChange={(e) => handleUpdateExerciseField(ex.id, 'load', e.target.value)}
+                            style={styles.metaInput}
+                            placeholder="Ex: 20kg cada lado"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Linha do Vídeo Oficial Recomendado pelo Professor */}
+                      <div style={styles.videoConfigRow}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={styles.microLabel}>
+                            <Video size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                            Vídeo Recomendado (YouTube ou Gravação do Professor):
+                          </label>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <input 
+                              type="text"
+                              value={ex.video_oficial_url || ''}
+                              onChange={(e) => handleUpdateExerciseField(ex.id, 'video_oficial_url', e.target.value)}
+                              style={{ ...styles.metaInput, flex: 1, fontSize: '0.8rem' }}
+                              placeholder="Cole o link do vídeo do YouTube ou Shorts"
+                            />
+                            {ex.video_oficial_url && (
+                              <button 
+                                type="button"
+                                onClick={() => setPreviewVideoUrl(ex.video_oficial_url)}
+                                style={styles.previewPlayBtn}
+                                title="Testar e reproduzir vídeo"
+                              >
+                                <Play size={14} /> Ver
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Linha de Ações: Mover de Split ou Excluir */}
+                      <div style={styles.exerciseCardBottom}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Mover:</span>
+                          {availableSplits.filter(s => s !== prescribeSplit).map(targetSplit => (
+                            <button
+                              key={targetSplit}
+                              type="button"
+                              onClick={() => handleMoveSplit(ex.id, targetSplit)}
+                              style={styles.moveSplitPill}
+                              title={`Mover para Treino ${targetSplit}`}
+                            >
+                              {targetSplit}
+                            </button>
+                          ))}
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => handleRemoveExercise(ex.id)}
+                          style={styles.deleteExBtn}
+                          title="Remover exercício da ficha"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* COLUNA DA DIREITA: BIBLIOTECA & CRIAÇÃO LIVRE */}
+            <div style={styles.studioColumnRight}>
+              
+              {/* Card 1: Criar Exercício Personalizado Livre */}
+              <div style={styles.studioCardRight} className="glass">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                  <Sparkles size={18} color="var(--accent-primary)" />
+                  <h3 style={styles.columnTitleSmall}>
+                    Criar Exercício Personalizado / Livre
+                  </h3>
+                </div>
+                <form onSubmit={handleAddCustomExercise} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div>
+                    <label style={styles.microLabel}>Nome do Exercício:</label>
+                    <input 
+                      type="text"
+                      required
+                      placeholder="Ex: Agachamento Búlgaro com Halteres"
+                      value={customExercise.name}
+                      onChange={(e) => setCustomExercise(prev => ({ ...prev, name: e.target.value }))}
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div>
+                      <label style={styles.microLabel}>Grupo Muscular:</label>
+                      <select 
+                        value={customExercise.category}
+                        onChange={(e) => setCustomExercise(prev => ({ ...prev, category: e.target.value }))}
+                        style={styles.select}
+                      >
+                        {EXERCISE_CATEGORIES.filter(c => c !== 'Todos').map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={styles.microLabel}>Séries & Reps:</label>
+                      <input 
+                        type="text"
+                        placeholder="Ex: 4x10-12"
+                        value={customExercise.reps}
+                        onChange={(e) => setCustomExercise(prev => ({ ...prev, reps: e.target.value }))}
+                        style={styles.input}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div>
+                      <label style={styles.microLabel}>Carga Inicial:</label>
+                      <input 
+                        type="text"
+                        placeholder="Ex: 14kg cada halter"
+                        value={customExercise.load}
+                        onChange={(e) => setCustomExercise(prev => ({ ...prev, load: e.target.value }))}
+                        style={styles.input}
+                      />
+                    </div>
+                    <div>
+                      <label style={styles.microLabel}>Vídeo YouTube (Opcional):</label>
+                      <input 
+                        type="text"
+                        placeholder="Link do YouTube / Shorts"
+                        value={customExercise.video_oficial_url}
+                        onChange={(e) => setCustomExercise(prev => ({ ...prev, video_oficial_url: e.target.value }))}
+                        style={styles.input}
+                      />
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    style={styles.addCustomBtn}
+                    className="btn-primary"
+                  >
+                    <Plus size={16} /> Adicionar ao Treino {prescribeSplit}
+                  </button>
+                </form>
+              </div>
+
+              {/* Card 2: Biblioteca Completa Fit Seven */}
+              <div style={styles.studioCardRight} className="glass">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Layers size={18} color="var(--primary)" />
+                    <h3 style={styles.columnTitleSmall}>
+                      Biblioteca de Exercícios ({filteredCatalog.length})
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Barra de Busca e Filtros de Categoria */}
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={styles.searchBox}>
+                    <Search size={16} color="var(--text-secondary)" />
+                    <input 
+                      type="text"
+                      value={searchCatalog}
+                      onChange={(e) => setSearchCatalog(e.target.value)}
+                      placeholder="Buscar por nome ou músculo..."
+                      style={styles.searchInput}
+                    />
+                    {searchCatalog && (
+                      <button onClick={() => setSearchCatalog('')} style={styles.clearSearchBtn}>
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={styles.categoryPillsScroll}>
+                    {EXERCISE_CATEGORIES.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        style={{
+                          ...styles.categoryFilterPill,
+                          ...(selectedCategory === cat ? styles.categoryFilterPillActive : {})
+                        }}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Lista de Cards da Biblioteca */}
+                <div style={styles.catalogScrollList}>
+                  {filteredCatalog.length === 0 ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Nenhum exercício encontrado com os filtros atuais.
+                    </div>
+                  ) : (
+                    filteredCatalog.map(item => {
+                      const alreadyInSplit = splitExercises.some(e => e.name.toLowerCase() === item.name.toLowerCase());
+                      return (
+                        <div key={item.id} style={styles.catalogItemCard}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                                {item.name}
+                              </strong>
+                              {alreadyInSplit && (
+                                <span style={styles.alreadyInSplitBadge}>
+                                  <Check size={10} /> No Treino {prescribeSplit}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                              <span>{item.category}</span>
+                              <span>•</span>
+                              <span>{item.reps}</span>
+                              <span>•</span>
+                              <span>{item.load}</span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {item.video_oficial_url && (
+                              <button 
+                                type="button"
+                                onClick={() => setPreviewVideoUrl(item.video_oficial_url)}
+                                style={styles.catalogVideoBtn}
+                                title="Assistir vídeo de execução"
+                              >
+                                <Play size={12} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleAddFromCatalog(item)}
+                              style={styles.catalogAddBtn}
+                              title={`Adicionar ao Treino ${prescribeSplit}`}
+                            >
+                              <Plus size={14} /> Treino {prescribeSplit}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CONTEÚDO DA ABA FINANCEIRA */}
       {activeTab === 'financeiro' && (
@@ -721,100 +1420,6 @@ const Professor = () => {
         </div>
       )}
 
-      {/* CONTEÚDO DA ABA DE PRESCREVER TREINOS */}
-      {activeTab === 'prescribe' && (
-        <div style={styles.grid}>
-          {/* Formulário de Prescrição */}
-          <div style={styles.formCard} className="glass animate-fade-in">
-            <h3 style={styles.sectionTitle}>Prescrever Novo Treino</h3>
-            <form onSubmit={handlePrescribe} style={styles.form}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Selecionar Aluno:</label>
-                <select
-                  value={selectedStudent}
-                  onChange={(e) => setSelectedStudent(e.target.value)}
-                  style={styles.select}
-                  required
-                >
-                  <option value="">Selecione o Aluno...</option>
-                  {myStudents.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Nome do Treino:</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Treino A - Hipertrofia Peitoral"
-                  value={workoutName}
-                  onChange={(e) => setWorkoutName(e.target.value)}
-                  style={styles.input}
-                  required
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Exercícios Selecionados ({selectedExercises.length}):</label>
-                {selectedExercises.length === 0 ? (
-                  <p style={styles.hint}>Selecione exercícios na lista ao lado.</p>
-                ) : (
-                  <div style={styles.badgeContainer}>
-                    {selectedExercises.map(e => (
-                      <span key={e.id} style={styles.exerciseBadge}>
-                        {e.name} ({e.reps})
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <button type="submit" style={styles.submitBtn} className="btn-primary">
-                Gravar Treino com tenant_id
-              </button>
-            </form>
-          </div>
-
-          {/* Lista de Exercícios Disponíveis */}
-          <div style={styles.listCard} className="glass animate-fade-in">
-            <h3 style={styles.sectionTitle}>Biblioteca de Exercícios</h3>
-            <p style={styles.listSubtitle}>Selecione os exercícios para incluir no treino:</p>
-            <div style={styles.exerciseList}>
-              {INITIAL_EXERCISES.map(e => {
-                const isSelected = selectedExercises.some(se => se.id === e.id);
-                return (
-                  <div 
-                    key={e.id} 
-                    onClick={() => handleAddExercise(e)}
-                    style={{
-                      ...styles.exerciseItem,
-                      ...(isSelected ? styles.exerciseItemSelected : {})
-                    }}
-                  >
-                    <div style={styles.exerciseDetails}>
-                      <span style={styles.exerciseName}>{e.name}</span>
-                      <span style={styles.exerciseCat}>{e.category}</span>
-                    </div>
-                    <div style={styles.exerciseMeta}>
-                      <span style={styles.repsText}>{e.reps}</span>
-                      <PlusCircle 
-                        size={20} 
-                        style={{ 
-                          color: isSelected ? 'var(--primary)' : 'var(--text-muted)',
-                          transform: isSelected ? 'rotate(45deg)' : 'none',
-                          transition: 'all var(--transition-fast)'
-                        }} 
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* CONTEÚDO DA ABA DE REVISÃO IA */}
       {activeTab === 'revisao' && (
         <div className="animate-fade-in">
@@ -916,6 +1521,33 @@ const Professor = () => {
           )}
         </div>
       )}
+
+      {/* Modal de Preview de Vídeo */}
+      {previewVideoUrl && (
+        <div style={styles.modalOverlay} onClick={() => setPreviewVideoUrl(null)}>
+          <div style={styles.videoModalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h4 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Video size={18} color="var(--primary)" /> Demonstração da Execução
+              </h4>
+              <button onClick={() => setPreviewVideoUrl(null)} style={styles.modalCloseBtn}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={styles.videoWrapper}>
+              <iframe
+                src={previewVideoUrl}
+                title="Preview do Exercício"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{ width: '100%', height: '100%', borderRadius: '8px' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
@@ -984,7 +1616,8 @@ const styles = {
     display: 'flex',
     gap: '10px',
     borderBottom: '1px solid var(--border-color)',
-    paddingBottom: '8px'
+    paddingBottom: '8px',
+    overflowX: 'auto'
   },
   tabButton: {
     display: 'inline-flex',
@@ -998,7 +1631,8 @@ const styles = {
     cursor: 'pointer',
     fontSize: '0.9rem',
     borderBottom: '2px solid transparent',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap'
   },
   tabButtonActive: {
     color: 'var(--primary)',
@@ -1015,10 +1649,407 @@ const styles = {
     fontWeight: '600',
     border: '1px solid rgba(16, 185, 129, 0.2)',
   },
-  grid: {
+  // Studio Prescrição Styles
+  studioHeaderCard: {
+    padding: '20px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-color)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px'
+  },
+  studioHeaderTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '16px'
+  },
+  studioSelect: {
+    width: '100%',
+    padding: '10px 14px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-primary)',
+    color: 'var(--text-primary)',
+    fontSize: '0.95rem',
+    fontWeight: '600',
+    outline: 'none'
+  },
+  studioActionButtonsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    flexWrap: 'wrap'
+  },
+  actionBtnOutline: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '10px 14px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-secondary)',
+    color: 'var(--text-secondary)',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  studioPublishBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '12px 24px',
+    fontSize: '0.95rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)'
+  },
+  splitsTabBar: {
+    borderTop: '1px solid var(--border-color)',
+    paddingTop: '12px'
+  },
+  splitTabButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 16px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-tertiary)',
+    color: 'var(--text-secondary)',
+    fontWeight: '700',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap'
+  },
+  splitTabButtonActive: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderColor: 'var(--primary)',
+    color: 'var(--primary)'
+  },
+  splitCountPill: {
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    padding: '2px 6px',
+    borderRadius: '10px'
+  },
+  addSplitBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '8px 12px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px dashed var(--border-color)',
+    backgroundColor: 'transparent',
+    color: 'var(--text-muted)',
+    fontSize: '0.8rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap'
+  },
+  studioGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gridTemplateColumns: 'minmax(340px, 1.2fr) minmax(320px, 1fr)',
     gap: '24px',
+    alignItems: 'start'
+  },
+  studioColumnLeft: {
+    padding: '24px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-color)',
+    minHeight: '400px'
+  },
+  columnHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+    borderBottom: '1px solid var(--border-color)',
+    paddingBottom: '12px'
+  },
+  columnTitle: {
+    fontSize: '1.25rem',
+    fontWeight: '800',
+    margin: 0,
+    color: 'var(--text-primary)'
+  },
+  columnSubtitle: {
+    fontSize: '0.85rem',
+    color: 'var(--text-secondary)',
+    margin: '4px 0 0 0'
+  },
+  splitBigBadge: {
+    fontSize: '0.85rem',
+    fontWeight: 'bold',
+    backgroundColor: 'var(--primary)',
+    color: '#fff',
+    padding: '4px 12px',
+    borderRadius: 'var(--radius-full)'
+  },
+  emptySplitBox: {
+    padding: '40px 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'var(--bg-secondary)',
+    borderRadius: 'var(--radius-md)',
+    border: '1px dashed var(--border-color)'
+  },
+  exercisesVerticalList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '14px'
+  },
+  exerciseCardItem: {
+    padding: '16px',
+    borderRadius: 'var(--radius-md)',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-color)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    transition: 'all 0.2s'
+  },
+  exerciseCardTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '10px'
+  },
+  exerciseIndexPill: {
+    width: '24px',
+    height: '24px',
+    borderRadius: '50%',
+    backgroundColor: 'var(--primary)',
+    color: '#fff',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  exerciseNameInput: {
+    flex: 1,
+    fontWeight: '700',
+    fontSize: '0.95rem',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderBottom: '1px dashed rgba(255,255,255,0.2)',
+    color: 'var(--text-primary)',
+    padding: '4px 0',
+    outline: 'none'
+  },
+  exerciseCategoryBadge: {
+    fontSize: '0.75rem',
+    padding: '2px 8px',
+    borderRadius: '4px',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    color: '#3b82f6',
+    fontWeight: '600'
+  },
+  exerciseMetaRow: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap'
+  },
+  microLabel: {
+    fontSize: '0.75rem',
+    color: 'var(--text-secondary)',
+    fontWeight: '600',
+    marginBottom: '3px',
+    display: 'block'
+  },
+  metaInput: {
+    width: '100%',
+    padding: '6px 10px',
+    borderRadius: '6px',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-primary)',
+    color: 'var(--text-primary)',
+    fontSize: '0.85rem',
+    outline: 'none'
+  },
+  videoConfigRow: {
+    padding: '8px 10px',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: '6px',
+    border: '1px solid rgba(255,255,255,0.05)'
+  },
+  previewPlayBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '6px 10px',
+    borderRadius: '6px',
+    border: 'none',
+    backgroundColor: '#ef4444',
+    color: '#fff',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    cursor: 'pointer'
+  },
+  exerciseCardBottom: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTop: '1px solid rgba(255,255,255,0.05)',
+    paddingTop: '8px'
+  },
+  moveSplitPill: {
+    padding: '2px 8px',
+    borderRadius: '4px',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-primary)',
+    color: 'var(--text-secondary)',
+    fontSize: '0.7rem',
+    fontWeight: 'bold',
+    cursor: 'pointer'
+  },
+  deleteExBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#ef4444',
+    cursor: 'pointer',
+    padding: '4px',
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  studioColumnRight: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px'
+  },
+  studioCardRight: {
+    padding: '20px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-color)'
+  },
+  columnTitleSmall: {
+    fontSize: '1.05rem',
+    fontWeight: '700',
+    margin: 0,
+    color: 'var(--text-primary)'
+  },
+  addCustomBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    padding: '10px',
+    fontSize: '0.85rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    marginTop: '6px'
+  },
+  searchBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-primary)',
+    marginBottom: '8px'
+  },
+  searchInput: {
+    flex: 1,
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-primary)',
+    fontSize: '0.85rem',
+    outline: 'none'
+  },
+  clearSearchBtn: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-muted)',
+    cursor: 'pointer'
+  },
+  categoryPillsScroll: {
+    display: 'flex',
+    gap: '6px',
+    overflowX: 'auto',
+    paddingBottom: '6px'
+  },
+  categoryFilterPill: {
+    padding: '4px 10px',
+    borderRadius: 'var(--radius-full)',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-tertiary)',
+    color: 'var(--text-secondary)',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap'
+  },
+  categoryFilterPillActive: {
+    backgroundColor: 'var(--primary)',
+    borderColor: 'var(--primary)',
+    color: '#fff'
+  },
+  catalogScrollList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    maxHeight: '380px',
+    overflowY: 'auto'
+  },
+  catalogItemCard: {
+    padding: '10px 12px',
+    borderRadius: 'var(--radius-md)',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-color)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '10px'
+  },
+  alreadyInSplitBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '2px',
+    fontSize: '0.65rem',
+    padding: '1px 5px',
+    borderRadius: '4px',
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    color: '#22c55e',
+    fontWeight: 'bold'
+  },
+  catalogVideoBtn: {
+    padding: '6px',
+    borderRadius: '6px',
+    border: 'none',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    color: '#ef4444',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  catalogAddBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '6px 10px',
+    borderRadius: '6px',
+    border: '1px solid var(--primary)',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    color: 'var(--primary)',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    cursor: 'pointer'
+  },
+  // Alunos e CRM Modals
+  card: {
+    padding: '24px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-color)',
   },
   formCard: {
     padding: '24px',
@@ -1034,34 +2065,21 @@ const styles = {
     fontSize: '1.2rem',
     fontWeight: '700',
   },
-  listSubtitle: {
-    fontSize: '0.85rem',
-    color: 'var(--text-secondary)',
-    marginBottom: '16px',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px',
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '16px',
+    marginBottom: '20px'
   },
   formGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px',
+    gap: '6px',
   },
   label: {
     fontSize: '0.85rem',
     fontWeight: '600',
     color: 'var(--text-secondary)',
-  },
-  select: {
-    padding: '10px 14px',
-    borderRadius: 'var(--radius-md)',
-    border: '1px solid var(--border-color)',
-    backgroundColor: 'var(--bg-tertiary)',
-    color: 'var(--text-primary)',
-    fontSize: '0.95rem',
-    outline: 'none',
   },
   input: {
     padding: '10px 14px',
@@ -1072,73 +2090,31 @@ const styles = {
     fontSize: '0.95rem',
     outline: 'none',
   },
-  hint: {
-    fontSize: '0.85rem',
-    color: 'var(--text-muted)',
-    fontStyle: 'italic',
-  },
-  badgeContainer: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px',
-  },
-  exerciseBadge: {
-    fontSize: '0.75rem',
-    padding: '6px 12px',
-    borderRadius: 'var(--radius-full)',
-    backgroundColor: 'var(--primary-hover)',
-    color: '#ffffff',
-    fontWeight: '500',
-  },
-  submitBtn: {
-    padding: '12px',
-    border: 'none',
-    width: '100%',
-    cursor: 'pointer',
-  },
-  exerciseList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  },
-  exerciseItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '12px 16px',
+  select: {
+    padding: '10px 14px',
     borderRadius: 'var(--radius-md)',
-    backgroundColor: 'var(--bg-tertiary)',
     border: '1px solid var(--border-color)',
-    cursor: 'pointer',
-    transition: 'all var(--transition-fast)',
-  },
-  exerciseItemSelected: {
-    borderColor: 'var(--primary)',
-    backgroundColor: 'rgba(139, 92, 246, 0.05)',
-  },
-  exerciseDetails: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  exerciseName: {
-    fontWeight: '600',
+    backgroundColor: 'var(--bg-tertiary)',
+    color: 'var(--text-primary)',
     fontSize: '0.95rem',
+    outline: 'none',
   },
-  exerciseCat: {
-    fontSize: '0.75rem',
-    color: 'var(--text-secondary)',
-  },
-  exerciseMeta: {
+  formActions: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
+    gap: '12px'
   },
-  repsText: {
-    fontSize: '0.8rem',
-    fontWeight: '500',
+  saveBtn: {
+    padding: '10px 20px',
+    cursor: 'pointer',
+  },
+  cancelBtn: {
+    padding: '10px 20px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-color)',
+    background: 'none',
     color: 'var(--text-secondary)',
+    cursor: 'pointer'
   },
-  // Alunos list/CRUD specific
   tableHeader: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -1153,22 +2129,7 @@ const styles = {
     gap: '6px',
     padding: '8px 16px',
     fontSize: '0.85rem',
-    fontWeight: '700',
-    border: 'none',
-    borderRadius: 'var(--radius-sm)',
-    cursor: 'pointer'
-  },
-  emptyBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    textAlign: 'center',
-    padding: '40px 20px',
-    color: 'var(--text-secondary)',
-    fontSize: '0.9rem',
-    backgroundColor: 'var(--bg-tertiary)',
-    borderRadius: 'var(--radius-md)',
-    border: '1px solid var(--border-color)',
+    cursor: 'pointer',
   },
   tableResponsive: {
     overflowX: 'auto'
@@ -1176,100 +2137,210 @@ const styles = {
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    fontSize: '0.85rem',
-    textAlign: 'left'
+    textAlign: 'left',
   },
   tableHeaderRow: {
-    borderBottom: '1px solid var(--border-color)'
+    borderBottom: '1px solid var(--border-color)',
   },
   tableCellHeader: {
-    padding: '12px 8px',
-    fontWeight: '700',
-    color: 'var(--text-secondary)'
+    padding: '12px 16px',
+    color: 'var(--text-secondary)',
+    fontSize: '0.85rem',
+    fontWeight: '600',
   },
   tableRow: {
-    borderBottom: '1px solid var(--border-color)',
-    transition: 'background-color 0.2s'
+    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
   },
   tableCell: {
-    padding: '12px 8px',
-    verticalAlign: 'middle'
+    padding: '14px 16px',
+    fontSize: '0.9rem',
+  },
+  vipBadge: {
+    fontSize: '0.7rem',
+    fontWeight: 'bold',
+    backgroundColor: 'rgba(234, 179, 8, 0.2)',
+    color: '#eab308',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    marginLeft: '6px'
+  },
+  tenantBadge: {
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    backgroundColor: 'var(--bg-tertiary)',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    border: '1px solid var(--border-color)',
   },
   actionsGroup: {
-    display: 'inline-flex',
+    display: 'flex',
     gap: '6px',
     justifyContent: 'flex-end',
+    alignItems: 'center',
     flexWrap: 'wrap'
   },
   actionBtn: {
     display: 'inline-flex',
     alignItems: 'center',
-    padding: '5px 10px',
-    fontSize: '0.75rem',
-    fontWeight: '700',
-    border: 'none',
-    borderRadius: '4px',
+    padding: '6px 10px',
+    borderRadius: '6px',
+    fontSize: '0.8rem',
+    fontWeight: '600',
+    border: '1px solid var(--border-color)',
     cursor: 'pointer',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
   },
   iconBtn: {
+    padding: '6px',
+    borderRadius: '6px',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'transparent',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  emptyBox: {
+    padding: '40px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--text-secondary)',
+    textAlign: 'center'
+  },
+  // Modal CRM
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    zIndex: 9999,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '28px',
-    height: '28px',
-    borderRadius: '4px',
-    border: '1px solid var(--border-color)',
-    background: 'var(--bg-secondary)',
-    color: 'var(--text-primary)',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
+    padding: '16px'
   },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '16px',
-    marginBottom: '20px'
-  },
-  formActions: {
-    display: 'flex',
-    gap: '10px'
-  },
-  saveBtn: {
-    padding: '10px 20px',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: '700',
-    fontSize: '0.85rem',
-    borderRadius: 'var(--radius-sm)'
-  },
-  cancelBtn: {
-    padding: '10px 20px',
-    border: '1px solid var(--border-color)',
-    background: 'transparent',
-    color: 'var(--text-primary)',
-    cursor: 'pointer',
-    fontWeight: '700',
-    fontSize: '0.85rem',
-    borderRadius: 'var(--radius-sm)',
-    transition: 'all 0.2s'
-  },
-  vipBadge: {
-    marginLeft: '8px',
-    fontSize: '0.65rem',
-    fontWeight: 'bold',
-    backgroundColor: '#eab308',
-    color: '#000000',
-    padding: '1px 5px',
-    borderRadius: '3px'
-  },
-  tenantBadge: {
-    fontSize: '0.75rem',
+  modalContent: {
     backgroundColor: 'var(--bg-secondary)',
-    padding: '3px 8px',
-    borderRadius: '4px',
+    padding: '24px',
+    borderRadius: '16px',
+    width: '100%',
+    maxWidth: '540px',
     border: '1px solid var(--border-color)',
-    color: 'var(--text-secondary)'
+    position: 'relative'
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: '16px',
+    right: '16px',
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer'
+  },
+  avatarLarge: {
+    width: '56px',
+    height: '56px',
+    borderRadius: '50%',
+    backgroundColor: 'var(--primary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '22px',
+    fontWeight: 'bold',
+    color: '#fff'
+  },
+  crmTabsRow: {
+    display: 'flex',
+    gap: '8px',
+    borderBottom: '1px solid var(--border-color)',
+    paddingBottom: '10px',
+    marginBottom: '16px'
+  },
+  crmTabBtn: {
+    flex: 1,
+    padding: '8px 12px',
+    borderRadius: '6px',
+    border: 'none',
+    background: 'none',
+    color: 'var(--text-secondary)',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  crmTabBtnActive: {
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    color: 'var(--primary)'
+  },
+  crmBox: {
+    background: 'var(--bg-primary)',
+    padding: '16px',
+    borderRadius: '8px',
+    marginBottom: '14px'
+  },
+  crmBoxTitle: {
+    margin: '0 0 10px 0',
+    color: 'var(--text-primary)',
+    borderBottom: '1px solid var(--border-color)',
+    paddingBottom: '6px',
+    fontSize: '0.95rem'
+  },
+  crmText: {
+    margin: '0 0 6px 0',
+    color: 'var(--text-secondary)',
+    fontSize: '0.85rem'
+  },
+  paymentRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '8px 0',
+    borderBottom: '1px solid rgba(255,255,255,0.05)'
+  },
+  paymentToggleBtn: {
+    background: 'transparent',
+    border: '1px solid var(--border-color)',
+    color: 'var(--text-primary)',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.75rem'
+  },
+  crmExerciseItem: {
+    padding: '10px 12px',
+    backgroundColor: 'var(--bg-primary)',
+    borderRadius: '6px',
+    border: '1px solid var(--border-color)'
+  },
+  splitTag: {
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    color: 'var(--primary)',
+    padding: '2px 6px',
+    borderRadius: '4px'
+  },
+  // Video Modal
+  videoModalContent: {
+    backgroundColor: 'var(--bg-secondary)',
+    padding: '20px',
+    borderRadius: '16px',
+    width: '100%',
+    maxWidth: '640px',
+    border: '1px solid var(--border-color)',
+    position: 'relative'
+  },
+  videoWrapper: {
+    position: 'relative',
+    width: '100%',
+    height: '360px',
+    backgroundColor: '#000',
+    borderRadius: '8px',
+    overflow: 'hidden'
   }
 };
 
