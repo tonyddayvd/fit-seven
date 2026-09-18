@@ -3592,14 +3592,14 @@ const Professor = () => {
                   
                   {/* Vídeo 1: Apresentação */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={styles.formLabel}>1. Vídeo de Apresentação Profissional (Link YouTube ou Upload de Celular)</label>
+                    <label style={styles.formLabel}>1. Vídeo de Apresentação Profissional (Link YouTube, TikTok ou Upload/Câmera)</label>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <input 
                         type="text" 
                         value={profProfileForm.videoApresentacaoUrl} 
                         onChange={(e) => setProfProfileForm(prev => ({ ...prev, videoApresentacaoUrl: e.target.value }))}
                         style={{ ...styles.inputField, flex: 1 }}
-                        placeholder="Ex: https://youtube.com/watch?v=... ou grave pelo botão ao lado"
+                        placeholder="Ex: https://tiktok.com/@perfil/video/... ou https://youtube.com/watch?v=..."
                       />
                       <label style={styles.photoUploadBtnSecondary} title="Gravar com Câmera ou Enviar Vídeo">
                         <Camera size={14} /> Gravar/Upload
@@ -3615,14 +3615,14 @@ const Professor = () => {
 
                   {/* Vídeo 2: Boas-vindas / Incentivo */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={styles.formLabel}>2. Vídeo de Incentivo & Foco para os Alunos (Link YouTube ou Upload)</label>
+                    <label style={styles.formLabel}>2. Vídeo de Incentivo & Foco para os Alunos (Link YouTube, TikTok ou Upload)</label>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <input 
                         type="text" 
                         value={profProfileForm.videoIncentivoUrl} 
                         onChange={(e) => setProfProfileForm(prev => ({ ...prev, videoIncentivoUrl: e.target.value }))}
                         style={{ ...styles.inputField, flex: 1 }}
-                        placeholder="Ex: Mensagem motivacional para dar início aos treinos..."
+                        placeholder="Ex: Mensagem motivacional no TikTok/YouTube para seus alunos..."
                       />
                       <label style={styles.photoUploadBtnSecondary} title="Gravar com Câmera ou Enviar Vídeo">
                         <Camera size={14} /> Gravar/Upload
@@ -3644,7 +3644,7 @@ const Professor = () => {
                   className="btn-primary"
                 >
                   <Save size={18} />
-                  {isSavingProfProfile ? 'Salvando Perfil...' : 'Salvar Meu Perfil & Apresentação'}
+                  {isSavingProfProfile ? 'Salvando Perfil...' : 'Salvar Meu Perfil & Notificar Alunos'}
                 </button>
               </form>
             </div>
@@ -3715,27 +3715,33 @@ const Professor = () => {
                   )}
                 </div>
 
-                {/* Vídeo de Apresentação Player */}
-                {profProfileForm.videoApresentacaoUrl ? (
-                  <div style={{ marginBottom: '14px' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Video size={14} color="var(--primary)" /> Vídeo de Apresentação:
-                    </span>
-                    <div style={{ width: '100%', height: '180px', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#000' }}>
-                      {profProfileForm.videoApresentacaoUrl.startsWith('data:video') || profProfileForm.videoApresentacaoUrl.startsWith('blob:') ? (
-                        <video src={profProfileForm.videoApresentacaoUrl} controls style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                      ) : (
-                        <iframe 
-                          src={formatVideoEmbedUrl(profProfileForm.videoApresentacaoUrl)} 
-                          title="Vídeo de Apresentação" 
-                          frameBorder="0" 
-                          allowFullScreen 
-                          style={{ width: '100%', height: '100%' }}
-                        />
-                      )}
+                {/* Vídeo de Apresentação Player (Preview) */}
+                {profProfileForm.videoApresentacaoUrl ? (() => {
+                  const isDirect = profProfileForm.videoApresentacaoUrl.startsWith('data:video') || profProfileForm.videoApresentacaoUrl.startsWith('blob:') || profProfileForm.videoApresentacaoUrl.endsWith('.mp4');
+                  const isTikTok = profProfileForm.videoApresentacaoUrl.includes('tiktok.com');
+                  const embedUrl = formatVideoEmbedUrl(profProfileForm.videoApresentacaoUrl);
+                  return (
+                    <div style={{ marginBottom: '14px' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Video size={14} color="var(--primary)" /> Vídeo de Apresentação {isTikTok ? '(TikTok)' : ''}:
+                      </span>
+                      <div style={{ width: '100%', height: isTikTok ? '320px' : '180px', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#000' }}>
+                        {isDirect ? (
+                          <video src={profProfileForm.videoApresentacaoUrl} controls style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        ) : (
+                          <iframe 
+                            src={embedUrl} 
+                            title="Vídeo de Apresentação" 
+                            frameBorder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen 
+                            style={{ width: '100%', height: '100%', border: 'none' }}
+                          />
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ) : null}
+                  );
+                })() : null}
 
                 {/* Box de Chave PIX com Cópia em 1 Clique */}
                 {profProfileForm.chavePix && (

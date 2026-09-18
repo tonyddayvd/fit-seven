@@ -160,7 +160,10 @@ const Aluno = () => {
     approvedEvaluations, 
     reportBug,
     usersList,
-    updateUserProfile
+    updateUserProfile,
+    notifications,
+    markNotificationAsRead,
+    getUnreadNotificationsForUser
   } = useApp();
   
   const [showMedalModal, setShowMedalModal] = useState(false);
@@ -168,6 +171,7 @@ const Aluno = () => {
   const [showProfessorModal, setShowProfessorModal] = useState(false);
   const [copiedPixProfAluno, setCopiedPixProfAluno] = useState(false);
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
+  const [activePopupNotif, setActivePopupNotif] = useState(null);
 
   // Localiza o professor do aluno
   const myProfessor = useMemo(() => {
@@ -178,6 +182,38 @@ const Aluno = () => {
       usersList.find(u => u.role === 'professor')
     );
   }, [usersList, user]);
+
+  // Notificações não lidas para o aluno atual
+  const unreadNotifs = useMemo(() => {
+    if (!user?.id || !getUnreadNotificationsForUser) return [];
+    return getUnreadNotificationsForUser(user.id, user.tenantId);
+  }, [user, notifications, getUnreadNotificationsForUser]);
+
+  // Dispara o Pop-up de Notificação quando houver novo vídeo ou mensagem
+  useEffect(() => {
+    if (unreadNotifs.length > 0 && !activePopupNotif) {
+      setActivePopupNotif(unreadNotifs[0]);
+    }
+  }, [unreadNotifs]);
+
+  const handleOpenNotifAction = (notif) => {
+    if (!notif) return;
+    if (markNotificationAsRead) markNotificationAsRead(notif.id, user.id);
+    setActivePopupNotif(null);
+    if (notif.actionType === 'open_professor_modal' || notif.type === 'video_incentivo' || notif.type === 'video_apresentacao') {
+      setShowProfessorModal(true);
+    } else if (notif.actionType === 'open_treinos' || notif.type === 'novo_treino') {
+      setActiveTab('treinos');
+    }
+  };
+
+  const handleDismissNotif = (notif) => {
+    if (!notif) return;
+    if (markNotificationAsRead) markNotificationAsRead(notif.id, user.id);
+    setActivePopupNotif(null);
+  };
+
+  const hasNewProfessorVideo = unreadNotifs.some(n => n.type === 'video_incentivo' || n.type === 'video_apresentacao');
 
   const handleStudentAvatarUpload = async (file) => {
     if (!file || !user?.id) return;
@@ -1495,6 +1531,54 @@ const Aluno = () => {
       )}
 
 
+      {/* ── POP-UP FLUTUANTE DE NOTIFICAÇÃO INTELIGENTE (NOVO VÍDEO / RECADO) ── */}
+      {activePopupNotif && (
+        <div style={styles.notifPopupOverlay} className="animate-fade-in" onClick={() => handleDismissNotif(activePopupNotif)}>
+          <div style={styles.notifPopupCard} className="glass" onClick={(e) => e.stopPropagation()}>
+            <div style={styles.notifPopupAvatarRing}>
+              {activePopupNotif.senderAvatar ? (
+                <img src={activePopupNotif.senderAvatar} alt={activePopupNotif.senderName || 'Treinador'} style={styles.notifPopupAvatarImg} />
+              ) : (
+                <Sparkles size={24} color="#f59e0b" />
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: '180px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <span style={styles.notifPopupBadge}>
+                  {activePopupNotif.type === 'video_incentivo' ? '🔥 NOVO VÍDEO MOTIVACIONAL' : activePopupNotif.type === 'novo_treino' ? '🏋️ NOVO TREINO' : '📢 AVISO DO TREINADOR'}
+                </span>
+                <button onClick={() => handleDismissNotif(activePopupNotif)} style={styles.notifPopupCloseBtn} title="Fechar aviso">
+                  <X size={16} />
+                </button>
+              </div>
+              <h4 style={styles.notifPopupTitle}>
+                {activePopupNotif.title}
+              </h4>
+              <p style={styles.notifPopupMessage}>
+                {activePopupNotif.message}
+              </p>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => handleOpenNotifAction(activePopupNotif)}
+                  style={styles.notifPopupActionBtn}
+                  className="btn-primary"
+                >
+                  <Play size={14} /> Assistir / Ver Agora
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => handleDismissNotif(activePopupNotif)}
+                  style={styles.notifPopupDismissBtn}
+                >
+                  Ver depois
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={styles.contentArea}>
         <div style={styles.card} className="glass">
           
@@ -1525,16 +1609,31 @@ const Aluno = () => {
               </div>
             </div>
 
-            {/* Destaque do Treinador / Professor */}
+            {/* Destaque do Treinador / Professor com Efeito Pulsante se houver novo vídeo */}
             {myProfessor && (
               <div 
-                onClick={() => setShowProfessorModal(true)} 
-                style={styles.profQuickCard}
+                onClick={() => {
+                  if (hasNewProfessorVideo) {
+                    unreadNotifs.forEach(n => {
+                      if (n.type === 'video_incentivo' || n.type === 'video_apresentacao') {
+                        markNotificationAsRead(n.id, user.id);
+                      }
+                    });
+                  }
+                  setShowProfessorModal(true);
+                }} 
+                style={{
+                  ...styles.profQuickCard,
+                  ...(hasNewProfessorVideo ? styles.profQuickCardPulsing : {})
+                }}
                 role="button"
                 tabIndex={0}
-                title="Ver Cartão e Vídeos do seu Professor"
+                title={hasNewProfessorVideo ? "Novo vídeo disponível do seu treinador! Clique para assistir." : "Ver Cartão e Vídeos do seu Professor"}
               >
-                <div style={styles.profQuickAvatar}>
+                <div style={{
+                  ...styles.profQuickAvatar,
+                  ...(hasNewProfessorVideo ? styles.profAvatarPulsing : {})
+                }}>
                   {myProfessor.fotoPerfil ? (
                     <img src={myProfessor.fotoPerfil} alt={myProfessor.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
@@ -1543,13 +1642,15 @@ const Aluno = () => {
                 </div>
                 <div style={{ textAlign: 'left' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>Meu Treinador</span>
-                    <Sparkles size={11} color="var(--primary)" />
+                    <span style={{ fontSize: '0.68rem', fontWeight: 'bold', color: hasNewProfessorVideo ? '#f59e0b' : 'var(--primary)', textTransform: 'uppercase' }}>
+                      {hasNewProfessorVideo ? '🔥 NOVO VÍDEO' : 'Meu Treinador'}
+                    </span>
+                    <Sparkles size={11} color={hasNewProfessorVideo ? '#f59e0b' : 'var(--primary)'} />
                   </div>
                   <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)', display: 'block' }}>{myProfessor.name}</strong>
                 </div>
-                <button type="button" style={styles.profQuickBtn}>
-                  Ver Perfil
+                <button type="button" style={hasNewProfessorVideo ? styles.profQuickBtnPulsing : styles.profQuickBtn}>
+                  {hasNewProfessorVideo ? 'Assistir' : 'Ver Perfil'}
                 </button>
               </div>
             )}
@@ -3877,49 +3978,61 @@ const Aluno = () => {
               )}
             </div>
 
-            {/* Vídeo 1: Apresentação do Professor */}
-            {myProfessor.videoApresentacaoUrl ? (
-              <div style={{ marginBottom: '16px' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Video size={16} color="var(--primary)" /> Vídeo de Apresentação:
-                </span>
-                <div style={styles.profVideoPlayerBox}>
-                  {myProfessor.videoApresentacaoUrl.startsWith('data:video') || myProfessor.videoApresentacaoUrl.startsWith('blob:') ? (
-                    <video src={myProfessor.videoApresentacaoUrl} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  ) : (
-                    <iframe 
-                      src={formatVideoEmbedUrl(myProfessor.videoApresentacaoUrl)} 
-                      title="Vídeo de Apresentação" 
-                      frameBorder="0" 
-                      allowFullScreen 
-                      style={{ width: '100%', height: '100%' }}
-                    />
-                  )}
+            {/* Vídeo 1: Apresentação do Professor (Suporte a TikTok e YouTube) */}
+            {myProfessor.videoApresentacaoUrl ? (() => {
+              const isDirect = myProfessor.videoApresentacaoUrl.startsWith('data:video') || myProfessor.videoApresentacaoUrl.startsWith('blob:') || myProfessor.videoApresentacaoUrl.endsWith('.mp4');
+              const isTikTok = myProfessor.videoApresentacaoUrl.includes('tiktok.com');
+              const embedUrl = formatVideoEmbedUrl(myProfessor.videoApresentacaoUrl);
+              return (
+                <div style={{ marginBottom: '16px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Video size={16} color="var(--primary)" /> Vídeo de Apresentação {isTikTok ? '(TikTok)' : ''}:
+                  </span>
+                  <div style={{ ...styles.profVideoPlayerBox, height: isTikTok ? '380px' : '240px' }}>
+                    {isDirect ? (
+                      <video src={myProfessor.videoApresentacaoUrl} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    ) : (
+                      <iframe 
+                        src={embedUrl} 
+                        title="Vídeo de Apresentação" 
+                        frameBorder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen 
+                        style={{ width: '100%', height: '100%', border: 'none' }}
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              );
+            })() : null}
 
-            {/* Vídeo 2: Vídeo de Incentivo / Foco */}
-            {myProfessor.videoIncentivoUrl ? (
-              <div style={{ marginBottom: '16px' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Sparkles size={16} color="var(--primary)" /> Mensagem de Incentivo & Foco:
-                </span>
-                <div style={styles.profVideoPlayerBox}>
-                  {myProfessor.videoIncentivoUrl.startsWith('data:video') || myProfessor.videoIncentivoUrl.startsWith('blob:') ? (
-                    <video src={myProfessor.videoIncentivoUrl} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  ) : (
-                    <iframe 
-                      src={formatVideoEmbedUrl(myProfessor.videoIncentivoUrl)} 
-                      title="Vídeo de Incentivo" 
-                      frameBorder="0" 
-                      allowFullScreen 
-                      style={{ width: '100%', height: '100%' }}
-                    />
-                  )}
+            {/* Vídeo 2: Vídeo de Incentivo / Foco (Suporte a TikTok e YouTube) */}
+            {myProfessor.videoIncentivoUrl ? (() => {
+              const isDirect = myProfessor.videoIncentivoUrl.startsWith('data:video') || myProfessor.videoIncentivoUrl.startsWith('blob:') || myProfessor.videoIncentivoUrl.endsWith('.mp4');
+              const isTikTok = myProfessor.videoIncentivoUrl.includes('tiktok.com');
+              const embedUrl = formatVideoEmbedUrl(myProfessor.videoIncentivoUrl);
+              return (
+                <div style={{ marginBottom: '16px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Sparkles size={16} color="var(--primary)" /> Mensagem de Incentivo & Foco {isTikTok ? '(TikTok)' : ''}:
+                  </span>
+                  <div style={{ ...styles.profVideoPlayerBox, height: isTikTok ? '380px' : '240px' }}>
+                    {isDirect ? (
+                      <video src={myProfessor.videoIncentivoUrl} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    ) : (
+                      <iframe 
+                        src={embedUrl} 
+                        title="Vídeo de Incentivo" 
+                        frameBorder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen 
+                        style={{ width: '100%', height: '100%', border: 'none' }}
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              );
+            })() : null}
 
             {/* Caixa de Pagamento PIX com 1 Clique */}
             {myProfessor.chavePix && (
@@ -5155,10 +5268,146 @@ const styles = {
     fontWeight: 'bold',
     cursor: 'pointer',
     whiteSpace: 'nowrap'
+  },
+  // Estilos do Pop-up Flutuante de Notificação
+  notifPopupOverlay: {
+    position: 'fixed',
+    top: '16px',
+    left: '16px',
+    right: '16px',
+    zIndex: 999999,
+    display: 'flex',
+    justifyContent: 'center',
+    pointerEvents: 'none'
+  },
+  notifPopupCard: {
+    width: '100%',
+    maxWidth: '520px',
+    backgroundColor: 'rgba(26, 26, 36, 0.96)',
+    border: '2px solid #f59e0b',
+    borderRadius: '16px',
+    padding: '16px 18px',
+    display: 'flex',
+    gap: '14px',
+    alignItems: 'flex-start',
+    boxShadow: '0 10px 30px rgba(245, 158, 11, 0.35)',
+    pointerEvents: 'auto',
+    animation: 'pulseGlowBorder 2s infinite'
+  },
+  notifPopupAvatarRing: {
+    width: '52px',
+    height: '52px',
+    borderRadius: '50%',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    border: '2px solid #f59e0b',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    overflow: 'hidden'
+  },
+  notifPopupAvatarImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover'
+  },
+  notifPopupBadge: {
+    fontSize: '0.68rem',
+    fontWeight: '800',
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    color: '#f59e0b',
+    padding: '2px 8px',
+    borderRadius: '4px',
+    letterSpacing: '0.5px'
+  },
+  notifPopupCloseBtn: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    padding: '2px'
+  },
+  notifPopupTitle: {
+    margin: '4px 0 2px 0',
+    fontSize: '1rem',
+    fontWeight: '800',
+    color: 'var(--text-primary)'
+  },
+  notifPopupMessage: {
+    margin: 0,
+    fontSize: '0.84rem',
+    color: 'var(--text-secondary)',
+    lineHeight: '1.4'
+  },
+  notifPopupActionBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    borderRadius: '8px',
+    fontSize: '0.82rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    border: 'none',
+    backgroundColor: '#f59e0b',
+    color: '#000'
+  },
+  notifPopupDismissBtn: {
+    padding: '8px 12px',
+    borderRadius: '8px',
+    border: '1px solid var(--border-color)',
+    background: 'transparent',
+    color: 'var(--text-secondary)',
+    fontSize: '0.8rem',
+    cursor: 'pointer'
+  },
+  // Estilos de Destaque Pulsante para o Card do Treinador
+  profQuickCardPulsing: {
+    border: '2px solid #f59e0b',
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    boxShadow: '0 0 16px rgba(245, 158, 11, 0.35)',
+    animation: 'pulseGlowBorder 2s infinite'
+  },
+  profAvatarPulsing: {
+    border: '2px solid #f59e0b',
+    boxShadow: '0 0 10px rgba(245, 158, 11, 0.6)'
+  },
+  profQuickBtnPulsing: {
+    padding: '4px 10px',
+    borderRadius: '6px',
+    border: 'none',
+    backgroundColor: '#f59e0b',
+    color: '#000',
+    fontSize: '0.72rem',
+    fontWeight: '800',
+    cursor: 'pointer',
+    marginLeft: '6px',
+    animation: 'pulseBtn 1.5s infinite'
   }
 };
 
 const toggleSwitchStyles = `
+  @keyframes pulseGlowBorder {
+    0% {
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.3);
+      border-color: rgba(245, 158, 11, 0.6);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.8), 0 0 30px rgba(245, 158, 11, 0.3);
+      border-color: #f59e0b;
+    }
+    100% {
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.3);
+      border-color: rgba(245, 158, 11, 0.6);
+    }
+  }
+
+  @keyframes pulseBtn {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+
   .switch input {
     opacity: 0;
     width: 0;

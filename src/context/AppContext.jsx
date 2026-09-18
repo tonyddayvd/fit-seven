@@ -273,6 +273,27 @@ export const AppProvider = ({ children }) => {
   const [bugReports, setBugReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Sistema de Notificações Inteligentes
+  const [notifications, setNotifications] = useState(() => {
+    const saved = localStorage.getItem('fitseven-notifications');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [
+      {
+        id: 'notif_welcome',
+        type: 'sistema',
+        title: '👋 Bem-vindo ao Fit Seven!',
+        message: 'Acompanhe seus treinos, medidas e vídeos de incentivo do seu treinador.',
+        timestamp: new Date().toISOString(),
+        readBy: []
+      }
+    ];
+  });
+
   // Estados de sessão (Persistidos localmente para conveniência do usuário logado)
   const [originalUser, setOriginalUser] = useState(() => {
     const saved = localStorage.getItem('fitseven-original-user');
@@ -656,6 +677,56 @@ export const AppProvider = ({ children }) => {
     await refreshData();
   };
 
+  // Métodos de Notificações
+  const createNotification = (notifData) => {
+    const newNotif = {
+      id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      timestamp: new Date().toISOString(),
+      readBy: [],
+      ...notifData
+    };
+    setNotifications(prev => {
+      const updated = [newNotif, ...prev];
+      localStorage.setItem('fitseven-notifications', JSON.stringify(updated));
+      return updated;
+    });
+    return newNotif;
+  };
+
+  const markNotificationAsRead = (notifId, targetUserId) => {
+    if (!notifId || !targetUserId) return;
+    setNotifications(prev => {
+      const updated = prev.map(n => {
+        if (n.id === notifId) {
+          const currentRead = n.readBy || [];
+          if (!currentRead.includes(targetUserId)) {
+            return { ...n, readBy: [...currentRead, targetUserId] };
+          }
+        }
+        return n;
+      });
+      localStorage.setItem('fitseven-notifications', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const getNotificationsForUser = (targetUserId, targetTenantId) => {
+    return notifications.filter(n => {
+      // Notificação global do sistema
+      if (!n.targetUserId && !n.targetTenantId) return true;
+      // Notificação direta para o usuário
+      if (n.targetUserId && n.targetUserId === targetUserId) return true;
+      // Notificação para o tenant do usuário
+      if (n.targetTenantId && n.targetTenantId === targetTenantId) return true;
+      return false;
+    });
+  };
+
+  const getUnreadNotificationsForUser = (targetUserId, targetTenantId) => {
+    const userNotifs = getNotificationsForUser(targetUserId, targetTenantId);
+    return userNotifs.filter(n => !(n.readBy || []).includes(targetUserId));
+  };
+
   const updateUserProfile = async (userId, updatedData) => {
     const userObj = usersList.find(u => u.id === userId);
     if (!userObj) return;
@@ -674,6 +745,38 @@ export const AppProvider = ({ children }) => {
     if (user && user.id === userId) {
       setUser(merged);
       localStorage.setItem('fitseven-user', JSON.stringify(merged));
+    }
+
+    // Se o professor atualizou vídeo motivacional ou apresentação, dispara notificação para os alunos
+    if (userObj.role === 'professor') {
+      const hasNewIncentivo = updatedData.videoIncentivoUrl && updatedData.videoIncentivoUrl !== userObj.videoIncentivoUrl;
+      const hasNewApresentacao = updatedData.videoApresentacaoUrl && updatedData.videoApresentacaoUrl !== userObj.videoApresentacaoUrl;
+
+      if (hasNewIncentivo) {
+        createNotification({
+          type: 'video_incentivo',
+          title: '🔥 Novo Vídeo Motivacional!',
+          message: `${userObj.name} acabou de postar um novo vídeo de incentivo para te motivar nos treinos!`,
+          senderId: userId,
+          senderName: userObj.name,
+          senderAvatar: updatedData.fotoPerfil || userObj.fotoPerfil || '',
+          targetTenantId: userObj.tenantId,
+          mediaUrl: updatedData.videoIncentivoUrl,
+          actionType: 'open_professor_modal'
+        });
+      } else if (hasNewApresentacao) {
+        createNotification({
+          type: 'video_apresentacao',
+          title: '🎬 Vídeo de Apresentação Atualizado!',
+          message: `${userObj.name} atualizou o vídeo de apresentação profissional com novas dicas e orientações!`,
+          senderId: userId,
+          senderName: userObj.name,
+          senderAvatar: updatedData.fotoPerfil || userObj.fotoPerfil || '',
+          targetTenantId: userObj.tenantId,
+          mediaUrl: updatedData.videoApresentacaoUrl,
+          actionType: 'open_professor_modal'
+        });
+      }
     }
 
     // Persiste no Supabase
@@ -1091,6 +1194,20 @@ export const AppProvider = ({ children }) => {
       console.warn('Falha ao salvar treino no localStorage:', e);
     }
 
+    // Dispara notificação para o aluno avisando que o treino foi atualizado
+    try {
+      createNotification({
+        type: 'novo_treino',
+        title: '🏋️ Ficha de Treino Atualizada!',
+        message: `Seu treinador atualizou sua ficha de treinos. Acesse a aba Treinos para conferir!`,
+        senderId: user?.id || 'prof',
+        senderName: user?.name || 'Treinador',
+        senderAvatar: user?.fotoPerfil || '',
+        targetUserId: studentId,
+        actionType: 'open_treinos'
+      });
+    } catch (e) {}
+
     // Persistência assíncrona no Supabase
     try {
       const { error } = await supabase.from('treinos_html').upsert({
@@ -1182,7 +1299,12 @@ export const AppProvider = ({ children }) => {
       reportBug,
       deleteBug,
       workoutSessionsHistory,
-      isLoading
+      isLoading,
+      notifications,
+      createNotification,
+      markNotificationAsRead,
+      getNotificationsForUser,
+      getUnreadNotificationsForUser
     }}>
       {children}
     </AppContext.Provider>

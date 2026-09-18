@@ -1,10 +1,41 @@
 // Utilitarios de video e Catalogo Completo de Exercicios Fit Seven
 
+export const isVideoTikTok = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  return url.includes('tiktok.com');
+};
+
+export const isVideoYouTube = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  return url.includes('youtube.com') || url.includes('youtu.be');
+};
+
 export const formatVideoEmbedUrl = (url) => {
   if (!url) return '';
   const trimmed = url.trim();
-  if (trimmed.includes('youtube.com/embed/')) return trimmed;
+
+  // 1. Já está no formato Embed (YouTube ou TikTok)
+  if (trimmed.includes('youtube.com/embed/') || trimmed.includes('tiktok.com/embed/')) {
+    return trimmed;
+  }
+
+  // 2. TikTok Parser
+  if (trimmed.includes('tiktok.com')) {
+    // Caso 1: https://www.tiktok.com/@user/video/7392819283918239182
+    const ttVideoMatch = trimmed.match(/\/video\/(\d+)/);
+    if (ttVideoMatch && ttVideoMatch[1]) {
+      return `https://www.tiktok.com/embed/v2/${ttVideoMatch[1]}`;
+    }
+    // Caso 2: https://m.tiktok.com/v/7392819283918239182.html
+    const ttMobileMatch = trimmed.match(/\/v\/(\d+)/);
+    if (ttMobileMatch && ttMobileMatch[1]) {
+      return `https://www.tiktok.com/embed/v2/${ttMobileMatch[1]}`;
+    }
+    // Se for link direto de embed ou encurtador
+    return trimmed;
+  }
   
+  // 3. YouTube Parser
   const watchMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]+)/);
   if (watchMatch && watchMatch[1]) {
     return 'https://www.youtube.com/embed/' + watchMatch[1];
