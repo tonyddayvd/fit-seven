@@ -34,9 +34,18 @@ import {
   KeyRound,
   RefreshCw,
   Video,
-  Play
+  Play,
+  Share2,
+  Sparkles,
+  Copy,
+  CheckCircle2,
+  QrCode,
+  Smartphone,
+  Send,
+  ExternalLink
 } from 'lucide-react';
 import ExerciseVideoManagerModal from '../components/ExerciseVideoManagerModal';
+import { formatCPF, formatDoc, formatPhone } from '../utils/validators';
 
 const TABLES_SCHEMA = [
   { 
@@ -118,7 +127,10 @@ const Master = () => {
     deleteBug,
     workoutsByStudent,
     updateWorkoutByProfessor,
-    workoutSessionsHistory
+    workoutSessionsHistory,
+    preRegisterUser,
+    generateWhatsAppInvite,
+    getDirectInviteUrl
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('kpis_crud'); // 'kpis_crud', 'pending_approvals', 'db_auditor'
@@ -127,14 +139,34 @@ const Master = () => {
   const [selectedTable, setSelectedTable] = useState(TABLES_SCHEMA[1]); // Inicia em 'users'
   const [backupJson, setBackupJson] = useState('');
 
-  // Estado para o Cartão do Aluno
+  // Estado para o Cartão do Aluno e Lightbox
   const [viewingStudent, setViewingStudent] = useState(null);
   const [showMedidas, setShowMedidas] = useState(false);
+  const [lightboxPhoto, setLightboxPhoto] = useState(null);
 
   // Estados de Transferência de Vínculo e Simulação Exclusiva do Master
   const [transferModalStudent, setTransferModalStudent] = useState(null);
   const [targetTenantTransferId, setTargetTenantTransferId] = useState('');
   const [showMasterDemoDrawer, setShowMasterDemoDrawer] = useState(false);
+
+  // Estados de Pré-Cadastro Unificado com Link e Modal de Convite
+  const [showPreRegModal, setShowPreRegModal] = useState(false);
+  const [preRegRole, setPreRegRole] = useState('aluno'); // 'aluno', 'professor', 'estabelecimento'
+  const [preRegForm, setPreRegForm] = useState({
+    name: '',
+    email: '',
+    whatsapp: '',
+    cpf: '',
+    cnpj: '',
+    responsavel: '',
+    cref: '',
+    tenantId: '',
+    plano: 'Básico',
+    limiteAlunos: 10
+  });
+  const [createdInviteModal, setCreatedInviteModal] = useState(null); // { user, inviteUrl, whatsAppUrl }
+  const [copiedInviteUrl, setCopiedInviteUrl] = useState(false);
+  const [isSubmittingPreReg, setIsSubmittingPreReg] = useState(false);
 
   // Estados dos formulários CRUD
   const [showForm, setShowForm] = useState(null); // 'tenant', 'user', null
@@ -295,6 +327,73 @@ const Master = () => {
       console.error(err);
       alert('Erro ao transferir vínculo: ' + (err.message || 'Verifique sua conexão.'));
     }
+  };
+
+  // Handler de Pré-Cadastro pelo Master (Aluno, Professor ou Academia)
+  const handleCreatePreRegistration = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setIsSubmittingPreReg(true);
+    try {
+      let tenantTarget = preRegForm.tenantId || 'master';
+      let nomeVinculado = '';
+      if (tenantTarget !== 'master') {
+        const tObj = Object.values(tenants).find(t => t.id === tenantTarget) || usersList.find(u => u.id === tenantTarget);
+        nomeVinculado = tObj?.name || '';
+      }
+
+      const newUser = await preRegisterUser({
+        name: preRegForm.name,
+        email: preRegForm.email || undefined,
+        whatsapp: preRegForm.whatsapp,
+        telefone: preRegForm.whatsapp,
+        cpf: preRegForm.cpf || undefined,
+        cnpj: preRegForm.cnpj || undefined,
+        cref: preRegForm.cref || undefined,
+        responsavel: preRegForm.responsavel || undefined,
+        role: preRegRole,
+        tenantId: tenantTarget,
+        nomeProfessorVinculado: nomeVinculado,
+        plano: preRegForm.plano,
+        limiteAlunos: preRegForm.limiteAlunos
+      }, user);
+
+      const inviteUrl = getDirectInviteUrl(newUser, user);
+      const whatsAppUrl = generateWhatsAppInvite(newUser, user);
+
+      setCreatedInviteModal({
+        user: newUser,
+        inviteUrl,
+        whatsAppUrl
+      });
+      setShowPreRegModal(false);
+      setPreRegForm({
+        name: '',
+        email: '',
+        whatsapp: '',
+        cpf: '',
+        cnpj: '',
+        responsavel: '',
+        cref: '',
+        tenantId: '',
+        plano: 'Básico',
+        limiteAlunos: 10
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao realizar pré-cadastro: ' + (err.message || 'Verifique os dados informados.'));
+    } finally {
+      setIsSubmittingPreReg(false);
+    }
+  };
+
+  const handleOpenInviteForExistingUser = (targetUser) => {
+    const inviteUrl = getDirectInviteUrl(targetUser, user);
+    const whatsAppUrl = generateWhatsAppInvite(targetUser, user);
+    setCreatedInviteModal({
+      user: targetUser,
+      inviteUrl,
+      whatsAppUrl
+    });
   };
 
   const getRoleBadgeStyle = (role) => {
@@ -729,9 +828,12 @@ const Master = () => {
             {/* TABELA DE ACADEMIAS */}
             {activeSubTab === 'tenants' && !showForm && (
               <div className="animate-fade-in">
-                <div style={styles.tableActions}>
-                  <button onClick={openAddTenant} style={styles.addButton} className="btn-primary">
-                    <Plus size={16} /> Cadastrar Academia
+                <div style={{ ...styles.tableActions, display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button onClick={() => { setPreRegRole('estabelecimento'); setShowPreRegModal(true); }} style={{ ...styles.addButton, backgroundColor: '#8b5cf6', borderColor: '#8b5cf6' }} className="btn-primary">
+                    <Sparkles size={16} /> Pré-Cadastro com Link (Academia)
+                  </button>
+                  <button onClick={openAddTenant} style={styles.addButton} className="btn-secondary">
+                    <Plus size={16} /> Cadastrar Manual
                   </button>
                 </div>
                 <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
@@ -749,6 +851,7 @@ const Master = () => {
                     {Object.keys(tenants).map(key => {
                       const t = tenants[key];
                       const currentAlunos = usersList.filter(u => u.role === 'aluno' && u.tenantId === t.id).length;
+                      const uGym = usersList.find(u => u.tenantId === t.id && (u.role === 'estabelecimento' || u.role === 'academia')) || { id: t.id, name: t.name, role: 'estabelecimento', whatsapp: '' };
                       return (
                         <tr key={t.id} style={styles.tableRow}>
                           <td style={styles.tableCell}><strong>{t.name}</strong></td>
@@ -772,6 +875,7 @@ const Master = () => {
                           </td>
                           <td style={{ ...styles.tableCell, textAlign: 'right' }}>
                             <div style={styles.actionsGroup}>
+                              <button onClick={() => handleOpenInviteForExistingUser(uGym)} style={{ ...styles.iconBtn, color: '#a855f7' }} title="Gerar Link / WhatsApp de Convite"><Share2 size={14} /></button>
                               <button onClick={() => openEditTenant(key, t)} style={styles.iconBtn} title="Editar"><Edit2 size={14} /></button>
                               {t.id !== 'master' && (
                                 <button onClick={() => handleDeleteTenant(key)} style={{ ...styles.iconBtn, color: 'var(--status-danger)' }} title="Deletar"><Trash2 size={14} /></button>
@@ -789,9 +893,12 @@ const Master = () => {
             {/* TABELA DE PROFESSORES */}
             {activeSubTab === 'professores' && !showForm && (
               <div className="animate-fade-in">
-                <div style={styles.tableActions}>
-                  <button onClick={() => openAddUser('professor')} style={styles.addButton} className="btn-primary">
-                    <Plus size={16} /> Cadastrar Professor
+                <div style={{ ...styles.tableActions, display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button onClick={() => { setPreRegRole('professor'); setShowPreRegModal(true); }} style={{ ...styles.addButton, backgroundColor: '#8b5cf6', borderColor: '#8b5cf6' }} className="btn-primary">
+                    <Sparkles size={16} /> Pré-Cadastro com Link (Professor)
+                  </button>
+                  <button onClick={() => openAddUser('professor')} style={styles.addButton} className="btn-secondary">
+                    <Plus size={16} /> Cadastrar Manual
                   </button>
                 </div>
                 <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
@@ -824,6 +931,7 @@ const Master = () => {
                           <td style={styles.tableCell}>{p.limiteAlunos || 10} alunos</td>
                           <td style={{ ...styles.tableCell, textAlign: 'right' }}>
                             <div style={styles.actionsGroup}>
+                              <button onClick={() => handleOpenInviteForExistingUser(p)} style={{ ...styles.iconBtn, color: '#a855f7' }} title="Gerar Link / WhatsApp de Convite"><Share2 size={14} /></button>
                               <button onClick={() => loginAsUser(p)} style={{ ...styles.iconBtn, color: '#eab308' }} title="Acessar como..."><Eye size={14} /></button>
                               <button onClick={() => openEditUser(p)} style={styles.iconBtn} title="Editar"><Edit2 size={14} /></button>
                               <button onClick={() => handleResetPassword(p.id)} style={styles.iconBtn} title="Resetar Senha"><Key size={14} /></button>
@@ -841,9 +949,12 @@ const Master = () => {
             {/* TABELA DE ALUNOS */}
             {activeSubTab === 'alunos' && !showForm && (
               <div className="animate-fade-in">
-                <div style={styles.tableActions}>
-                  <button onClick={() => openAddUser('aluno')} style={styles.addButton} className="btn-primary">
-                    <Plus size={16} /> Cadastrar Aluno
+                <div style={{ ...styles.tableActions, display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button onClick={() => { setPreRegRole('aluno'); setShowPreRegModal(true); }} style={{ ...styles.addButton, backgroundColor: '#8b5cf6', borderColor: '#8b5cf6' }} className="btn-primary">
+                    <Sparkles size={16} /> Pré-Cadastro com Link (Aluno)
+                  </button>
+                  <button onClick={() => openAddUser('aluno')} style={styles.addButton} className="btn-secondary">
+                    <Plus size={16} /> Cadastrar Manual
                   </button>
                 </div>
                 <div style={{ width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={styles.table}>
@@ -879,6 +990,7 @@ const Master = () => {
                           </td>
                           <td style={{ ...styles.tableCell, textAlign: 'right' }}>
                             <div style={styles.actionsGroup}>
+                              <button onClick={() => handleOpenInviteForExistingUser(a)} style={{ ...styles.iconBtn, color: '#a855f7' }} title="Gerar Link / WhatsApp de Convite"><Share2 size={14} /></button>
                               <button onClick={() => toggleUserVip(a.id)} style={{ ...styles.iconBtn, color: '#eab308' }} title={a.isVip ? "Remover VIP" : "Conceder VIP"}>
                                 <Star size={14} fill={a.isVip ? '#eab308' : 'none'} />
                               </button>
@@ -1799,6 +1911,346 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
           </div>
         </div>
       )}
+
+      {/* ── MODAL DE NOVO PRÉ-CADASTRO COM LINK INDIVIDUAL (MASTER) ── */}
+      {showPreRegModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 100000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: '20px', maxWidth: '540px', width: '100%',
+            padding: '24px', border: '1px solid var(--border-color)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.7)', maxHeight: '90vh', overflowY: 'auto'
+          }} className="animate-fade-in">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={22} color="#a855f7" />
+                <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.2rem' }}>
+                  Novo Pré-Cadastro com Link
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowPreRegModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Crie o pré-cadastro para gerar um <strong>link individual e exclusivo</strong>. O convidado clicará no link para definir sua senha e ter acesso imediato ao painel.
+            </p>
+
+            {/* Seletor de Tipo de Perfil */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '18px' }}>
+              <button
+                type="button"
+                onClick={() => setPreRegRole('aluno')}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                  padding: '10px 6px', borderRadius: '12px',
+                  backgroundColor: preRegRole === 'aluno' ? 'rgba(34, 197, 94, 0.15)' : 'var(--bg-tertiary)',
+                  border: `1px solid ${preRegRole === 'aluno' ? 'var(--status-success)' : 'var(--border-color)'}`,
+                  color: preRegRole === 'aluno' ? 'var(--status-success)' : 'var(--text-secondary)',
+                  cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold'
+                }}
+              >
+                <User size={16} />
+                <span>Aluno</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPreRegRole('professor')}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                  padding: '10px 6px', borderRadius: '12px',
+                  backgroundColor: preRegRole === 'professor' ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-tertiary)',
+                  border: `1px solid ${preRegRole === 'professor' ? '#60a5fa' : 'var(--border-color)'}`,
+                  color: preRegRole === 'professor' ? '#60a5fa' : 'var(--text-secondary)',
+                  cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold'
+                }}
+              >
+                <Award size={16} />
+                <span>Professor</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPreRegRole('estabelecimento')}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                  padding: '10px 6px', borderRadius: '12px',
+                  backgroundColor: preRegRole === 'estabelecimento' ? 'rgba(168, 85, 247, 0.15)' : 'var(--bg-tertiary)',
+                  border: `1px solid ${preRegRole === 'estabelecimento' ? '#c084fc' : 'var(--border-color)'}`,
+                  color: preRegRole === 'estabelecimento' ? '#c084fc' : 'var(--text-secondary)',
+                  cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold'
+                }}
+              >
+                <Building size={16} />
+                <span>Academia</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePreRegistration} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              
+              {/* Nome */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  {preRegRole === 'estabelecimento' ? 'Nome da Academia / Razão Social' : 'Nome Completo'} *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder={preRegRole === 'estabelecimento' ? 'Ex: Matrix Fitness' : 'Ex: João da Silva'}
+                  value={preRegForm.name}
+                  onChange={(e) => setPreRegForm({ ...preRegForm, name: e.target.value })}
+                  style={styles.inputField}
+                />
+              </div>
+
+              {/* Responsável (se Academia) */}
+              {preRegRole === 'estabelecimento' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                    Nome do Responsável / Gestor
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Carlos Eduardo de Oliveira"
+                    value={preRegForm.responsavel || ''}
+                    onChange={(e) => setPreRegForm({ ...preRegForm, responsavel: e.target.value })}
+                    style={styles.inputField}
+                  />
+                </div>
+              )}
+
+              {/* WhatsApp */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  WhatsApp / Celular com DDD *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="(11) 98888-7777"
+                  value={preRegForm.whatsapp}
+                  onChange={(e) => setPreRegForm({ ...preRegForm, whatsapp: formatPhone(e.target.value) })}
+                  maxLength={15}
+                  style={styles.inputField}
+                />
+              </div>
+
+              {/* E-mail (Opcional) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  E-mail (Opcional)
+                </label>
+                <input
+                  type="email"
+                  placeholder="usuario@exemplo.com"
+                  value={preRegForm.email}
+                  onChange={(e) => setPreRegForm({ ...preRegForm, email: e.target.value })}
+                  style={styles.inputField}
+                />
+              </div>
+
+              {/* Vínculo de Aluno (se Aluno) */}
+              {preRegRole === 'aluno' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                    Vincular Aluno a
+                  </label>
+                  <select
+                    value={preRegForm.tenantId}
+                    onChange={(e) => setPreRegForm({ ...preRegForm, tenantId: e.target.value })}
+                    style={styles.selectField}
+                  >
+                    <option value="master">Aluno Direto Master (Acompanhamento IA)</option>
+                    <optgroup label="Academias">
+                      {Object.keys(tenants).map(k => {
+                        const t = tenants[k];
+                        return <option key={t.id} value={t.id}>{t.name} ({t.subdomain})</option>;
+                      })}
+                    </optgroup>
+                    <optgroup label="Professores Independentes">
+                      {usersList.filter(u => u.role === 'professor').map(p => (
+                        <option key={p.id} value={p.id}>{p.name} ({p.email})</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+              )}
+
+              {/* Plano & Limite (se Professor ou Academia) */}
+              {(preRegRole === 'professor' || preRegRole === 'estabelecimento') && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                      Plano Inicial
+                    </label>
+                    <select
+                      value={preRegForm.plano}
+                      onChange={(e) => setPreRegForm({ ...preRegForm, plano: e.target.value })}
+                      style={styles.selectField}
+                    >
+                      {PLANOS_DISPONIVEIS.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                      Limite de Alunos
+                    </label>
+                    <input
+                      type="number"
+                      value={preRegForm.limiteAlunos}
+                      onChange={(e) => setPreRegForm({ ...preRegForm, limiteAlunos: e.target.value })}
+                      min="1"
+                      style={styles.inputField}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPreRegModal(false)}
+                  style={{
+                    padding: '10px 16px', borderRadius: '10px',
+                    backgroundColor: 'transparent', border: '1px solid var(--border-color)',
+                    color: 'var(--text-secondary)', cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingPreReg}
+                  className="btn-primary"
+                  style={{
+                    padding: '10px 20px', borderRadius: '10px',
+                    display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'bold'
+                  }}
+                >
+                  <Sparkles size={16} />
+                  {isSubmittingPreReg ? 'Gerando Link...' : 'Criar e Gerar Link'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL DE LINK DE CONVITE GERADO ── */}
+      {createdInviteModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 100000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: '20px', maxWidth: '520px', width: '100%',
+            padding: '28px', border: '1px solid var(--border-color)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.7)'
+          }} className="animate-fade-in">
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div style={{
+                width: '56px', height: '56px', borderRadius: '50%',
+                backgroundColor: 'rgba(168, 85, 247, 0.2)', color: '#c084fc',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 12px auto'
+              }}>
+                <Sparkles size={28} />
+              </div>
+              <h3 style={{ margin: '0 0 6px 0', fontSize: '1.3rem', color: 'var(--text-primary)' }}>
+                Link de Convite Individual Pronto!
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Pré-cadastro criado para <strong>{createdInviteModal.user?.name}</strong> (
+                {createdInviteModal.user?.role === 'professor' ? '👨‍🏫 Professor' : 
+                 createdInviteModal.user?.role === 'estabelecimento' ? '🏢 Academia' : '🏋️ Aluno'}
+                ).
+              </p>
+            </div>
+
+            {/* Caixa com o Link Direto */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                🔗 Link Direto de Ativação do Convidado:
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  readOnly
+                  value={createdInviteModal.inviteUrl}
+                  style={{
+                    ...styles.inputField,
+                    fontFamily: 'monospace',
+                    fontSize: '0.8rem',
+                    backgroundColor: 'var(--bg-tertiary)'
+                  }}
+                  onClick={(e) => e.target.select()}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdInviteModal.inviteUrl);
+                    setCopiedInviteUrl(true);
+                    setTimeout(() => setCopiedInviteUrl(false), 3000);
+                  }}
+                  className="btn-primary"
+                  style={{
+                    padding: '10px 16px', borderRadius: '10px',
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 'bold'
+                  }}
+                >
+                  {copiedInviteUrl ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+                  {copiedInviteUrl ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
+            </div>
+
+            {/* Botão de Enviar via WhatsApp */}
+            <a
+              href={createdInviteModal.whatsAppUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                padding: '14px', borderRadius: '12px',
+                backgroundColor: '#25D366', color: '#ffffff',
+                textDecoration: 'none', fontWeight: 'bold', fontSize: '0.95rem',
+                marginBottom: '16px', boxShadow: '0 4px 14px rgba(37, 211, 102, 0.3)',
+                transition: 'opacity 0.2s'
+              }}
+            >
+              <Smartphone size={18} />
+              Enviar Convite pelo WhatsApp
+            </a>
+
+            <button
+              type="button"
+              onClick={() => { setCreatedInviteModal(null); setCopiedInviteUrl(false); }}
+              style={{
+                width: '100%', padding: '12px', borderRadius: '10px',
+                backgroundColor: 'transparent', border: '1px solid var(--border-color)',
+                color: 'var(--text-secondary)', fontSize: '0.85rem', cursor: 'pointer'
+              }}
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

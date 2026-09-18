@@ -1177,18 +1177,33 @@ export const AppProvider = ({ children }) => {
     return newUser;
   };
 
-  // 7. Gerador de Convite para WhatsApp com Link Personalizado
-  const generateWhatsAppInvite = (targetUser, inviterUser = null) => {
+  // 7. Gerador de Links de Convite Personalizado (Individual por Usuário Pré-Cadastrado)
+  const getDirectInviteUrl = (targetUser, inviterUser = null) => {
     const inviter = inviterUser || user;
     const baseUrl = typeof window !== 'undefined' ? (window.location.origin + window.location.pathname) : 'https://tonyddayvd.github.io/fit-seven/';
-    const inviteUrl = `${baseUrl}?invite=true&userId=${targetUser.id}&profName=${encodeURIComponent(inviter?.name || 'Seu Professor')}`;
+    return `${baseUrl}?invite=true&userId=${targetUser.id}&role=${targetUser.role || 'aluno'}&profName=${encodeURIComponent(inviter?.name || 'Administração Fit Seven')}`;
+  };
+
+  const generateWhatsAppInvite = (targetUser, inviterUser = null) => {
+    const inviter = inviterUser || user;
+    const inviteUrl = getDirectInviteUrl(targetUser, inviter);
     
-    const roleLabel = targetUser.role === 'professor' ? 'professor(a)' : 'aluno(a)';
+    let roleLabel = 'aluno(a)';
+    let roleMsg = 'Seus treinos personalizados e evolução física já estão sendo preparados.';
+    if (targetUser.role === 'professor') {
+      roleLabel = 'professor(a) / treinador(a)';
+      roleMsg = 'Seu painel de gestão de alunos, prescrição e avaliações já está disponível.';
+    } else if (targetUser.role === 'estabelecimento' || targetUser.role === 'academia') {
+      roleLabel = 'gestor(a) de academia / estabelecimento';
+      roleMsg = 'Seu ambiente multi-tenant exclusivo e gestão de professores/alunos já estão ativos.';
+    }
+
     const text = `Olá, *${targetUser.name}*! 👋\n\n` +
-      `Seu pré-cadastro como ${roleLabel} no *Fit Seven* foi realizado por *${inviter?.name || 'sua academia/professor'}*.\n\n` +
-      `📲 Clique no link seguro abaixo para definir sua senha pessoal e acessar seu painel:\n` +
+      `Seu pré-cadastro como *${roleLabel}* na plataforma *Fit Seven* foi realizado por *${inviter?.name || 'Administração Fit Seven'}*.\n\n` +
+      `${roleMsg}\n\n` +
+      `📲 *Clique no link direto e seguro abaixo para definir sua senha pessoal e ativar seu acesso:*\n` +
       `${inviteUrl}\n\n` +
-      `Bons treinos! 💪🏋️`;
+      `Seja bem-vindo(a) ao Fit Seven! 🚀🏋️`;
 
     const cleanPhone = cleanDigits(targetUser.whatsapp || targetUser.telefone);
     const phoneParam = cleanPhone ? `&phone=55${cleanPhone}` : '';
@@ -1196,28 +1211,51 @@ export const AppProvider = ({ children }) => {
     return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}${phoneParam}`;
   };
 
-  // 8. Concluir Cadastro de Convite (Aluno ou Professor pré-cadastrado define CPF e senha)
-  const completeInviteRegistration = async (userId, cpf, newPassword, extraData = {}) => {
-    const cleanCpf = cleanDigits(cpf);
-    if (!cleanCpf || !validateCPF(cleanCpf)) {
-      throw new Error('CPF obrigatório e deve ser válido.');
+  // 8. Concluir Cadastro de Convite (Aluno, Professor ou Academia pré-cadastrado define CPF/CNPJ e senha)
+  const completeInviteRegistration = async (userId, docNumber, newPassword, extraData = {}) => {
+    const cleanDoc = cleanDigits(docNumber);
+    if (!cleanDoc) {
+      throw new Error('Documento (CPF ou CNPJ) é obrigatório.');
     }
+    
+    const userObj = usersList.find(u => u.id === userId);
+    const isGym = userObj?.role === 'estabelecimento' || userObj?.role === 'academia' || extraData.role === 'estabelecimento';
+
+    if (isGym) {
+      if (!validateDoc(cleanDoc)) {
+        throw new Error('CNPJ ou CPF com formato inválido.');
+      }
+    } else {
+      if (!validateCPF(cleanDoc)) {
+        throw new Error('CPF inválido. Verifique os dígitos informados.');
+      }
+    }
+
     if (!newPassword || newPassword.length < 3) {
       throw new Error('Defina uma senha com no mínimo 3 caracteres.');
     }
 
+    const docField = (isGym && cleanDoc.length === 14) ? { cnpj: cleanDoc, cpf: extraData.cpf || '' } : { cpf: cleanDoc };
+
     const updated = await updateUser(userId, {
       ...extraData,
-      cpf: cleanCpf,
+      ...docField,
       password: newPassword,
       preCadastro: false,
       primeiroAcesso: false,
       statusVinculo: 'aprovado'
     });
 
-    const userObj = usersList.find(u => u.id === userId);
     if (userObj) {
-      const merged = { ...userObj, ...extraData, cpf: cleanCpf, password: newPassword, preCadastro: false, primeiroAcesso: false, statusVinculo: 'aprovado' };
+      const merged = { 
+        ...userObj, 
+        ...extraData, 
+        ...docField, 
+        password: newPassword, 
+        preCadastro: false, 
+        primeiroAcesso: false, 
+        statusVinculo: 'aprovado' 
+      };
       setUser(merged);
       localStorage.setItem('fitseven-user', JSON.stringify(merged));
     }
@@ -1733,6 +1771,7 @@ export const AppProvider = ({ children }) => {
       rejectStudentLink,
       preRegisterUser,
       generateWhatsAppInvite,
+      getDirectInviteUrl,
       completeInviteRegistration,
       notifications,
       createNotification,

@@ -46,7 +46,9 @@ const Login = () => {
 
   // Estados principais
   const [authMode, setAuthMode] = useState('login'); // 'login', 'register', 'forgot_password', 'invite'
-  const [identifier, setIdentifier] = useState(''); // Email ou CPF
+  const [identifier, setIdentifier] = useState(() => {
+    return localStorage.getItem('fitseven-last-identifier') || '';
+  }); // Email ou CPF memorizado
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -85,6 +87,9 @@ const Login = () => {
   const [inviteData, setInviteData] = useState(null);
   const [inviteForm, setInviteForm] = useState({
     cpf: '',
+    cnpj: '',
+    cref: '',
+    responsavel: '',
     password: '',
     confirmPassword: ''
   });
@@ -96,14 +101,18 @@ const Login = () => {
       const isInvite = params.get('invite');
       const userId = params.get('userId');
       const profName = params.get('profName');
+      const roleParam = params.get('role');
 
       if (isInvite && userId) {
         const found = (usersList || []).find(u => u.id === userId);
+        const resolvedRole = found?.role || roleParam || 'aluno';
         setInviteData({
           userId,
-          studentName: found?.name || 'Aluno Convidado',
+          studentName: found?.name || 'Convidado',
+          userName: found?.name || 'Convidado',
           email: found?.email || '',
-          profName: profName || found?.nomeProfessorVinculado || 'Seu Professor/Academia',
+          role: resolvedRole,
+          profName: profName || found?.nomeProfessorVinculado || 'Administração Fit Seven',
           foundUser: found
         });
         setAuthMode('invite');
@@ -133,6 +142,10 @@ const Login = () => {
     setSuccessMsg('');
     setLoading(true);
 
+    if (identifier) {
+      localStorage.setItem('fitseven-last-identifier', identifier);
+    }
+
     setTimeout(() => {
       const res = login(identifier, password, selectedUserId);
       setLoading(false);
@@ -140,6 +153,8 @@ const Login = () => {
         setMultipleAccounts(res.accounts);
       } else if (!res.success) {
         setError(res.message || 'E-mail/CPF ou senha incorretos. Tente novamente.');
+      } else {
+        localStorage.setItem('fitseven-last-identifier', identifier);
       }
     }, 200);
   };
@@ -248,13 +263,23 @@ const Login = () => {
     setError('');
     setSuccessMsg('');
 
-    if (!validateCPF(inviteForm.cpf)) {
-      setError('Por favor, informe um CPF válido.');
-      return;
+    const isGym = inviteData?.role === 'estabelecimento' || inviteData?.role === 'academia';
+    const docToValidate = isGym ? (inviteForm.cnpj || inviteForm.cpf) : inviteForm.cpf;
+
+    if (isGym) {
+      if (!validateDoc(docToValidate)) {
+        setError('Por favor, informe um CNPJ ou CPF válido para a academia.');
+        return;
+      }
+    } else {
+      if (!validateCPF(docToValidate)) {
+        setError('Por favor, informe um CPF válido com 11 dígitos.');
+        return;
+      }
     }
 
     if (inviteForm.password !== inviteForm.confirmPassword) {
-      setError('As senhas não coincidem.');
+      setError('As senhas digitadas não coincidem.');
       return;
     }
 
@@ -267,8 +292,12 @@ const Login = () => {
     try {
       await completeInviteRegistration(
         inviteData.userId,
-        inviteForm.cpf,
-        inviteForm.password
+        docToValidate,
+        inviteForm.password,
+        {
+          ...(inviteForm.cref ? { cref: inviteForm.cref } : {}),
+          ...(inviteForm.responsavel ? { responsavel: inviteForm.responsavel } : {})
+        }
       );
       setSuccessMsg('Cadastro ativado com sucesso! Bem-vindo ao Fit Seven.');
       // Remove params da URL
@@ -330,13 +359,16 @@ const Login = () => {
         {/* ========================================================================= */}
         {authMode === 'login' && !multipleAccounts && (
           <div className="animate-fade-in">
-            <form onSubmit={(e) => handleLoginSubmit(e)} style={styles.form}>
+            <form id="fitseven-login-form" name="loginForm" autoComplete="on" onSubmit={(e) => handleLoginSubmit(e)} style={styles.form}>
               <div style={styles.inputGroup}>
-                <label style={styles.label}>E-mail ou CPF</label>
+                <label style={styles.label} htmlFor="login-identifier">E-mail ou CPF</label>
                 <div style={styles.inputWrapper}>
                   <User size={18} style={styles.inputIcon} />
                   <input
+                    id="login-identifier"
+                    name="username"
                     type="text"
+                    autoComplete="username"
                     value={identifier}
                     onChange={(e) => handleIdentifierChange(e.target.value)}
                     placeholder="seu.email@fitseven.com ou 000.000.000-00"
@@ -348,7 +380,7 @@ const Login = () => {
 
               <div style={styles.inputGroup}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={styles.label}>Senha</label>
+                  <label style={styles.label} htmlFor="login-password">Senha</label>
                   <button
                     type="button"
                     onClick={() => { setError(''); setSuccessMsg(''); setAuthMode('forgot_password'); }}
@@ -360,7 +392,10 @@ const Login = () => {
                 <div style={styles.inputWrapper}>
                   <Lock size={18} style={styles.inputIcon} />
                   <input
+                    id="login-password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Sua senha"
@@ -890,7 +925,7 @@ const Login = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* MODO 4: FINALIZAR CADASTRO DE CONVITE VIA WHATSAPP                        */}
+        {/* MODO 4: FINALIZAR CADASTRO DE CONVITE VIA LINK / WHATSAPP                 */}
         {/* ========================================================================= */}
         {authMode === 'invite' && inviteData && (
           <div className="animate-fade-in">
@@ -898,34 +933,86 @@ const Login = () => {
               <div style={styles.inviteIconCircle}>
                 <Sparkles size={28} color="#a855f7" />
               </div>
-              <h2 style={styles.inviteTitle}>Olá, {inviteData.studentName}! 🎉</h2>
+              <h2 style={styles.inviteTitle}>
+                {inviteData.role === 'professor' ? `Olá, Prof. ${inviteData.userName}! 👨‍🏫` :
+                 inviteData.role === 'estabelecimento' || inviteData.role === 'academia' ? `Olá, ${inviteData.userName}! 🏢` :
+                 `Olá, ${inviteData.userName}! 🎉`}
+              </h2>
               <p style={styles.inviteSubtitle}>
-                Seu cadastro no Fit Seven foi preparado por <strong>{inviteData.profName}</strong>.
+                Seu pré-cadastro como <strong>{inviteData.role === 'professor' ? 'Professor(a)' : (inviteData.role === 'estabelecimento' || inviteData.role === 'academia') ? 'Academia/Estabelecimento' : 'Aluno(a)'}</strong> no Fit Seven foi realizado por <strong>{inviteData.profName}</strong>.
               </p>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                Complete seu CPF e crie sua senha pessoal para acessar seus treinos personalizados:
+                {inviteData.role === 'professor' ? 'Confirme seus dados profissionais e defina sua senha para acessar seu painel:' :
+                 inviteData.role === 'estabelecimento' || inviteData.role === 'academia' ? 'Confirme os dados da sua academia e defina a senha do gestor:' :
+                 'Complete seu CPF e crie sua senha pessoal para acessar seus treinos personalizados:'}
               </p>
             </div>
 
             <form onSubmit={handleCompleteInviteSubmit} style={styles.form}>
+              
+              {/* Documento (CPF ou CNPJ) */}
               <div style={styles.inputGroup}>
-                <label style={styles.label}>Confirme seu CPF</label>
+                <label style={styles.label}>
+                  {inviteData.role === 'estabelecimento' || inviteData.role === 'academia' ? 'CNPJ ou CPF da Academia' : 'Confirme seu CPF'}
+                </label>
                 <div style={styles.inputWrapper}>
                   <FileText size={18} style={styles.inputIcon} />
                   <input
                     type="text"
-                    value={inviteForm.cpf}
-                    onChange={(e) => setInviteForm({ ...inviteForm, cpf: formatCPF(e.target.value) })}
-                    placeholder="000.000.000-00"
-                    maxLength={14}
+                    value={inviteData.role === 'estabelecimento' || inviteData.role === 'academia' ? inviteForm.cnpj || inviteForm.cpf : inviteForm.cpf}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (inviteData.role === 'estabelecimento' || inviteData.role === 'academia') {
+                        setInviteForm({ ...inviteForm, cnpj: formatDoc(val), cpf: formatDoc(val) });
+                      } else {
+                        setInviteForm({ ...inviteForm, cpf: formatCPF(val) });
+                      }
+                    }}
+                    placeholder={inviteData.role === 'estabelecimento' || inviteData.role === 'academia' ? "00.000.000/0001-00 ou CPF" : "000.000.000-00"}
+                    maxLength={18}
                     style={styles.input}
                     required
                   />
                 </div>
               </div>
 
+              {/* Se Professor: CREF */}
+              {inviteData.role === 'professor' && (
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>CREF (Registro Profissional)</label>
+                  <div style={styles.inputWrapper}>
+                    <ShieldCheck size={18} style={styles.inputIcon} />
+                    <input
+                      type="text"
+                      value={inviteForm.cref || ''}
+                      onChange={(e) => setInviteForm({ ...inviteForm, cref: e.target.value })}
+                      placeholder="Ex: 012345-G/SP"
+                      style={styles.input}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Se Academia: Responsável */}
+              {(inviteData.role === 'estabelecimento' || inviteData.role === 'academia') && (
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Nome do Responsável / Gestor</label>
+                  <div style={styles.inputWrapper}>
+                    <UserCheck size={18} style={styles.inputIcon} />
+                    <input
+                      type="text"
+                      value={inviteForm.responsavel || ''}
+                      onChange={(e) => setInviteForm({ ...inviteForm, responsavel: e.target.value })}
+                      placeholder="Ex: Carlos Eduardo Silva"
+                      style={styles.input}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Senha */}
               <div style={styles.inputGroup}>
-                <label style={styles.label}>Criar Senha Pessoal</label>
+                <label style={styles.label}>Criar Senha Pessoal de Acesso</label>
                 <div style={styles.inputWrapper}>
                   <Lock size={18} style={styles.inputIcon} />
                   <input
@@ -939,6 +1026,7 @@ const Login = () => {
                 </div>
               </div>
 
+              {/* Confirmar Senha */}
               <div style={styles.inputGroup}>
                 <label style={styles.label}>Confirmar Senha</label>
                 <div style={styles.inputWrapper}>
