@@ -37,10 +37,25 @@ import {
   GraduationCap,
   Star,
   Trash2,
-  Video
+  Video,
+  User,
+  MessageCircle,
+  Phone,
+  Copy,
+  Briefcase,
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
 import MedalComposer from '../components/MedalComposer';
 import { formatVideoEmbedUrl, getDefaultOfficialVideo } from '../utils/videoService';
+
+const InstagramIcon = ({ size = 16, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+  </svg>
+);
 
 const TABS = [
   { id: 'treinos', label: 'Treinos', icon: Dumbbell, desc: 'Ficha de treinos ativa, séries e cronograma de exercícios.' },
@@ -133,10 +148,60 @@ const openHtmlAsPdf = (htmlContent, nomeArquivo = 'programa') => {
 };
 
 const Aluno = () => {
-  const { activeTenant, user, currentStudentExercises, updateStudentExercises, submitEvaluation, workoutsByStudent, setVirtualRoute, pendingEvaluations, approvedEvaluations, reportBug } = useApp();
+  const { 
+    activeTenant, 
+    user, 
+    currentStudentExercises, 
+    updateStudentExercises, 
+    submitEvaluation, 
+    workoutsByStudent, 
+    setVirtualRoute, 
+    pendingEvaluations, 
+    approvedEvaluations, 
+    reportBug,
+    usersList,
+    updateUserProfile
+  } = useApp();
   
   const [showMedalModal, setShowMedalModal] = useState(false);
   const [medalData, setMedalData] = useState({ percentage: 0, isMonthly: false, name: '' });
+  const [showProfessorModal, setShowProfessorModal] = useState(false);
+  const [copiedPixProfAluno, setCopiedPixProfAluno] = useState(false);
+  const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
+
+  // Localiza o professor do aluno
+  const myProfessor = useMemo(() => {
+    if (!usersList || usersList.length === 0) return null;
+    return (
+      usersList.find(u => u.role === 'professor' && (u.id === user?.tenantId || u.id === user?.professorId)) ||
+      usersList.find(u => u.role === 'professor' && u.id === 'u2') ||
+      usersList.find(u => u.role === 'professor')
+    );
+  }, [usersList, user]);
+
+  const handleStudentAvatarUpload = async (file) => {
+    if (!file || !user?.id) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result;
+      setIsUpdatingPhoto(true);
+      try {
+        await updateUserProfile(user.id, { fotoPerfil: base64 });
+      } catch (e) {
+        console.error('Erro ao atualizar foto de perfil:', e);
+      } finally {
+        setIsUpdatingPhoto(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCopyProfPix = (pixKey) => {
+    if (!pixKey) return;
+    navigator.clipboard.writeText(pixKey);
+    setCopiedPixProfAluno(true);
+    setTimeout(() => setCopiedPixProfAluno(false), 2500);
+  };
 
   const userDbData = workoutsByStudent && workoutsByStudent[user?.id];
   const isVip = user?.isVip || (userDbData && userDbData.isVip);
@@ -1433,6 +1498,63 @@ const Aluno = () => {
       <div style={styles.contentArea}>
         <div style={styles.card} className="glass">
           
+          {/* Card de Identificação do Aluno & Acesso Rápido ao Professor */}
+          <div style={styles.studentTopBar}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={styles.studentAvatarBox}>
+                {user?.fotoPerfil ? (
+                  <img src={user.fotoPerfil} alt={user.name} style={styles.studentAvatarImg} />
+                ) : (
+                  <div style={styles.studentAvatarPlaceholder}>
+                    {(user?.name || 'A').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <label style={styles.studentPhotoBadge} title="Trocar Minha Foto de Perfil">
+                  <Camera size={11} />
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    style={{ display: 'none' }}
+                    onChange={(e) => handleStudentAvatarUpload(e.target.files?.[0])}
+                  />
+                </label>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Olá, atleta</span>
+                <strong style={{ fontSize: '1.05rem', color: 'var(--text-primary)' }}>{user?.name || 'Aluno'}</strong>
+              </div>
+            </div>
+
+            {/* Destaque do Treinador / Professor */}
+            {myProfessor && (
+              <div 
+                onClick={() => setShowProfessorModal(true)} 
+                style={styles.profQuickCard}
+                role="button"
+                tabIndex={0}
+                title="Ver Cartão e Vídeos do seu Professor"
+              >
+                <div style={styles.profQuickAvatar}>
+                  {myProfessor.fotoPerfil ? (
+                    <img src={myProfessor.fotoPerfil} alt={myProfessor.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <User size={18} color="var(--primary)" />
+                  )}
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '0.68rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>Meu Treinador</span>
+                    <Sparkles size={11} color="var(--primary)" />
+                  </div>
+                  <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)', display: 'block' }}>{myProfessor.name}</strong>
+                </div>
+                <button type="button" style={styles.profQuickBtn}>
+                  Ver Perfil
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Header da Aba */}
           <div style={styles.header}>
             <div style={styles.iconWrapper}>
@@ -3679,6 +3801,164 @@ const Aluno = () => {
         </div>
       )}
 
+      {/* MODAL DE APRESENTAÇÃO DO PROFESSOR (VISÃO DO ALUNO) */}
+      {showProfessorModal && myProfessor && (
+        <div style={styles.modalOverlay} className="animate-fade-in" onClick={() => setShowProfessorModal(false)}>
+          <div style={{ ...styles.modalCard, maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto' }} className="glass" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Briefcase size={20} color="var(--primary)" />
+                <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.15rem', fontWeight: '800' }}>
+                  Conheça seu Treinador
+                </h3>
+              </div>
+              <button onClick={() => setShowProfessorModal(false)} style={styles.closeModalBtn}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Topo do Modal com Foto, Nome e CREF */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '18px', backgroundColor: 'var(--bg-secondary)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+              <div style={styles.profModalAvatar}>
+                {myProfessor.fotoPerfil ? (
+                  <img src={myProfessor.fotoPerfil} alt={myProfessor.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <User size={36} color="var(--primary)" />
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ margin: '0 0 4px 0', fontSize: '1.2rem', color: 'var(--text-primary)', fontWeight: '800' }}>
+                  {myProfessor.name}
+                </h4>
+                <span style={styles.profModalCrefBadge}>
+                  <ShieldCheck size={13} /> {myProfessor.cref ? `CREF: ${myProfessor.cref}` : 'CREF Profissional'}
+                </span>
+                {myProfessor.especialidades && (
+                  <p style={{ margin: '6px 0 0 0', fontSize: '0.8rem', color: 'var(--primary)', fontWeight: '600' }}>
+                    {myProfessor.especialidades}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Biografia / Metodologia */}
+            {myProfessor.bio && (
+              <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '14px', borderRadius: '10px', marginBottom: '16px', border: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                  Sobre o Treinador:
+                </span>
+                <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                  "{myProfessor.bio}"
+                </p>
+              </div>
+            )}
+
+            {/* Botões de Ação Direta: WhatsApp e Instagram */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', flexWrap: 'wrap' }}>
+              {myProfessor.whatsapp && (
+                <a
+                  href={`https://wa.me/55${myProfessor.whatsapp.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.profModalWhatsBtn}
+                >
+                  <MessageCircle size={16} /> Falar no WhatsApp
+                </a>
+              )}
+              {myProfessor.instagram && (
+                <a
+                  href={`https://instagram.com/${myProfessor.instagram.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.profModalInstaBtn}
+                >
+                  <InstagramIcon size={16} /> Ver Instagram
+                </a>
+              )}
+            </div>
+
+            {/* Vídeo 1: Apresentação do Professor */}
+            {myProfessor.videoApresentacaoUrl ? (
+              <div style={{ marginBottom: '16px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Video size={16} color="var(--primary)" /> Vídeo de Apresentação:
+                </span>
+                <div style={styles.profVideoPlayerBox}>
+                  {myProfessor.videoApresentacaoUrl.startsWith('data:video') || myProfessor.videoApresentacaoUrl.startsWith('blob:') ? (
+                    <video src={myProfessor.videoApresentacaoUrl} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <iframe 
+                      src={formatVideoEmbedUrl(myProfessor.videoApresentacaoUrl)} 
+                      title="Vídeo de Apresentação" 
+                      frameBorder="0" 
+                      allowFullScreen 
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Vídeo 2: Vídeo de Incentivo / Foco */}
+            {myProfessor.videoIncentivoUrl ? (
+              <div style={{ marginBottom: '16px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={16} color="var(--primary)" /> Mensagem de Incentivo & Foco:
+                </span>
+                <div style={styles.profVideoPlayerBox}>
+                  {myProfessor.videoIncentivoUrl.startsWith('data:video') || myProfessor.videoIncentivoUrl.startsWith('blob:') ? (
+                    <video src={myProfessor.videoIncentivoUrl} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <iframe 
+                      src={formatVideoEmbedUrl(myProfessor.videoIncentivoUrl)} 
+                      title="Vídeo de Incentivo" 
+                      frameBorder="0" 
+                      allowFullScreen 
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Caixa de Pagamento PIX com 1 Clique */}
+            {myProfessor.chavePix && (
+              <div style={styles.profModalPixBox}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--status-success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CreditCard size={15} /> Pagamento Direto ao Treinador via PIX
+                  </span>
+                  {myProfessor.bancoPix && (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{myProfessor.bancoPix}</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={myProfessor.chavePix} 
+                    style={{ ...styles.dualInput, flex: 1, backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => handleCopyProfPix(myProfessor.chavePix)}
+                    style={styles.profModalCopyBtn}
+                  >
+                    {copiedPixProfAluno ? <Check size={15} /> : <Copy size={15} />}
+                    {copiedPixProfAluno ? 'Copiado!' : 'Copiar PIX'}
+                  </button>
+                </div>
+                {myProfessor.titularPix && (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '6px' }}>
+                    Favorecido: {myProfessor.titularPix}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Menu de Navegação Inferior */}
       <nav style={styles.bottomNav} className="glass">
         <div style={styles.scrollWrapper}>
@@ -4699,6 +4979,182 @@ const styles = {
     color: 'var(--text-secondary)',
     marginTop: '4px',
     lineHeight: '1.3',
+  },
+  // TopBar de Identificação e Destaque do Professor
+  studentTopBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 16px',
+    backgroundColor: 'var(--bg-secondary)',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-color)',
+    marginBottom: '-8px',
+    flexWrap: 'wrap',
+    gap: '12px'
+  },
+  studentAvatarBox: {
+    position: 'relative',
+    width: '46px',
+    height: '46px',
+    borderRadius: '50%',
+    flexShrink: 0
+  },
+  studentAvatarImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    borderRadius: '50%',
+    border: '2px solid var(--primary)'
+  },
+  studentAvatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: '50%',
+    backgroundColor: 'var(--primary)',
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 'bold',
+    fontSize: '1.1rem'
+  },
+  studentPhotoBadge: {
+    position: 'absolute',
+    bottom: '-2px',
+    right: '-2px',
+    backgroundColor: 'var(--primary)',
+    color: '#fff',
+    borderRadius: '50%',
+    width: '18px',
+    height: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    border: '1px solid var(--bg-primary)',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+  },
+  profQuickCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '6px 12px',
+    borderRadius: '10px',
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+    border: '1px solid rgba(139, 92, 246, 0.25)',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  profQuickAvatar: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    overflow: 'hidden',
+    backgroundColor: 'var(--bg-tertiary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '1px solid var(--primary)',
+    flexShrink: 0
+  },
+  profQuickBtn: {
+    padding: '4px 10px',
+    borderRadius: '6px',
+    border: 'none',
+    backgroundColor: 'var(--primary)',
+    color: '#fff',
+    fontSize: '0.72rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    marginLeft: '6px'
+  },
+  // Modal do Professor
+  profModalAvatar: {
+    width: '64px',
+    height: '64px',
+    borderRadius: '50%',
+    overflow: 'hidden',
+    backgroundColor: 'var(--bg-tertiary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '2px solid var(--primary)',
+    flexShrink: 0
+  },
+  profModalCrefBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    color: 'var(--primary)',
+    padding: '2px 8px',
+    borderRadius: '6px',
+    border: '1px solid rgba(139, 92, 246, 0.3)'
+  },
+  profModalWhatsBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    flex: 1,
+    minWidth: '160px',
+    padding: '10px 14px',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    color: '#22c55e',
+    border: '1px solid rgba(34, 197, 94, 0.3)',
+    fontWeight: 'bold',
+    fontSize: '0.85rem',
+    textDecoration: 'none',
+    cursor: 'pointer'
+  },
+  profModalInstaBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    flex: 1,
+    minWidth: '160px',
+    padding: '10px 14px',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(236, 72, 153, 0.15)',
+    color: '#ec4899',
+    border: '1px solid rgba(236, 72, 153, 0.3)',
+    fontWeight: 'bold',
+    fontSize: '0.85rem',
+    textDecoration: 'none',
+    cursor: 'pointer'
+  },
+  profVideoPlayerBox: {
+    width: '100%',
+    height: '240px',
+    borderRadius: '10px',
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    border: '1px solid var(--border-color)'
+  },
+  profModalPixBox: {
+    backgroundColor: 'var(--bg-secondary)',
+    padding: '14px',
+    borderRadius: '10px',
+    border: '1px solid rgba(16, 185, 129, 0.35)'
+  },
+  profModalCopyBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '8px 14px',
+    borderRadius: '6px',
+    border: 'none',
+    backgroundColor: 'var(--status-success)',
+    color: '#fff',
+    fontSize: '0.78rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap'
   }
 };
 

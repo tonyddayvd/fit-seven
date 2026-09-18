@@ -15,13 +15,123 @@ export const DEFAULT_TENANTS = {
 };
 
 export const DEFAULT_USERS = [
-  { id: 'u1', name: 'Admin Master', email: 'master@fitseven.com', role: 'master', tenantId: 't1', password: '123' },
-  { id: 'u2', name: 'Carlos Santos (Professor)', email: 'carlos@matrix.com', role: 'professor', tenantId: 't1', password: '123' },
-  { id: 'u3', name: 'Ana Silva (Aluna)', email: 'ana@matrix.com', role: 'aluno', tenantId: 't1', password: '123', isVip: true },
-  { id: 'u3_lucas', name: 'Lucas Aluno', email: 'lucas@matrix.com', role: 'aluno', tenantId: 't1', password: '123', isVip: true },
-  { id: 'u4', name: 'Gestor Matrix', email: 'gestor@matrix.com', role: 'academia', tenantId: 't1', password: '123' },
-  { id: 'u5', name: 'Roberto Lima (Professor)', email: 'roberto@iron.com', role: 'professor', tenantId: 't2', password: '123' },
-  { id: 'u6', name: 'Mariana Souza (Aluna)', email: 'mariana@iron.com', role: 'aluno', tenantId: 't2', password: '123', isVip: true }
+  { 
+    id: 'u1', 
+    name: 'Admin Master', 
+    email: 'master@fitseven.com', 
+    role: 'master', 
+    tenantId: 't1', 
+    password: '123' 
+  },
+  { 
+    id: 'u2', 
+    name: 'Carlos Santos (Professor)', 
+    email: 'carlos@matrix.com', 
+    role: 'professor', 
+    tenantId: 't1', 
+    password: '123',
+    cref: '012345-G/SP',
+    bio: 'Especialista em Fisiologia do Exercício, Hipertrofia e Emagrecimento Consciente há mais de 10 anos. Foco em biomecânica segura e resultados consistentes.',
+    especialidades: 'Hipertrofia, Emagrecimento, Biomecânica, Treinamento Funcional',
+    whatsapp: '11998765432',
+    instagram: '@profcarlossantos',
+    chavePix: 'carlos.santos@matrix.com',
+    bancoPix: 'Nubank (260)',
+    titularPix: 'Carlos Eduardo Santos',
+    videoApresentacaoUrl: 'https://www.youtube.com/embed/sqOw2Y6u9Xs',
+    videoIncentivoUrl: 'https://www.youtube.com/embed/0pkjOk0EiAk',
+    fotoPerfil: ''
+  },
+  { 
+    id: 'u3', 
+    name: 'Ana Silva (Aluna)', 
+    email: 'ana@matrix.com', 
+    role: 'aluno', 
+    tenantId: 't1', 
+    password: '123', 
+    isVip: true,
+    telefone: '11988887777',
+    whatsapp: '11988887777',
+    cpf: '123.456.789-00',
+    dataNascimento: '1996-04-15',
+    endereco: 'Rua das Flores, 120, Apto 42',
+    cidade: 'São Paulo - SP',
+    chavePix: '12345678900',
+    tipoChavePix: 'CPF',
+    contatoEmergenciaNome: 'Marcos Silva (Esposo)',
+    contatoEmergenciaTel: '11977776666',
+    plano: 'Plano Black',
+    dia_vencimento: '10',
+    anotacoesProfessor: 'Aluna muito dedicada. Atenção com sobrecarga no joelho direito após lesão pregressa.'
+  },
+  { 
+    id: 'u3_lucas', 
+    name: 'Lucas Aluno', 
+    email: 'lucas@matrix.com', 
+    role: 'aluno', 
+    tenantId: 't1', 
+    password: '123', 
+    isVip: true,
+    telefone: '11977778888',
+    whatsapp: '11977778888',
+    cpf: '987.654.321-11',
+    dataNascimento: '1998-08-20',
+    endereco: 'Av. Paulista, 1500',
+    cidade: 'São Paulo - SP',
+    chavePix: 'lucas@matrix.com',
+    tipoChavePix: 'E-mail',
+    contatoEmergenciaNome: 'Clara Santos (Mãe)',
+    contatoEmergenciaTel: '11966665555',
+    plano: 'VIP Presencial',
+    dia_vencimento: '05',
+    anotacoesProfessor: 'Foco total em hipertrofia de peitoral e dorsais. Excelente progressão de cargas.'
+  },
+  { 
+    id: 'u4', 
+    name: 'Gestor Matrix', 
+    email: 'gestor@matrix.com', 
+    role: 'academia', 
+    tenantId: 't1', 
+    password: '123' 
+  },
+  { 
+    id: 'u5', 
+    name: 'Roberto Lima (Professor)', 
+    email: 'roberto@iron.com', 
+    role: 'professor', 
+    tenantId: 't2', 
+    password: '123',
+    cref: '098765-G/RJ',
+    bio: 'Preparador físico de atletas e consultor de alta performance.',
+    especialidades: 'Powerlifting, Força Pura, Condicionamento Atlético',
+    whatsapp: '21987654321',
+    instagram: '@coachrobertolima',
+    chavePix: 'roberto@iron.com',
+    bancoPix: 'Inter (077)',
+    titularPix: 'Roberto Lima',
+    videoApresentacaoUrl: 'https://www.youtube.com/embed/H6x4yY9_u2w',
+    videoIncentivoUrl: 'https://www.youtube.com/embed/Vn83S-A-9yU',
+    fotoPerfil: ''
+  },
+  { 
+    id: 'u6', 
+    name: 'Mariana Souza (Aluna)', 
+    email: 'mariana@iron.com', 
+    role: 'aluno', 
+    tenantId: 't2', 
+    password: '123', 
+    isVip: true,
+    telefone: '21999998888',
+    whatsapp: '21999998888',
+    cpf: '456.789.123-44',
+    dataNascimento: '2000-11-10',
+    endereco: 'Rua Copacabana, 50',
+    cidade: 'Rio de Janeiro - RJ',
+    chavePix: '21999998888',
+    tipoChavePix: 'Celular',
+    plano: 'Plano Pro',
+    dia_vencimento: '15'
+  }
 ];
 
 export const DEFAULT_WORKOUTS = [
@@ -231,7 +341,25 @@ export const AppProvider = ({ children }) => {
           customPlans: u.dados_pessoais?.customPlans || [],
           pagamentoStatus: u.dados_pessoais?.pagamentoStatus || 'Pendente',
           telefone: u.dados_pessoais?.telefone || '',
+          whatsapp: u.dados_pessoais?.whatsapp || u.dados_pessoais?.telefone || '',
+          cpf: u.dados_pessoais?.cpf || '',
+          dataNascimento: u.dados_pessoais?.dataNascimento || '',
           endereco: u.dados_pessoais?.endereco || '',
+          cidade: u.dados_pessoais?.cidade || '',
+          chavePix: u.dados_pessoais?.chavePix || '',
+          tipoChavePix: u.dados_pessoais?.tipoChavePix || 'CPF',
+          bancoPix: u.dados_pessoais?.bancoPix || '',
+          titularPix: u.dados_pessoais?.titularPix || '',
+          contatoEmergenciaNome: u.dados_pessoais?.contatoEmergenciaNome || '',
+          contatoEmergenciaTel: u.dados_pessoais?.contatoEmergenciaTel || '',
+          anotacoesProfessor: u.dados_pessoais?.anotacoesProfessor || '',
+          fotoPerfil: u.dados_pessoais?.fotoPerfil || '',
+          cref: u.dados_pessoais?.cref || '',
+          bio: u.dados_pessoais?.bio || '',
+          especialidades: u.dados_pessoais?.especialidades || '',
+          instagram: u.dados_pessoais?.instagram || '',
+          videoApresentacaoUrl: u.dados_pessoais?.videoApresentacaoUrl || '',
+          videoIncentivoUrl: u.dados_pessoais?.videoIncentivoUrl || '',
           dia_vencimento: u.dados_pessoais?.dia_vencimento || '',
           historico_pagamentos: u.dados_pessoais?.historico_pagamentos || []
         }));
@@ -439,7 +567,25 @@ export const AppProvider = ({ children }) => {
       customPlans: userData.customPlans || [],
       pagamentoStatus: 'Pendente',
       telefone: userData.telefone || '',
+      whatsapp: userData.whatsapp || userData.telefone || '',
+      cpf: userData.cpf || '',
+      dataNascimento: userData.dataNascimento || '',
       endereco: userData.endereco || '',
+      cidade: userData.cidade || '',
+      chavePix: userData.chavePix || '',
+      tipoChavePix: userData.tipoChavePix || 'CPF',
+      bancoPix: userData.bancoPix || '',
+      titularPix: userData.titularPix || '',
+      contatoEmergenciaNome: userData.contatoEmergenciaNome || '',
+      contatoEmergenciaTel: userData.contatoEmergenciaTel || '',
+      anotacoesProfessor: userData.anotacoesProfessor || '',
+      fotoPerfil: userData.fotoPerfil || '',
+      cref: userData.cref || '',
+      bio: userData.bio || '',
+      especialidades: userData.especialidades || '',
+      instagram: userData.instagram || '',
+      videoApresentacaoUrl: userData.videoApresentacaoUrl || '',
+      videoIncentivoUrl: userData.videoIncentivoUrl || '',
       dia_vencimento: userData.dia_vencimento || '',
       historico_pagamentos: gerarHistoricoPagamentos(userData.dia_vencimento, [])
     };
@@ -473,7 +619,25 @@ export const AppProvider = ({ children }) => {
       customPlans: updatedData.customPlans !== undefined ? updatedData.customPlans : (userObj.customPlans || []),
       pagamentoStatus: updatedData.pagamentoStatus !== undefined ? updatedData.pagamentoStatus : (userObj.pagamentoStatus || 'Pendente'),
       telefone: updatedData.telefone !== undefined ? updatedData.telefone : (userObj.telefone || ''),
+      whatsapp: updatedData.whatsapp !== undefined ? updatedData.whatsapp : (userObj.whatsapp || userObj.telefone || ''),
+      cpf: updatedData.cpf !== undefined ? updatedData.cpf : (userObj.cpf || ''),
+      dataNascimento: updatedData.dataNascimento !== undefined ? updatedData.dataNascimento : (userObj.dataNascimento || ''),
       endereco: updatedData.endereco !== undefined ? updatedData.endereco : (userObj.endereco || ''),
+      cidade: updatedData.cidade !== undefined ? updatedData.cidade : (userObj.cidade || ''),
+      chavePix: updatedData.chavePix !== undefined ? updatedData.chavePix : (userObj.chavePix || ''),
+      tipoChavePix: updatedData.tipoChavePix !== undefined ? updatedData.tipoChavePix : (userObj.tipoChavePix || 'CPF'),
+      bancoPix: updatedData.bancoPix !== undefined ? updatedData.bancoPix : (userObj.bancoPix || ''),
+      titularPix: updatedData.titularPix !== undefined ? updatedData.titularPix : (userObj.titularPix || ''),
+      contatoEmergenciaNome: updatedData.contatoEmergenciaNome !== undefined ? updatedData.contatoEmergenciaNome : (userObj.contatoEmergenciaNome || ''),
+      contatoEmergenciaTel: updatedData.contatoEmergenciaTel !== undefined ? updatedData.contatoEmergenciaTel : (userObj.contatoEmergenciaTel || ''),
+      anotacoesProfessor: updatedData.anotacoesProfessor !== undefined ? updatedData.anotacoesProfessor : (userObj.anotacoesProfessor || ''),
+      fotoPerfil: updatedData.fotoPerfil !== undefined ? updatedData.fotoPerfil : (userObj.fotoPerfil || ''),
+      cref: updatedData.cref !== undefined ? updatedData.cref : (userObj.cref || ''),
+      bio: updatedData.bio !== undefined ? updatedData.bio : (userObj.bio || ''),
+      especialidades: updatedData.especialidades !== undefined ? updatedData.especialidades : (userObj.especialidades || ''),
+      instagram: updatedData.instagram !== undefined ? updatedData.instagram : (userObj.instagram || ''),
+      videoApresentacaoUrl: updatedData.videoApresentacaoUrl !== undefined ? updatedData.videoApresentacaoUrl : (userObj.videoApresentacaoUrl || ''),
+      videoIncentivoUrl: updatedData.videoIncentivoUrl !== undefined ? updatedData.videoIncentivoUrl : (userObj.videoIncentivoUrl || ''),
       dia_vencimento: updatedData.dia_vencimento !== undefined ? updatedData.dia_vencimento : (userObj.dia_vencimento || ''),
       historico_pagamentos: updatedData.historico_pagamentos !== undefined ? updatedData.historico_pagamentos : (
         updatedData.dia_vencimento !== undefined && updatedData.dia_vencimento !== userObj.dia_vencimento 
@@ -490,6 +654,35 @@ export const AppProvider = ({ children }) => {
 
     if (error) throw error;
     await refreshData();
+  };
+
+  const updateUserProfile = async (userId, updatedData) => {
+    const userObj = usersList.find(u => u.id === userId);
+    if (!userObj) return;
+
+    const merged = {
+      ...userObj,
+      ...updatedData
+    };
+
+    // Atualiza estado local usersList
+    const newUsersList = usersList.map(u => u.id === userId ? merged : u);
+    setUsersList(newUsersList);
+    localStorage.setItem('fitseven-users', JSON.stringify(newUsersList));
+
+    // Se o usuário logado for o próprio
+    if (user && user.id === userId) {
+      setUser(merged);
+      localStorage.setItem('fitseven-user', JSON.stringify(merged));
+    }
+
+    // Persiste no Supabase
+    try {
+      await updateUser(userId, merged);
+    } catch (e) {
+      console.warn('Persistido localmente no updateUserProfile:', e);
+    }
+    return merged;
   };
 
   const deleteUser = async (userId) => {
@@ -977,6 +1170,7 @@ export const AppProvider = ({ children }) => {
       deleteTenant,
       addUser,
       updateUser,
+      updateUserProfile,
       deleteUser,
       toggleUserVip,
       loginAsUser,

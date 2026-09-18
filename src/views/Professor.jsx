@@ -43,7 +43,19 @@ import {
   ChevronUp,
   ImageOff,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  ArrowLeft,
+  Phone,
+  MessageCircle,
+  Copy,
+  MapPin,
+  CreditCard,
+  Briefcase,
+  ShieldCheck,
+  LogOut,
+  Home,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import ExerciseVideoManagerModal from '../components/ExerciseVideoManagerModal';
 import { 
@@ -51,6 +63,14 @@ import {
   EXERCISE_CATEGORIES, 
   formatVideoEmbedUrl 
 } from '../utils/videoService';
+
+const InstagramIcon = ({ size = 16, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+  </svg>
+);
 
 const SILHOUETTES = {
   masculino: {
@@ -125,8 +145,10 @@ const Professor = () => {
     tenants, 
     addUser, 
     updateUser, 
+    updateUserProfile,
     deleteUser,
     loginAsUser, 
+    logout,
     activeTenantId, 
     activeTenant,
     pendingEvaluations,
@@ -138,9 +160,53 @@ const Professor = () => {
     submitEvaluation
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState('alunos'); // 'alunos', 'prescribe', 'planos', 'financeiro', 'revisao'
+  const [activeTab, setActiveTab] = useState('alunos'); // 'alunos', 'prescribe', 'anamnese', 'planos', 'financeiro', 'perfil'
   const [successMsg, setSuccessMsg] = useState('');
   
+  // Histórico de Navegação e Prevenção de Saída
+  const [navHistory, setNavHistory] = useState(['alunos']);
+  const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
+
+  // Perfil do Professor (Estado editável)
+  const [profProfileForm, setProfProfileForm] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    cref: user?.cref || '',
+    bio: user?.bio || '',
+    especialidades: user?.especialidades || '',
+    whatsapp: user?.whatsapp || '',
+    instagram: user?.instagram || '',
+    chavePix: user?.chavePix || '',
+    bancoPix: user?.bancoPix || '',
+    titularPix: user?.titularPix || '',
+    videoApresentacaoUrl: user?.videoApresentacaoUrl || '',
+    videoIncentivoUrl: user?.videoIncentivoUrl || '',
+    fotoPerfil: user?.fotoPerfil || ''
+  });
+  const [isSavingProfProfile, setIsSavingProfProfile] = useState(false);
+  const [copiedPixProf, setCopiedPixProf] = useState(false);
+
+  // Sincroniza profProfileForm quando user mudar
+  useEffect(() => {
+    if (user) {
+      setProfProfileForm({
+        name: user.name || '',
+        email: user.email || '',
+        cref: user.cref || '',
+        bio: user.bio || '',
+        especialidades: user.especialidades || '',
+        whatsapp: user.whatsapp || '',
+        instagram: user.instagram || '',
+        chavePix: user.chavePix || '',
+        bancoPix: user.bancoPix || '',
+        titularPix: user.titularPix || '',
+        videoApresentacaoUrl: user.videoApresentacaoUrl || '',
+        videoIncentivoUrl: user.videoIncentivoUrl || '',
+        fotoPerfil: user.fotoPerfil || ''
+      });
+    }
+  }, [user]);
+
   // Filtrar apenas alunos do mesmo tenant (seja o ID do professor ou o tenantId do professor se ele estiver em uma academia)
   const myStudents = (usersList || []).filter(u => u.role === 'aluno' && (u.tenantId === user?.id || u.tenantId === user?.tenantId));
   const ownStudentsCount = (usersList || []).filter(u => u.role === 'aluno' && u.tenantId === user?.id).length;
@@ -173,9 +239,35 @@ const Professor = () => {
   const [newPlanName, setNewPlanName] = useState('');
   const [newPlanPrice, setNewPlanPrice] = useState('');
 
-  // Cartão do Aluno state
+  // Cartão do Aluno CRM Super Completo
   const [viewingStudent, setViewingStudent] = useState(null);
-  const [crmTab, setCrmTab] = useState('geral'); // 'geral', 'medidas', 'treinos'
+  const [crmTab, setCrmTab] = useState('contato'); // 'contato', 'financeiro', 'medidas', 'treinos', 'anotacoes'
+  const [editingStudentProfile, setEditingStudentProfile] = useState(null);
+  const [isSavingStudentCRM, setIsSavingStudentCRM] = useState(false);
+  const [copiedPixStudent, setCopiedPixStudent] = useState(false);
+
+  // Sincroniza editingStudentProfile quando viewingStudent mudar
+  useEffect(() => {
+    if (viewingStudent) {
+      setEditingStudentProfile({
+        ...viewingStudent,
+        telefone: viewingStudent.telefone || '',
+        whatsapp: viewingStudent.whatsapp || viewingStudent.telefone || '',
+        cpf: viewingStudent.cpf || '',
+        dataNascimento: viewingStudent.dataNascimento || '',
+        endereco: viewingStudent.endereco || '',
+        cidade: viewingStudent.cidade || '',
+        chavePix: viewingStudent.chavePix || '',
+        tipoChavePix: viewingStudent.tipoChavePix || 'CPF',
+        contatoEmergenciaNome: viewingStudent.contatoEmergenciaNome || '',
+        contatoEmergenciaTel: viewingStudent.contatoEmergenciaTel || '',
+        anotacoesProfessor: viewingStudent.anotacoesProfessor || '',
+        fotoPerfil: viewingStudent.fotoPerfil || ''
+      });
+    } else {
+      setEditingStudentProfile(null);
+    }
+  }, [viewingStudent]);
 
   // Anamnese & Avaliação Física states (Professor)
   const [selectedStudentForEval, setSelectedStudentForEval] = useState('');
@@ -188,6 +280,104 @@ const Professor = () => {
   // Revisão IA state
   const [reviewingStudentId, setReviewingStudentId] = useState(null);
   const [reviewWorkoutData, setReviewWorkoutData] = useState(null);
+
+  // Interceptação do botão Voltar do Celular / Navegador para prevenir saída acidental
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ app: 'fitseven_prof' }, '', window.location.href);
+
+      const handlePopState = () => {
+        if (evalZoomPhoto) {
+          setEvalZoomPhoto(null);
+          window.history.pushState({ app: 'fitseven_prof' }, '', window.location.href);
+          return;
+        }
+        if (previewVideoUrl) {
+          setPreviewVideoUrl(null);
+          window.history.pushState({ app: 'fitseven_prof' }, '', window.location.href);
+          return;
+        }
+        if (splitToDelete) {
+          setSplitToDelete(null);
+          window.history.pushState({ app: 'fitseven_prof' }, '', window.location.href);
+          return;
+        }
+        if (editingVideoExercise) {
+          setEditingVideoExercise(null);
+          window.history.pushState({ app: 'fitseven_prof' }, '', window.location.href);
+          return;
+        }
+        if (viewingStudent) {
+          setViewingStudent(null);
+          window.history.pushState({ app: 'fitseven_prof' }, '', window.location.href);
+          return;
+        }
+        if (showForm) {
+          setShowForm(false);
+          window.history.pushState({ app: 'fitseven_prof' }, '', window.location.href);
+          return;
+        }
+        if (activeTab !== 'alunos') {
+          setActiveTab('alunos');
+          window.history.pushState({ app: 'fitseven_prof' }, '', window.location.href);
+          return;
+        }
+        // Se estiver na tela raiz (aba alunos), abre o modal de confirmação de saída
+        setShowExitConfirmModal(true);
+        window.history.pushState({ app: 'fitseven_prof' }, '', window.location.href);
+      };
+
+      const handleBeforeUnload = (e) => {
+        e.preventDefault();
+        e.returnValue = 'Deseja realmente sair da aplicação Fit Seven?';
+        return 'Deseja realmente sair da aplicação Fit Seven?';
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
+  }, [evalZoomPhoto, previewVideoUrl, splitToDelete, editingVideoExercise, viewingStudent, showForm, activeTab]);
+
+  // Função de navegação com registro de histórico
+  const navigateToTab = (tabId) => {
+    if (tabId !== activeTab) {
+      setNavHistory(prev => [...prev, tabId]);
+      setActiveTab(tabId);
+      setShowForm(false);
+    }
+  };
+
+  const handleGoBack = () => {
+    if (viewingStudent) {
+      setViewingStudent(null);
+      return;
+    }
+    if (showForm) {
+      setShowForm(false);
+      return;
+    }
+    if (evalViewMode === 'history' && activeTab === 'anamnese') {
+      setEvalViewMode('form');
+      return;
+    }
+    if (navHistory.length > 1) {
+      const newHistory = [...navHistory];
+      newHistory.pop();
+      const previousTab = newHistory[newHistory.length - 1];
+      setNavHistory(newHistory);
+      setActiveTab(previousTab);
+    } else if (activeTab !== 'alunos') {
+      setActiveTab('alunos');
+      setNavHistory(['alunos']);
+    } else {
+      setShowExitConfirmModal(true);
+    }
+  };
 
   // Sincronizar aluno selecionado para avaliação física
   useEffect(() => {
@@ -292,6 +482,91 @@ const Professor = () => {
     setEvalViewMode('form');
     setActiveTab('anamnese');
     setViewingStudent(null);
+  };
+
+  // Handlers do Perfil do Professor
+  const handleProfPhotoUpload = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProfProfileForm(prev => ({ ...prev, fotoPerfil: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleProfVideoUpload = (videoType, file) => {
+    if (!file) return;
+    if (file.size > 30 * 1024 * 1024) {
+      alert('Aviso: O vídeo é grande (>30MB). Recomendamos vídeos de até 15 segundos.');
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProfProfileForm(prev => ({ 
+        ...prev, 
+        [videoType === 'incentivo' ? 'videoIncentivoUrl' : 'videoApresentacaoUrl']: reader.result 
+      }));
+      setSuccessMsg('Vídeo carregado com sucesso! Clique em "Salvar Meu Perfil" para publicar.');
+      setTimeout(() => setSuccessMsg(''), 3500);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveProfProfile = async (e) => {
+    if (e) e.preventDefault();
+    setIsSavingProfProfile(true);
+    try {
+      await updateUserProfile(user.id, {
+        ...profProfileForm,
+        videoApresentacaoUrl: formatVideoEmbedUrl(profProfileForm.videoApresentacaoUrl),
+        videoIncentivoUrl: formatVideoEmbedUrl(profProfileForm.videoIncentivoUrl)
+      });
+      setSuccessMsg('Seu perfil profissional e cartão de apresentação foram salvos com sucesso!');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar perfil: ' + (err.message || 'Verifique sua conexão.'));
+    } finally {
+      setIsSavingProfProfile(false);
+    }
+  };
+
+  // Handlers do CRM do Aluno
+  const handleStudentCRMPhotoUpload = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditingStudentProfile(prev => ({ ...prev, fotoPerfil: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveStudentCRM = async (e) => {
+    if (e) e.preventDefault();
+    if (!viewingStudent || !editingStudentProfile) return;
+    setIsSavingStudentCRM(true);
+    try {
+      const updated = await updateUserProfile(viewingStudent.id, editingStudentProfile);
+      setViewingStudent(updated || editingStudentProfile);
+      setSuccessMsg(`Dados cadastrais de ${editingStudentProfile.name} atualizados com sucesso!`);
+      setTimeout(() => setSuccessMsg(''), 3500);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao atualizar aluno: ' + (err.message || 'Tente novamente.'));
+    } finally {
+      setIsSavingStudentCRM(false);
+    }
+  };
+
+  const handleCopyPix = (pixKey, isProf = true) => {
+    if (!pixKey) return;
+    navigator.clipboard.writeText(pixKey);
+    if (isProf) {
+      setCopiedPixProf(true);
+      setTimeout(() => setCopiedPixProf(false), 2500);
+    } else {
+      setCopiedPixStudent(true);
+      setTimeout(() => setCopiedPixStudent(false), 2500);
+    }
   };
 
   // Modal Inteligente de Gestão / Sugestão / Gravação de Vídeo
@@ -701,19 +976,88 @@ const Professor = () => {
 
   return (
     <div style={styles.container} className="animate-fade-in">
+      {/* Barra de Navegação Interna & Proteção de Saída */}
+      <div style={styles.navBarTop} className="glass">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button 
+            onClick={handleGoBack}
+            style={styles.navBackBtn}
+            title="Voltar à tela anterior"
+          >
+            <ArrowLeft size={16} />
+            <span>Voltar</span>
+          </button>
+          
+          <div style={styles.navBreadcrumb}>
+            <span style={{ color: 'var(--text-muted)' }}>Painel</span>
+            <span style={{ color: 'var(--text-muted)' }}>/</span>
+            <span style={{ color: 'var(--primary)', fontWeight: '700' }}>
+              {activeTab === 'alunos' && (viewingStudent ? `Ficha de ${viewingStudent.name}` : 'Meus Alunos')}
+              {activeTab === 'anamnese' && 'Anamnese & Avaliações Físicas'}
+              {activeTab === 'prescribe' && `Prescrição Studio (Treino ${prescribeSplit})`}
+              {activeTab === 'planos' && 'Configuração de Planos'}
+              {activeTab === 'financeiro' && 'Gestão Financeira & MRR'}
+              {activeTab === 'revisao' && 'Revisão de Treinos por IA'}
+              {activeTab === 'perfil' && 'Meu Perfil & Apresentação Profissional'}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {activeTab !== 'alunos' && (
+            <button 
+              onClick={() => navigateToTab('alunos')} 
+              style={styles.quickHomeBtn}
+              title="Voltar para a Lista de Alunos"
+            >
+              <Users size={14} />
+              <span>Lista de Alunos</span>
+            </button>
+          )}
+          <button 
+            onClick={() => setShowExitConfirmModal(true)}
+            style={styles.exitAppBtn}
+            title="Sair do aplicativo com segurança"
+          >
+            <LogOut size={14} />
+            <span>Sair</span>
+          </button>
+        </div>
+      </div>
+
       {/* Cabeçalho do Painel */}
       <div style={styles.headerCard} className="glass">
         <div style={styles.headerTitleRow}>
-          <div>
-            <h2 style={styles.title}>Painel do Professor</h2>
-            <p style={styles.subtitle}>
-              Professor: <strong>{user.name}</strong> • Plano: <span style={styles.planBadge}>{user.plano || 'Básico'}</span>
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={styles.profHeaderAvatar}>
+              {user?.fotoPerfil ? (
+                <img src={user.fotoPerfil} alt={user.name} style={styles.profHeaderAvatarImg} />
+              ) : (
+                <span style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--primary)' }}>
+                  {(user?.name || 'P').charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h2 style={{ ...styles.title, margin: 0 }}>{user?.name || 'Professor'}</h2>
+                {user?.cref && (
+                  <span style={styles.crefBadge}>
+                    <ShieldCheck size={12} /> CREF: {user.cref}
+                  </span>
+                )}
+                <span style={styles.planBadge}>{user?.plano || 'Básico'}</span>
+              </div>
+              <p style={{ ...styles.subtitle, margin: '4px 0 0 0' }}>
+                Painel Profissional de Gestão de Alunos, Prescrições e Avaliações Físicas
+              </p>
+            </div>
           </div>
+
           {/* Barra de progresso do limite de alunos */}
           <div style={styles.limitCard}>
             <div style={styles.limitMeta}>
-              <span>Alunos do Plano:</span>
+              <span>Vagas Utilizadas:</span>
               <strong style={{ color: ownStudentsCount >= maxLimit ? 'var(--status-danger)' : 'var(--status-success)' }}>
                 {ownStudentsCount} / {maxLimit}
               </strong>
@@ -741,17 +1085,17 @@ const Professor = () => {
       {/* Abas de Navegação do Professor */}
       <div style={styles.tabsContainer}>
         <button 
-          onClick={() => { setActiveTab('alunos'); setShowForm(false); }}
+          onClick={() => navigateToTab('alunos')}
           style={{
             ...styles.tabButton,
             ...(activeTab === 'alunos' ? styles.tabButtonActive : {})
           }}
         >
           <Users size={16} />
-          Meus Alunos
+          Meus Alunos ({myStudents.length})
         </button>
         <button 
-          onClick={() => { setActiveTab('anamnese'); setShowForm(false); }}
+          onClick={() => navigateToTab('anamnese')}
           style={{
             ...styles.tabButton,
             ...(activeTab === 'anamnese' ? styles.tabButtonActive : {})
@@ -761,7 +1105,7 @@ const Professor = () => {
           Anamnese & Avaliações
         </button>
         <button 
-          onClick={() => { setActiveTab('prescribe'); setShowForm(false); }}
+          onClick={() => navigateToTab('prescribe')}
           style={{
             ...styles.tabButton,
             ...(activeTab === 'prescribe' ? styles.tabButtonActive : {})
@@ -771,7 +1115,17 @@ const Professor = () => {
           Prescrever Treino
         </button>
         <button 
-          onClick={() => { setActiveTab('planos'); setShowForm(false); }}
+          onClick={() => navigateToTab('perfil')}
+          style={{
+            ...styles.tabButton,
+            ...(activeTab === 'perfil' ? styles.tabButtonActive : {})
+          }}
+        >
+          <User size={16} />
+          Meu Perfil & Apresentação
+        </button>
+        <button 
+          onClick={() => navigateToTab('planos')}
           style={{
             ...styles.tabButton,
             ...(activeTab === 'planos' ? styles.tabButtonActive : {})
@@ -781,7 +1135,7 @@ const Professor = () => {
           Meus Planos
         </button>
         <button 
-          onClick={() => { setActiveTab('financeiro'); setShowForm(false); }}
+          onClick={() => navigateToTab('financeiro')}
           style={{
             ...styles.tabButton,
             ...(activeTab === 'financeiro' ? styles.tabButtonActive : {})
@@ -791,7 +1145,7 @@ const Professor = () => {
           Financeiro
         </button>
         <button 
-          onClick={() => { setActiveTab('revisao'); setShowForm(false); setReviewingStudentId(null); }}
+          onClick={() => { navigateToTab('revisao'); setReviewingStudentId(null); }}
           style={{
             ...styles.tabButton,
             ...(activeTab === 'revisao' ? styles.tabButtonActive : {})
@@ -1002,69 +1356,338 @@ const Professor = () => {
             </div>
           )}
 
-          {/* Modal Cartão do Aluno Completo */}
-          {viewingStudent && (
-            <div style={styles.modalOverlay}>
-              <div style={styles.modalContent}>
+          {/* Modal Super Cartão do Aluno CRM Completo */}
+          {viewingStudent && editingStudentProfile && (
+            <div style={styles.modalOverlay} className="animate-fade-in" onClick={() => setViewingStudent(null)}>
+              <div style={{ ...styles.modalContent, maxWidth: '780px' }} className="glass" onClick={(e) => e.stopPropagation()}>
                 <button onClick={() => setViewingStudent(null)} style={styles.modalCloseBtn}>
                   <X size={20} />
                 </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
-                  <div style={styles.avatarLarge}>
-                    {(viewingStudent.name || '?').charAt(0).toUpperCase()}
+
+                {/* Topo do Cartão do Aluno com Foto, Nome, WhatsApp Rápido e Tags */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '18px', flexWrap: 'wrap' }}>
+                  <div style={styles.studentAvatarBox}>
+                    {editingStudentProfile.fotoPerfil ? (
+                      <img src={editingStudentProfile.fotoPerfil} alt={editingStudentProfile.name} style={styles.studentAvatarImg} />
+                    ) : (
+                      <div style={styles.avatarLarge}>
+                        {(editingStudentProfile.name || '?').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <label style={styles.studentPhotoBadge} title="Alterar Foto de Perfil do Aluno">
+                      <Camera size={12} />
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        style={{ display: 'none' }}
+                        onChange={(e) => handleStudentCRMPhotoUpload(e.target.files?.[0])}
+                      />
+                    </label>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.3rem' }}>
-                      {viewingStudent.name || 'Sem Nome'}
-                    </h3>
+
+                  <div style={{ flex: 1, minWidth: '220px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: '800' }}>
+                        {editingStudentProfile.name || 'Sem Nome'}
+                      </h3>
+                      {editingStudentProfile.isVip && (
+                        <span style={styles.vipBadge}>VIP</span>
+                      )}
+                      {editingStudentProfile.plano && (
+                        <span style={{ ...styles.vipBadge, background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
+                          {editingStudentProfile.plano}
+                        </span>
+                      )}
+                    </div>
                     <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                      {viewingStudent.email} • {viewingStudent.plano || 'Plano Básico'}
+                      {editingStudentProfile.email} {editingStudentProfile.cidade ? `• ${editingStudentProfile.cidade}` : ''}
                     </p>
                   </div>
+
+                  {/* Ação Rápida WhatsApp */}
+                  {editingStudentProfile.whatsapp && (
+                    <a
+                      href={`https://wa.me/55${editingStudentProfile.whatsapp.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={styles.whatsAppBtn}
+                      title="Chamar no WhatsApp"
+                    >
+                      <MessageCircle size={15} />
+                      <span>WhatsApp</span>
+                    </a>
+                  )}
                 </div>
 
-                {/* Sub-abas do Cartão */}
+                {/* Sub-abas do Cartão CRM */}
                 <div style={styles.crmTabsRow}>
                   <button 
-                    onClick={() => setCrmTab('geral')}
-                    style={{ ...styles.crmTabBtn, ...(crmTab === 'geral' ? styles.crmTabBtnActive : {}) }}
+                    type="button"
+                    onClick={() => setCrmTab('contato')}
+                    style={{ ...styles.crmTabBtn, ...(crmTab === 'contato' ? styles.crmTabBtnActive : {}) }}
                   >
-                    Contato & Financeiro
+                    <User size={14} style={{ marginRight: '5px' }} /> Cadastro & Contato
                   </button>
                   <button 
+                    type="button"
+                    onClick={() => setCrmTab('financeiro')}
+                    style={{ ...styles.crmTabBtn, ...(crmTab === 'financeiro' ? styles.crmTabBtnActive : {}) }}
+                  >
+                    <CreditCard size={14} style={{ marginRight: '5px' }} /> Financeiro & PIX
+                  </button>
+                  <button 
+                    type="button"
                     onClick={() => setCrmTab('medidas')}
                     style={{ ...styles.crmTabBtn, ...(crmTab === 'medidas' ? styles.crmTabBtnActive : {}) }}
                   >
-                    Avaliação Física
+                    <Ruler size={14} style={{ marginRight: '5px' }} /> Avaliação Física
                   </button>
                   <button 
+                    type="button"
                     onClick={() => setCrmTab('treinos')}
                     style={{ ...styles.crmTabBtn, ...(crmTab === 'treinos' ? styles.crmTabBtnActive : {}) }}
                   >
-                    Ficha de Treinos
+                    <Dumbbell size={14} style={{ marginRight: '5px' }} /> Ficha Treino
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setCrmTab('anotacoes')}
+                    style={{ ...styles.crmTabBtn, ...(crmTab === 'anotacoes' ? styles.crmTabBtnActive : {}) }}
+                  >
+                    <FileText size={14} style={{ marginRight: '5px' }} /> Anotações ({editingStudentProfile.anotacoesProfessor ? '1' : '0'})
                   </button>
                 </div>
 
-                {/* Conteúdo: Geral */}
-                {crmTab === 'geral' && (
-                  <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                {/* CONTEÚDO 1: CADASTRO E CONTATO COMPLETO */}
+                {crmTab === 'contato' && (
+                  <form onSubmit={handleSaveStudentCRM} style={{ maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
                     <div style={styles.crmBox}>
-                      <h4 style={styles.crmBoxTitle}>Contato e Endereço</h4>
-                      <p style={styles.crmText}>Telefone: <strong>{viewingStudent.telefone || 'Não informado'}</strong></p>
-                      <p style={styles.crmText}>Endereço: <strong>{viewingStudent.endereco || 'Não informado'}</strong></p>
-                      <p style={styles.crmText}>Plano: <strong style={{ color: 'var(--accent-primary)' }}>{viewingStudent.plano || 'Nenhum'}</strong></p>
-                      <p style={styles.crmText}>Cadastro: <strong>{viewingStudent.data_cadastro ? new Date(viewingStudent.data_cadastro).toLocaleDateString('pt-BR') : 'N/I'}</strong></p>
+                      <h4 style={styles.crmBoxTitle}>Dados de Contato & Localização</h4>
+                      <div style={styles.formRow}>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.formLabel}>Nome Completo</label>
+                          <input 
+                            type="text" 
+                            value={editingStudentProfile.name || ''} 
+                            onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, name: e.target.value }))}
+                            style={styles.inputField}
+                            required
+                          />
+                        </div>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.formLabel}>E-mail de Acesso</label>
+                          <input 
+                            type="email" 
+                            value={editingStudentProfile.email || ''} 
+                            onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, email: e.target.value }))}
+                            style={styles.inputField}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ ...styles.formRow, marginTop: '10px' }}>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.formLabel}>WhatsApp / Celular</label>
+                          <input 
+                            type="text" 
+                            placeholder="Ex: 11998765432"
+                            value={editingStudentProfile.whatsapp || ''} 
+                            onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, whatsapp: e.target.value, telefone: e.target.value }))}
+                            style={styles.inputField}
+                          />
+                        </div>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.formLabel}>CPF / Documento</label>
+                          <input 
+                            type="text" 
+                            placeholder="000.000.000-00"
+                            value={editingStudentProfile.cpf || ''} 
+                            onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, cpf: e.target.value }))}
+                            style={styles.inputField}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ ...styles.formRow, marginTop: '10px' }}>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.formLabel}>Data de Nascimento</label>
+                          <input 
+                            type="date" 
+                            value={editingStudentProfile.dataNascimento || ''} 
+                            onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, dataNascimento: e.target.value }))}
+                            style={styles.inputField}
+                          />
+                        </div>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.formLabel}>Cidade / Estado</label>
+                          <input 
+                            type="text" 
+                            placeholder="Ex: São Paulo - SP"
+                            value={editingStudentProfile.cidade || ''} 
+                            onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, cidade: e.target.value }))}
+                            style={styles.inputField}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '10px' }}>
+                        <label style={styles.formLabel}>Endereço Completo</label>
+                        <input 
+                          type="text" 
+                          placeholder="Rua, Número, Bairro, CEP"
+                          value={editingStudentProfile.endereco || ''} 
+                          onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, endereco: e.target.value }))}
+                          style={styles.inputField}
+                        />
+                      </div>
                     </div>
 
+                    {/* Contato de Emergência */}
+                    <div style={styles.crmBox}>
+                      <h4 style={styles.crmBoxTitle}>🚨 Contato de Emergência</h4>
+                      <div style={styles.formRow}>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.formLabel}>Nome do Contato de Emergência</label>
+                          <input 
+                            type="text" 
+                            placeholder="Ex: Maria Silva (Mãe/Esposa)"
+                            value={editingStudentProfile.contatoEmergenciaNome || ''} 
+                            onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, contatoEmergenciaNome: e.target.value }))}
+                            style={styles.inputField}
+                          />
+                        </div>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.formLabel}>Telefone de Emergência</label>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <input 
+                              type="text" 
+                              placeholder="Ex: 11988887777"
+                              value={editingStudentProfile.contatoEmergenciaTel || ''} 
+                              onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, contatoEmergenciaTel: e.target.value }))}
+                              style={{ ...styles.inputField, flex: 1 }}
+                            />
+                            {editingStudentProfile.contatoEmergenciaTel && (
+                              <a 
+                                href={`tel:${editingStudentProfile.contatoEmergenciaTel}`} 
+                                style={styles.phoneCallBtn}
+                                title="Ligar para contato de emergência"
+                              >
+                                <Phone size={15} />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '14px' }}>
+                      <button 
+                        type="submit" 
+                        disabled={isSavingStudentCRM}
+                        style={{ ...styles.saveBtn, padding: '10px 20px', margin: 0 }}
+                        className="btn-primary"
+                      >
+                        <Save size={15} />
+                        {isSavingStudentCRM ? 'Salvando...' : 'Salvar Alterações Cadastrais'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* CONTEÚDO 2: FINANCEIRO & PIX */}
+                {crmTab === 'financeiro' && (
+                  <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
+                    <div style={styles.crmBox}>
+                      <h4 style={styles.crmBoxTitle}>Dados de Pagamento & Chave PIX do Aluno</h4>
+                      <div style={styles.formRow}>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.formLabel}>Chave PIX do Aluno</label>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <input 
+                              type="text" 
+                              placeholder="CPF, E-mail, Celular ou Chave Aleatória"
+                              value={editingStudentProfile.chavePix || ''} 
+                              onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, chavePix: e.target.value }))}
+                              style={{ ...styles.inputField, flex: 1 }}
+                            />
+                            {editingStudentProfile.chavePix && (
+                              <button 
+                                type="button"
+                                onClick={() => handleCopyPix(editingStudentProfile.chavePix, false)}
+                                style={styles.copyPixBtn}
+                                title="Copiar Chave PIX"
+                              >
+                                {copiedPixStudent ? <Check size={14} color="#22c55e" /> : <Copy size={14} />}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.formLabel}>Tipo de Chave PIX</label>
+                          <select 
+                            value={editingStudentProfile.tipoChavePix || 'CPF'} 
+                            onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, tipoChavePix: e.target.value }))}
+                            style={styles.selectField}
+                          >
+                            <option value="CPF">CPF</option>
+                            <option value="E-mail">E-mail</option>
+                            <option value="Celular">Celular</option>
+                            <option value="Aleatória">Chave Aleatória (EVP)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div style={{ ...styles.formRow, marginTop: '10px' }}>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.formLabel}>Plano Vinculado</label>
+                          <select 
+                            value={editingStudentProfile.plano || ''} 
+                            onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, plano: e.target.value }))}
+                            style={styles.selectField}
+                          >
+                            <option value="">Nenhum / Básico</option>
+                            {(user.customPlans || []).map(p => (
+                              <option key={p.id} value={p.name}>{p.name} ({p.price})</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.formLabel}>Dia do Vencimento</label>
+                          <input 
+                            type="number" 
+                            placeholder="Ex: 10" 
+                            min="1" 
+                            max="31"
+                            value={editingStudentProfile.dia_vencimento || ''} 
+                            onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, dia_vencimento: e.target.value }))}
+                            style={styles.inputField}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button 
+                          type="button" 
+                          onClick={handleSaveStudentCRM}
+                          style={{ ...styles.saveBtn, padding: '8px 16px', margin: 0, fontSize: '0.85rem' }}
+                          className="btn-primary"
+                        >
+                          <Save size={14} /> Salvar Dados Financeiros
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Histórico de Mensalidades */}
                     <div style={styles.crmBox}>
                       <h4 style={styles.crmBoxTitle}>
-                        Histórico Financeiro (Venc. Dia {viewingStudent.dia_vencimento || '?'})
+                        Histórico de Mensalidades (Vencimento Dia {editingStudentProfile.dia_vencimento || '?'})
                       </h4>
-                      {!viewingStudent.historico_pagamentos || viewingStudent.historico_pagamentos.length === 0 ? (
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>Nenhum histórico financeiro gerado.</p>
+                      {!editingStudentProfile.historico_pagamentos || editingStudentProfile.historico_pagamentos.length === 0 ? (
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>Nenhum histórico financeiro gerado para este ano.</p>
                       ) : (
-                        <div style={{ maxHeight: '140px', overflowY: 'auto' }}>
-                          {viewingStudent.historico_pagamentos.map(parcela => (
+                        <div style={{ maxHeight: '160px', overflowY: 'auto' }}>
+                          {editingStudentProfile.historico_pagamentos.map(parcela => (
                             <div key={parcela.id} style={styles.paymentRow}>
                               <div>
                                 <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{parcela.mes}</span>
@@ -1073,11 +1696,12 @@ const Professor = () => {
                                 </span>
                               </div>
                               <button 
+                                type="button"
                                 onClick={() => {
                                   const novoStatus = parcela.status === 'Pago' ? 'Pendente' : 'Pago';
-                                  const novoHistorico = viewingStudent.historico_pagamentos.map(p => p.id === parcela.id ? { ...p, status: novoStatus } : p);
-                                  updateUser(viewingStudent.id, { historico_pagamentos: novoHistorico });
-                                  setViewingStudent({ ...viewingStudent, historico_pagamentos: novoHistorico });
+                                  const novoHistorico = editingStudentProfile.historico_pagamentos.map(p => p.id === parcela.id ? { ...p, status: novoStatus } : p);
+                                  updateUserProfile(editingStudentProfile.id, { historico_pagamentos: novoHistorico });
+                                  setEditingStudentProfile(prev => ({ ...prev, historico_pagamentos: novoHistorico }));
                                 }}
                                 style={styles.paymentToggleBtn}
                               >
@@ -1091,9 +1715,9 @@ const Professor = () => {
                   </div>
                 )}
 
-                {/* Conteúdo: Medidas & Avaliações Físicas */}
+                {/* CONTEÚDO 3: MEDIDAS & AVALIAÇÃO FÍSICA */}
                 {crmTab === 'medidas' && (
-                  <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                  <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                         Avaliações Antropométricas do Aluno
@@ -1204,9 +1828,9 @@ const Professor = () => {
                   </div>
                 )}
 
-                {/* Conteúdo: Treinos */}
+                {/* CONTEÚDO 4: TREINOS ATIVOS */}
                 {crmTab === 'treinos' && (
-                  <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                  <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
                     {(() => {
                       const studentWorkout = workoutsByStudent[viewingStudent.id] || { exercises: DEFAULT_WORKOUTS };
                       const exList = studentWorkout.exercises || DEFAULT_WORKOUTS;
@@ -1252,11 +1876,40 @@ const Professor = () => {
                   </div>
                 )}
 
-                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button onClick={() => { setViewingStudent(null); loginAsUser(viewingStudent); }} style={{ ...styles.saveBtn, flex: 1, padding: '10px' }} className="btn-primary">
+                {/* CONTEÚDO 5: ANOTAÇÕES PRIVADAS DO PROFESSOR */}
+                {crmTab === 'anotacoes' && (
+                  <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
+                    <div style={styles.crmBox}>
+                      <h4 style={styles.crmBoxTitle}>📝 Anotações & Observações Confidenciais</h4>
+                      <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                        Estas notas são 100% privadas e visíveis apenas para você e a administração. Use para anotar evolução clínica, comportamento, feedbacks e ajustes estratégicos.
+                      </p>
+                      <textarea
+                        value={editingStudentProfile.anotacoesProfessor || ''}
+                        onChange={(e) => setEditingStudentProfile(prev => ({ ...prev, anotacoesProfessor: e.target.value }))}
+                        placeholder="Ex: Aluno relatou cansaço no ombro ao realizar supino inclinado. Diminuir volume na semana 3..."
+                        style={{ ...styles.inputField, minHeight: '130px', width: '100%', resize: 'vertical' }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                        <button
+                          type="button"
+                          onClick={handleSaveStudentCRM}
+                          style={{ ...styles.saveBtn, padding: '8px 16px', margin: 0, fontSize: '0.85rem' }}
+                          className="btn-primary"
+                        >
+                          <Save size={14} /> Salvar Anotações
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rodapé de Ações do Cartão */}
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
+                  <button onClick={() => { setViewingStudent(null); loginAsUser(viewingStudent); }} style={{ ...styles.saveBtn, flex: 1, padding: '10px', minWidth: '160px' }} className="btn-primary">
                     <Activity size={15} /> Ver no Perfil Aluno
                   </button>
-                  <button onClick={() => handleStartPrescription(viewingStudent.id)} style={{ ...styles.saveBtn, flex: 1, background: '#a78bfa', padding: '10px' }} className="btn-primary">
+                  <button onClick={() => handleStartPrescription(viewingStudent.id)} style={{ ...styles.saveBtn, flex: 1, background: '#a78bfa', padding: '10px', minWidth: '160px' }} className="btn-primary">
                     <Dumbbell size={15} /> Abrir Studio de Prescrição
                   </button>
                 </div>
@@ -2770,6 +3423,361 @@ const Professor = () => {
         </div>
       )}
 
+      {/* CONTEÚDO DA ABA DE MEU PERFIL & APRESENTAÇÃO */}
+      {activeTab === 'perfil' && (
+        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Card Principal: Formulário e Preview */}
+          <div style={styles.profProfileGrid}>
+            
+            {/* Coluna 1: Formulário de Edição do Professor */}
+            <div style={styles.card} className="glass">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                <h3 style={{ ...styles.sectionTitle, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <Briefcase size={20} color="var(--primary)" /> Perfil & Apresentação Profissional
+                </h3>
+                <span style={styles.crefBadge}>
+                  <ShieldCheck size={14} /> {profProfileForm.cref ? `CREF: ${profProfileForm.cref}` : 'CREF Não Informado'}
+                </span>
+              </div>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '18px' }}>
+                Configure seus dados, vídeos de apresentação e chave PIX. Este cartão é exatamente o que seus alunos verão no aplicativo deles!
+              </p>
+
+              <form onSubmit={handleSaveProfProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Foto de Perfil do Professor */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', backgroundColor: 'var(--bg-secondary)', padding: '14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                  <div style={styles.profHeaderAvatar}>
+                    {profProfileForm.fotoPerfil ? (
+                      <img src={profProfileForm.fotoPerfil} alt={profProfileForm.name} style={styles.profHeaderAvatarImg} />
+                    ) : (
+                      <User size={28} color="var(--text-secondary)" />
+                    )}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h5 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Sua Foto de Perfil</h5>
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>Foto profissional para gerar autoridade perante seus alunos.</p>
+                  </div>
+                  <label style={styles.photoUploadBtnPrimary}>
+                    <Camera size={14} /> Trocar Foto
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      style={{ display: 'none' }} 
+                      onChange={(e) => handleProfPhotoUpload(e.target.files?.[0])}
+                    />
+                  </label>
+                </div>
+
+                {/* Dados Pessoais & CREF */}
+                <div style={styles.formRow}>
+                  <div style={styles.inputGroup}>
+                    <label style={styles.formLabel}>Nome Completo / Como prefere ser chamado</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={profProfileForm.name} 
+                      onChange={(e) => setProfProfileForm(prev => ({ ...prev, name: e.target.value }))}
+                      style={styles.inputField}
+                      placeholder="Ex: Prof. Carlos Eduardo"
+                    />
+                  </div>
+                  <div style={styles.inputGroup}>
+                    <label style={styles.formLabel}>Registro Profissional (CREF)</label>
+                    <input 
+                      type="text" 
+                      value={profProfileForm.cref} 
+                      onChange={(e) => setProfProfileForm(prev => ({ ...prev, cref: e.target.value }))}
+                      style={styles.inputField}
+                      placeholder="Ex: 012345-G/SP"
+                    />
+                  </div>
+                </div>
+
+                {/* Especialidades e Bio */}
+                <div style={styles.inputGroup}>
+                  <label style={styles.formLabel}>Especialidades (separadas por vírgula)</label>
+                  <input 
+                    type="text" 
+                    value={profProfileForm.especialidades} 
+                    onChange={(e) => setProfProfileForm(prev => ({ ...prev, especialidades: e.target.value }))}
+                    style={styles.inputField}
+                    placeholder="Ex: Hipertrofia, Emagrecimento, Treinamento Funcional, Reabilitação"
+                  />
+                </div>
+
+                <div style={styles.inputGroup}>
+                  <label style={styles.formLabel}>Biografia & Metodologia de Trabalho</label>
+                  <textarea 
+                    rows={3}
+                    value={profProfileForm.bio} 
+                    onChange={(e) => setProfProfileForm(prev => ({ ...prev, bio: e.target.value }))}
+                    style={{ ...styles.inputField, resize: 'vertical' }}
+                    placeholder="Conte sua trajetória, formação e compromisso com os resultados dos seus alunos..."
+                  />
+                </div>
+
+                {/* Redes e Contato */}
+                <div style={styles.formRow}>
+                  <div style={styles.inputGroup}>
+                    <label style={styles.formLabel}>WhatsApp para Alunos (com DDD)</label>
+                    <input 
+                      type="text" 
+                      value={profProfileForm.whatsapp} 
+                      onChange={(e) => setProfProfileForm(prev => ({ ...prev, whatsapp: e.target.value }))}
+                      style={styles.inputField}
+                      placeholder="Ex: 11998765432"
+                    />
+                  </div>
+                  <div style={styles.inputGroup}>
+                    <label style={styles.formLabel}>Instagram Profissional</label>
+                    <input 
+                      type="text" 
+                      value={profProfileForm.instagram} 
+                      onChange={(e) => setProfProfileForm(prev => ({ ...prev, instagram: e.target.value }))}
+                      style={styles.inputField}
+                      placeholder="Ex: @profcarlos.personal"
+                    />
+                  </div>
+                </div>
+
+                {/* Dados Financeiros / Chave PIX */}
+                <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <CreditCard size={18} color="var(--primary)" /> Dados para Pagamentos via PIX
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    O aluno poderá copiar sua chave PIX com 1 clique diretamente na tela dele para renovar a consultoria!
+                  </p>
+                  
+                  <div style={styles.formRow}>
+                    <div style={styles.inputGroup}>
+                      <label style={styles.formLabel}>Chave PIX (E-mail, CPF, Telefone ou Aleatória)</label>
+                      <input 
+                        type="text" 
+                        value={profProfileForm.chavePix} 
+                        onChange={(e) => setProfProfileForm(prev => ({ ...prev, chavePix: e.target.value }))}
+                        style={styles.inputField}
+                        placeholder="Ex: 11998765432 ou contato@personal.com"
+                      />
+                    </div>
+                    <div style={styles.inputGroup}>
+                      <label style={styles.formLabel}>Banco / Instituição</label>
+                      <input 
+                        type="text" 
+                        value={profProfileForm.bancoPix} 
+                        onChange={(e) => setProfProfileForm(prev => ({ ...prev, bancoPix: e.target.value }))}
+                        style={styles.inputField}
+                        placeholder="Ex: Nubank / Itaú / Inter"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.inputGroup}>
+                    <label style={styles.formLabel}>Nome do Titular da Conta PIX</label>
+                    <input 
+                      type="text" 
+                      value={profProfileForm.titularPix} 
+                      onChange={(e) => setProfProfileForm(prev => ({ ...prev, titularPix: e.target.value }))}
+                      style={styles.inputField}
+                      placeholder="Ex: Carlos Eduardo de Souza"
+                    />
+                  </div>
+                </div>
+
+                {/* Mídia & Vídeos */}
+                <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Video size={18} color="var(--primary)" /> Vídeos de Apresentação e Boas-Vindas
+                  </h4>
+                  
+                  {/* Vídeo 1: Apresentação */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={styles.formLabel}>1. Vídeo de Apresentação Profissional (Link YouTube ou Upload de Celular)</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input 
+                        type="text" 
+                        value={profProfileForm.videoApresentacaoUrl} 
+                        onChange={(e) => setProfProfileForm(prev => ({ ...prev, videoApresentacaoUrl: e.target.value }))}
+                        style={{ ...styles.inputField, flex: 1 }}
+                        placeholder="Ex: https://youtube.com/watch?v=... ou grave pelo botão ao lado"
+                      />
+                      <label style={styles.photoUploadBtnSecondary} title="Gravar com Câmera ou Enviar Vídeo">
+                        <Camera size={14} /> Gravar/Upload
+                        <input 
+                          type="file" 
+                          accept="video/*" 
+                          style={{ display: 'none' }}
+                          onChange={(e) => handleProfVideoUpload('apresentacao', e.target.files?.[0])}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Vídeo 2: Boas-vindas / Incentivo */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={styles.formLabel}>2. Vídeo de Incentivo & Foco para os Alunos (Link YouTube ou Upload)</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input 
+                        type="text" 
+                        value={profProfileForm.videoIncentivoUrl} 
+                        onChange={(e) => setProfProfileForm(prev => ({ ...prev, videoIncentivoUrl: e.target.value }))}
+                        style={{ ...styles.inputField, flex: 1 }}
+                        placeholder="Ex: Mensagem motivacional para dar início aos treinos..."
+                      />
+                      <label style={styles.photoUploadBtnSecondary} title="Gravar com Câmera ou Enviar Vídeo">
+                        <Camera size={14} /> Gravar/Upload
+                        <input 
+                          type="file" 
+                          accept="video/*" 
+                          style={{ display: 'none' }}
+                          onChange={(e) => handleProfVideoUpload('incentivo', e.target.files?.[0])}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={isSavingProfProfile} 
+                  style={{ ...styles.saveBtn, padding: '14px', fontSize: '0.95rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  className="btn-primary"
+                >
+                  <Save size={18} />
+                  {isSavingProfProfile ? 'Salvando Perfil...' : 'Salvar Meu Perfil & Apresentação'}
+                </button>
+              </form>
+            </div>
+
+            {/* Coluna 2: Preview do Cartão Público (Visão do Aluno) */}
+            <div style={styles.card} className="glass">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                <h3 style={{ ...styles.sectionTitle, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <Eye size={20} color="#3b82f6" /> Prévia: Visão do Aluno
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Atualização ao vivo</span>
+              </div>
+
+              {/* Cartão Estilo Modal do Aluno */}
+              <div style={styles.profPreviewCard}>
+                {/* Topo do Cartão com Avatar e Info */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                  <div style={styles.profPreviewAvatar}>
+                    {profProfileForm.fotoPerfil ? (
+                      <img src={profProfileForm.fotoPerfil} alt={profProfileForm.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <User size={32} color="var(--text-secondary)" />
+                    )}
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '1.15rem', color: 'var(--text-primary)', fontWeight: '800' }}>
+                      {profProfileForm.name || 'Seu Nome'}
+                    </h4>
+                    <span style={styles.crefBadge}>
+                      <ShieldCheck size={12} /> {profProfileForm.cref ? `CREF: ${profProfileForm.cref}` : 'CREF Pendente'}
+                    </span>
+                    {profProfileForm.especialidades && (
+                      <p style={{ margin: '6px 0 0 0', fontSize: '0.78rem', color: 'var(--primary)', fontWeight: '600' }}>
+                        {profProfileForm.especialidades}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Biografia */}
+                {profProfileForm.bio && (
+                  <div style={{ backgroundColor: 'var(--bg-primary)', padding: '12px', borderRadius: '8px', marginBottom: '14px', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                    "{profProfileForm.bio}"
+                  </div>
+                )}
+
+                {/* Botões de Ação Rápida WhatsApp e Instagram */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                  {profProfileForm.whatsapp && (
+                    <a
+                      href={`https://wa.me/55${profProfileForm.whatsapp.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ ...styles.whatsAppBtn, flex: 1, justifyContent: 'center' }}
+                    >
+                      <MessageCircle size={15} /> WhatsApp
+                    </a>
+                  )}
+                  {profProfileForm.instagram && (
+                    <a
+                      href={`https://instagram.com/${profProfileForm.instagram.replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ ...styles.phoneCallBtn, flex: 1, justifyContent: 'center', backgroundColor: 'rgba(236, 72, 153, 0.15)', color: '#ec4899', borderColor: 'rgba(236, 72, 153, 0.3)' }}
+                    >
+                      <InstagramIcon size={15} /> Instagram
+                    </a>
+                  )}
+                </div>
+
+                {/* Vídeo de Apresentação Player */}
+                {profProfileForm.videoApresentacaoUrl ? (
+                  <div style={{ marginBottom: '14px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Video size={14} color="var(--primary)" /> Vídeo de Apresentação:
+                    </span>
+                    <div style={{ width: '100%', height: '180px', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#000' }}>
+                      {profProfileForm.videoApresentacaoUrl.startsWith('data:video') || profProfileForm.videoApresentacaoUrl.startsWith('blob:') ? (
+                        <video src={profProfileForm.videoApresentacaoUrl} controls style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      ) : (
+                        <iframe 
+                          src={formatVideoEmbedUrl(profProfileForm.videoApresentacaoUrl)} 
+                          title="Vídeo de Apresentação" 
+                          frameBorder="0" 
+                          allowFullScreen 
+                          style={{ width: '100%', height: '100%' }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Box de Chave PIX com Cópia em 1 Clique */}
+                {profProfileForm.chavePix && (
+                  <div style={{ backgroundColor: 'var(--bg-primary)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--status-success)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CreditCard size={14} /> Chave PIX para Pagamento
+                      </span>
+                      {profProfileForm.bancoPix && (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{profProfileForm.bancoPix}</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input 
+                        type="text" 
+                        readOnly 
+                        value={profProfileForm.chavePix} 
+                        style={{ ...styles.inputField, flex: 1, padding: '6px 8px', fontSize: '0.8rem', backgroundColor: 'var(--bg-secondary)' }}
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => handleCopyPix(profProfileForm.chavePix, true)}
+                        style={styles.copyPixBtn}
+                      >
+                        {copiedPixProf ? <Check size={14} /> : <Copy size={14} />}
+                        {copiedPixProf ? 'Copiado!' : 'Copiar'}
+                      </button>
+                    </div>
+                    {profProfileForm.titularPix && (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
+                        Titular: {profProfileForm.titularPix}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* Modal de Preview de Vídeo */}
       {previewVideoUrl && (() => {
         const isDirect = previewVideoUrl.startsWith('data:video') || previewVideoUrl.startsWith('blob:') || previewVideoUrl.endsWith('.mp4');
@@ -2808,6 +3816,42 @@ const Professor = () => {
           </div>
         );
       })()}
+
+      {/* MODAL DE CONFIRMAÇÃO DE SAÍDA DO APLICATIVO */}
+      {showExitConfirmModal && (
+        <div style={styles.modalOverlay} className="animate-fade-in" onClick={() => setShowExitConfirmModal(false)}>
+          <div style={{ ...styles.modalContent, maxWidth: '420px', textAlign: 'center', padding: '28px 24px' }} className="glass" onClick={(e) => e.stopPropagation()}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', color: '#ef4444' }}>
+              <LogOut size={28} />
+            </div>
+            <h3 style={{ margin: '0 0 8px 0', color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: '800' }}>
+              Deseja realmente sair?
+            </h3>
+            <p style={{ margin: '0 0 24px 0', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.4' }}>
+              Você está na tela inicial do painel do professor. Ao sair, sua sessão será encerrada com segurança.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                type="button" 
+                onClick={() => setShowExitConfirmModal(false)}
+                style={{ ...styles.cancelBtn, flex: 1, padding: '12px', fontWeight: 'bold' }}
+              >
+                Continuar no App
+              </button>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowExitConfirmModal(false);
+                  logout();
+                }}
+                style={{ ...styles.exitConfirmBtn, flex: 1 }}
+              >
+                <LogOut size={16} /> Sair Agora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL INTELIGENTE DE GESTÃO / SUGESTÕES / GRAVAÇÃO DE VÍDEO (PROFESSOR) */}
       {editingVideoExercise && (
@@ -3942,6 +4986,209 @@ const styles = {
     borderRadius: '6px',
     color: 'var(--text-muted)',
     fontSize: '0.75rem'
+  },
+  // Estilos de Navegação Superior
+  navBarTop: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 16px',
+    borderRadius: 'var(--radius-md)',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-color)',
+    marginBottom: '-8px'
+  },
+  navBackBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    borderRadius: '8px',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-tertiary)',
+    color: 'var(--text-primary)',
+    fontWeight: '700',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  navBreadcrumb: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '0.85rem',
+    color: 'var(--text-secondary)'
+  },
+  quickHomeBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '4px 8px',
+    borderRadius: '6px',
+    border: 'none',
+    background: 'none',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
+    fontSize: '0.82rem',
+    fontWeight: '600'
+  },
+  exitAppBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 12px',
+    borderRadius: '8px',
+    border: '1px solid rgba(239, 68, 68, 0.25)',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    color: '#ef4444',
+    fontWeight: '700',
+    fontSize: '0.8rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  exitConfirmBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    padding: '12px',
+    borderRadius: 'var(--radius-md)',
+    border: 'none',
+    backgroundColor: '#ef4444',
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: '0.9rem',
+    cursor: 'pointer'
+  },
+  // Estilos de Perfil e Avatar do Professor
+  profHeaderAvatar: {
+    width: '60px',
+    height: '60px',
+    borderRadius: '50%',
+    overflow: 'hidden',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '2px solid var(--primary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0
+  },
+  profHeaderAvatarImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover'
+  },
+  crefBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    color: 'var(--primary)',
+    padding: '3px 8px',
+    borderRadius: '6px',
+    border: '1px solid rgba(139, 92, 246, 0.3)'
+  },
+  profProfileGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+    gap: '20px',
+    alignItems: 'start'
+  },
+  profPreviewCard: {
+    padding: '20px',
+    borderRadius: 'var(--radius-md)',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-color)',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  profPreviewAvatar: {
+    width: '68px',
+    height: '68px',
+    borderRadius: '50%',
+    overflow: 'hidden',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '2px solid var(--primary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0
+  },
+  // Estilos do Avatar e CRM do Aluno
+  studentAvatarBox: {
+    position: 'relative',
+    width: '68px',
+    height: '68px',
+    borderRadius: '50%',
+    flexShrink: 0
+  },
+  studentAvatarImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    borderRadius: '50%',
+    border: '2px solid var(--primary)'
+  },
+  studentPhotoBadge: {
+    position: 'absolute',
+    bottom: '-2px',
+    right: '-2px',
+    backgroundColor: 'var(--primary)',
+    color: '#fff',
+    borderRadius: '50%',
+    width: '24px',
+    height: '24px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    border: '2px solid var(--bg-primary)',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
+  },
+  whatsAppBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    color: '#22c55e',
+    border: '1px solid rgba(34, 197, 94, 0.3)',
+    fontWeight: 'bold',
+    fontSize: '0.85rem',
+    textDecoration: 'none',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  phoneCallBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '10px 14px',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    color: '#3b82f6',
+    border: '1px solid rgba(59, 130, 246, 0.3)',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    fontWeight: 'bold',
+    fontSize: '0.85rem'
+  },
+  copyPixBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '6px 12px',
+    borderRadius: '6px',
+    border: 'none',
+    backgroundColor: 'var(--status-success)',
+    color: '#fff',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap'
   }
 };
 
