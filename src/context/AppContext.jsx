@@ -17,19 +17,48 @@ export const DEFAULT_TENANTS = {
 
 export const DEFAULT_USERS = [
   { 
-    id: 'u1', 
-    name: 'Admin Master', 
-    email: 'master@fitseven.com', 
+    id: 'u8', 
+    name: 'Tony (MASTER)', 
+    email: 'tony@fitseven.com', 
     role: 'master', 
-    tenantId: 't1', 
+    tenantId: 'master', 
     password: '123', 
     cpf: '069.977.434-98',
     dataNascimento: '1986-12-19'
   },
   { 
+    id: 'u1784223991987', 
+    name: 'Tony Dayvd', 
+    email: 'tonyddayvd@gmail.com', 
+    role: 'aluno', 
+    tenantId: 'master', 
+    nomeProfessorVinculado: '',
+    statusVinculo: 'aprovado',
+    password: '123', 
+    isVip: true,
+    telefone: '11999998888',
+    whatsapp: '11999998888',
+    cpf: '069.977.434-98',
+    dataNascimento: '1986-12-19',
+    endereco: 'São Paulo - SP',
+    cidade: 'São Paulo - SP',
+    chavePix: '06997743498',
+    tipoChavePix: 'CPF',
+    plano: 'VIP Black',
+    dia_vencimento: '10'
+  },
+  { 
+    id: 'u7', 
+    name: 'Suporte Master System', 
+    email: 'master@fitseven.com', 
+    role: 'master', 
+    tenantId: 'master', 
+    password: '123'
+  },
+  { 
     id: 'u2', 
-    name: 'Carlos Santos (Professor)', 
-    email: 'carlos@matrix.com', 
+    name: 'Prof. Carlos Santos', 
+    email: 'carlos@vibe.com', 
     role: 'professor', 
     tenantId: 't1', 
     password: '123',
@@ -47,46 +76,21 @@ export const DEFAULT_USERS = [
   },
   { 
     id: 'u3', 
-    name: 'Tony (Aluno)', 
-    email: 'tony.aluno@fitseven.com', 
-    role: 'aluno', 
-    tenantId: '', 
-    nomeProfessorVinculado: '',
-    statusVinculo: 'aprovado',
-    password: '123', 
-    isVip: true,
-    telefone: '11999998888',
-    whatsapp: '11999998888',
-    cpf: '069.977.434-98',
-    dataNascimento: '1986-12-19',
-    endereco: 'São Paulo - SP',
-    cidade: 'São Paulo - SP',
-    chavePix: '06997743498',
-    tipoChavePix: 'CPF',
-    plano: 'VIP Black',
-    dia_vencimento: '10'
-  },
-  { 
-    id: 'u3_lucas', 
     name: 'Lucas Aluno', 
-    email: 'lucas@matrix.com', 
+    email: 'lucas@vibe.com', 
     role: 'aluno', 
     tenantId: 't1', 
     password: '123', 
     isVip: true,
-    telefone: '11977778888',
-    whatsapp: '11977778888',
-    cpf: '987.654.321-11',
-    dataNascimento: '1998-08-20',
-    endereco: 'Av. Paulista, 1500',
-    cidade: 'São Paulo - SP',
-    chavePix: 'lucas@matrix.com',
-    tipoChavePix: 'E-mail',
-    contatoEmergenciaNome: 'Clara Santos (Mãe)',
-    contatoEmergenciaTel: '11966665555',
-    plano: 'VIP Presencial',
-    dia_vencimento: '05',
-    anotacoesProfessor: 'Foco total em hipertrofia de peitoral e dorsais. Excelente progressão de cargas.'
+    cpf: '123.456.789-00'
+  },
+  { 
+    id: 'u1', 
+    name: 'Alice Silva (Estabelec.)', 
+    email: 'admin@vibe.com', 
+    role: 'estabelecimento', 
+    tenantId: 't1', 
+    password: '123' 
   },
   { 
     id: 'u4', 
@@ -247,8 +251,8 @@ export const AppProvider = ({ children }) => {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed.filter(u => u.id !== 'u_master_aluno').map(u => {
-            if (u.id === 'u1') return { ...u, cpf: '069.977.434-98', dataNascimento: '1986-12-19' };
-            if (u.id === 'u3') return { ...u, name: 'Tony (Aluno)', cpf: '069.977.434-98', dataNascimento: '1986-12-19', tenantId: '', nomeProfessorVinculado: '', statusVinculo: 'aprovado' };
+            if (u.id === 'u8' || u.id === 'u7') return { ...u, cpf: '069.977.434-98', dataNascimento: '1986-12-19' };
+            if (u.id === 'u1784223991987') return { ...u, name: 'Tony Dayvd', cpf: '069.977.434-98', dataNascimento: '1986-12-19', tenantId: 'master', nomeProfessorVinculado: '', statusVinculo: 'aprovado', isVip: true };
             return u;
           });
         }
@@ -260,8 +264,8 @@ export const AppProvider = ({ children }) => {
   const [workoutsByStudent, setWorkoutsByStudent] = useState(() => {
     const saved = localStorage.getItem('fitseven-workouts');
     const defaultMap = {
+      'u1784223991987': { exercises: DEFAULT_WORKOUTS, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' },
       'u3': { exercises: DEFAULT_WORKOUTS, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' },
-      'u3_lucas': { exercises: DEFAULT_WORKOUTS, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' },
       'u6': { exercises: DEFAULT_WORKOUTS, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' }
     };
     if (saved) {
@@ -314,8 +318,8 @@ export const AppProvider = ({ children }) => {
       try {
         const parsed = JSON.parse(saved);
         if (parsed && (parsed.id === 'u_master_aluno' || parsed.id === 'u3')) {
-          const u3Def = DEFAULT_USERS.find(u => u.id === 'u3');
-          return { ...u3Def, ...(parsed.id === 'u3' ? parsed : {}), name: 'Tony (Aluno)', id: 'u3', cpf: '069.977.434-98', dataNascimento: '1986-12-19', tenantId: '', nomeProfessorVinculado: '' };
+          const uStudentDef = DEFAULT_USERS.find(u => u.id === 'u1784223991987');
+          return uStudentDef || null;
         }
         return parsed;
       } catch (e) {}
@@ -717,13 +721,33 @@ export const AppProvider = ({ children }) => {
       )
     };
 
+    const targetTenantId = updatedData.tenantId !== undefined ? updatedData.tenantId : userObj.tenantId;
+
     const { error } = await supabase.from('users').update({
       role: updatedData.role || userObj.role,
+      tenant_id: targetTenantId,
       plano_vip: updatedData.isVip !== undefined ? updatedData.isVip : userObj.isVip,
       dados_pessoais: updatedPersonal
     }).eq('id', userId);
 
     if (error) throw error;
+    
+    // Atualização otimista no estado local
+    const mergedUser = {
+      ...userObj,
+      ...updatedData,
+      tenantId: targetTenantId,
+      ...updatedPersonal
+    };
+    const newUsersList = usersList.map(u => u.id === userId ? mergedUser : u);
+    setUsersList(newUsersList);
+    localStorage.setItem('fitseven-users', JSON.stringify(newUsersList));
+    
+    if (user && user.id === userId) {
+      setUser(mergedUser);
+      localStorage.setItem('fitseven-user', JSON.stringify(mergedUser));
+    }
+
     await refreshData();
   };
 
@@ -1024,13 +1048,32 @@ export const AppProvider = ({ children }) => {
     return { success: true, message: 'Senha atualizada com sucesso! Você já pode fazer login.' };
   };
 
-  // 3. Troca de Senha (Primeiro Acesso)
+  // 3. Troca de Senha (Primeiro Acesso ou Configurações de Perfil)
   const changePassword = async (userId, newPassword) => {
     if (!newPassword || newPassword.length < 3) throw new Error('A senha deve ter no mínimo 3 caracteres.');
-    await updateUser(userId, {
-      password: newPassword,
-      primeiroAcesso: false
-    });
+    
+    const userObj = usersList.find(u => u.id === userId);
+    const cleanUserCpf = cleanDigits(userObj?.cpf);
+    
+    // Se o usuário possui CPF, busca todas as contas associadas ao mesmo CPF
+    const targetUsers = (cleanUserCpf && cleanUserCpf.length === 11)
+      ? usersList.filter(u => cleanDigits(u.cpf) === cleanUserCpf || u.id === userId)
+      : (userObj ? [userObj] : [{ id: userId }]);
+
+    for (const u of targetUsers) {
+      await updateUser(u.id, {
+        password: newPassword,
+        primeiroAcesso: false
+      });
+    }
+
+    // Se o usuário ativo for um dos atualizados, atualiza o estado local imediatamente
+    if (user && targetUsers.some(tu => tu.id === user.id)) {
+      const updatedLoggedUser = { ...user, password: newPassword, primeiroAcesso: false };
+      setUser(updatedLoggedUser);
+      localStorage.setItem('fitseven-user', JSON.stringify(updatedLoggedUser));
+    }
+
     return true;
   };
 
@@ -1231,9 +1274,9 @@ export const AppProvider = ({ children }) => {
 
   // Enviar Avaliação para a Fila do Supabase (Pelo Aluno ou Pelo Professor)
   const submitEvaluation = async (formData, targetStudent = null) => {
-    const targetUserId = targetStudent?.id || formData.userId || user?.id || 'u3';
+    const targetUserId = targetStudent?.id || formData.userId || user?.id || 'u1784223991987';
     const targetUserName = targetStudent?.name || formData.nome || user?.name || 'Aluno';
-    const targetTenantId = targetStudent?.tenantId || user?.tenantId || 't1';
+    const targetTenantId = targetStudent?.tenantId || user?.tenantId || 'master';
 
     const evalId = `eval-${Date.now()}`;
     const newEval = {
@@ -1403,10 +1446,37 @@ export const AppProvider = ({ children }) => {
     }
 
     if (matchedUsers.length > 1) {
+      const uniqueRolesMap = new Map();
+      const filteredAccounts = [];
+      for (const acc of matchedUsers) {
+        if (acc.role === 'master') {
+          if (!uniqueRolesMap.has('master')) {
+            uniqueRolesMap.set('master', true);
+            const bestMaster = matchedUsers.find(u => u.id === 'u8') || acc;
+            filteredAccounts.push(bestMaster);
+          }
+        } else {
+          filteredAccounts.push(acc);
+        }
+      }
+
+      if (filteredAccounts.length === 1) {
+        const foundUser = filteredAccounts[0];
+        setUser(foundUser);
+        localStorage.setItem('fitseven-user', JSON.stringify(foundUser));
+        if (foundUser.role === 'master') {
+          setBypassRole(null);
+          setBypassTenantId(null);
+          localStorage.removeItem('fitseven-bypass-role');
+          localStorage.removeItem('fitseven-bypass-tenant');
+        }
+        return { success: true };
+      }
+
       return { 
         success: false, 
         multipleAccounts: true, 
-        accounts: matchedUsers, 
+        accounts: filteredAccounts, 
         message: 'Múltiplos perfis encontrados com este CPF. Escolha qual deseja acessar:' 
       };
     }

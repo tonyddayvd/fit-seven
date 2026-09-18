@@ -183,11 +183,13 @@ const Aluno = () => {
 
   // Localiza o professor do aluno
   const myProfessor = useMemo(() => {
-    if (!usersList || usersList.length === 0) return null;
+    if (!usersList || usersList.length === 0 || !user) return null;
+    if (user.tenantId === 'master' || user.role === 'master' || !user.tenantId) {
+      if (!user.nomeProfessorVinculado && !user.professorId) return null;
+    }
     return (
       usersList.find(u => u.role === 'professor' && (u.id === user?.tenantId || u.id === user?.professorId)) ||
-      usersList.find(u => u.role === 'professor' && u.id === 'u2') ||
-      usersList.find(u => u.role === 'professor')
+      (user.tenantId && user.tenantId !== 'master' ? usersList.find(u => u.role === 'professor' && u.tenantId === user?.tenantId) : null)
     );
   }, [usersList, user]);
 
@@ -296,7 +298,7 @@ const Aluno = () => {
   const [workoutSessionFinished, setWorkoutSessionFinished] = useState(false);
   const [finishedSplits, setFinishedSplits] = useState(() => {
     try {
-      const userKey = user?.id || 'u3';
+      const userKey = user?.id || 'u1784223991987';
       const saved = localStorage.getItem(`fitseven-finished-splits-${userKey}`);
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
