@@ -9,6 +9,7 @@ import Aluno from './views/Aluno';
 import Master from './views/Master';
 
 import Planos from './views/Planos';
+import PwaInstallPrompt from './components/PwaInstallPrompt';
 
 function App() {
   const { user, activeRole, virtualRoute, originalUser, revertToMaster, isLoading } = useApp();
@@ -44,11 +45,12 @@ function App() {
     );
   }
 
-  // Se não estiver autenticado, exibe a tela de login
+  // Se não estiver autenticado, exibe a tela de login com o prompt PWA
   if (!user) {
     return (
       <main style={styles.loginContainer}>
         <Login />
+        <PwaInstallPrompt />
       </main>
     );
   }
@@ -95,6 +97,9 @@ function App() {
 
       {/* Console de bypass flutuante do perfil MASTER */}
       <BypassConsole />
+
+      {/* Prompt / Modal Inteligente de Instalação PWA */}
+      <PwaInstallPrompt />
     </div>
   );
 }
