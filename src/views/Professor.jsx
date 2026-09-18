@@ -228,6 +228,7 @@ const Professor = () => {
     video_oficial_url: ''
   });
   const [previewVideoUrl, setPreviewVideoUrl] = useState(null);
+  const [editingVideoExercise, setEditingVideoExercise] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // Alunos CRUD states
@@ -568,9 +569,6 @@ const Professor = () => {
       setTimeout(() => setCopiedPixStudent(false), 2500);
     }
   };
-
-  // Modal Inteligente de Gestão / Sugestão / Gravação de Vídeo
-  const [editingVideoExercise, setEditingVideoExercise] = useState(null);
 
   // Adicionar um novo exercício livre diretamente ao split ativo com 1 clique
   const handleAddNewExerciseToSplit = () => {
