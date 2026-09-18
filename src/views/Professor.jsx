@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, DEFAULT_WORKOUTS } from '../context/AppContext';
 import { 
   Dumbbell, 
   PlusCircle, 
@@ -94,16 +94,23 @@ const Professor = () => {
 
   const handleSaveExerciseVideo = async (newVideoUrl) => {
     if (!viewingStudent || !editingVideoExercise) return;
-    const currentWorkout = workoutsByStudent[viewingStudent.id];
-    if (!currentWorkout) return;
+    const currentWorkout = workoutsByStudent[viewingStudent.id] || {};
     
-    const updatedExs = (currentWorkout.exercises || []).map(ex => 
-      (ex.id === editingVideoExercise.id || ex.name === editingVideoExercise.name)
+    let exercisesList = (currentWorkout.exercises && currentWorkout.exercises.length > 0)
+      ? currentWorkout.exercises
+      : DEFAULT_WORKOUTS;
+    
+    const updatedExs = exercisesList.map(ex => 
+      (ex.id === editingVideoExercise.id || ex.name.trim().toLowerCase() === editingVideoExercise.name.trim().toLowerCase())
         ? { ...ex, video_oficial_url: newVideoUrl, videoUrl: newVideoUrl }
         : ex
     );
     
-    await updateWorkoutByProfessor(viewingStudent.id, { exercises: updatedExs, isVip: currentWorkout.isVip || false });
+    await updateWorkoutByProfessor(viewingStudent.id, { 
+      ...currentWorkout,
+      exercises: updatedExs, 
+      isVip: currentWorkout.isVip || false 
+    });
     setEditingVideoExercise(prev => prev ? { ...prev, video_oficial_url: newVideoUrl, videoUrl: newVideoUrl } : null);
   };
 
@@ -1115,19 +1122,43 @@ const Professor = () => {
                                                   </span>
                                                 </div>
                                                 <div>
-                                                  {isDone ? (
-                                                    <span style={{ background: ex.metaAtingida100 === false ? 'rgba(234, 179, 8, 0.2)' : 'rgba(34, 197, 94, 0.2)', color: ex.metaAtingida100 === false ? '#eab308' : '#22c55e', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                                                      {ex.metaAtingida100 === false ? '⚠️ Sub-máximo' : '✓ 100% Batido'}
-                                                    </span>
-                                                  ) : isSkipped ? (
-                                                    <span style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                                                      ✕ Pulado
-                                                    </span>
-                                                  ) : (
-                                                    <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem' }}>
-                                                      ⏳ Pendente
-                                                    </span>
-                                                  )}
+                                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                    <button 
+                                                      type="button"
+                                                      onClick={() => setEditingVideoExercise(ex)}
+                                                      style={{
+                                                        background: (ex.video_oficial_url || ex.videoUrl) ? 'rgba(139, 92, 246, 0.18)' : 'rgba(255, 255, 255, 0.08)',
+                                                        color: (ex.video_oficial_url || ex.videoUrl) ? '#c084fc' : 'var(--text-secondary)',
+                                                        border: '1px solid ' + ((ex.video_oficial_url || ex.videoUrl) ? 'rgba(139, 92, 246, 0.4)' : 'rgba(255, 255, 255, 0.15)'),
+                                                        padding: '3px 8px',
+                                                        borderRadius: '6px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '0.74rem',
+                                                        fontWeight: '700',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                      }}
+                                                      title="Gravar vídeo ou escolher sugestão do YouTube com 1 toque"
+                                                    >
+                                                      <Video size={13} />
+                                                      <span>{(ex.video_oficial_url || ex.videoUrl) ? '🎥 Vídeo Ativo' : '🎥 + Vídeo'}</span>
+                                                    </button>
+
+                                                    {isDone ? (
+                                                      <span style={{ background: ex.metaAtingida100 === false ? 'rgba(234, 179, 8, 0.2)' : 'rgba(34, 197, 94, 0.2)', color: ex.metaAtingida100 === false ? '#eab308' : '#22c55e', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                                        {ex.metaAtingida100 === false ? '⚠️ Sub-máximo' : '✓ 100% Batido'}
+                                                      </span>
+                                                    ) : isSkipped ? (
+                                                      <span style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                                        ✕ Pulado
+                                                      </span>
+                                                    ) : (
+                                                      <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem' }}>
+                                                        ⏳ Pendente
+                                                      </span>
+                                                    )}
+                                                  </div>
                                                 </div>
                                               </div>
 
@@ -1440,163 +1471,164 @@ const Professor = () => {
                   </div>
                 )}
 
-                {/* ── ABA 5: EDITAR FICHA (VIP / MANUAL) ── */}
+                {/* ── ABA 5: EDITAR FICHA & VÍDEOS (VIP / MANUAL) ── */}
                 {activeModalTab === 'editor' && (
                   <div className="animate-fade-in">
-                    <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                      <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                        Ficha de Treino & Edição Técnica
+                    <div style={{ background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', marginBottom: '20px', border: '1px solid var(--border-color)' }}>
+                      <h4 style={{ margin: '0 0 14px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileText size={18} style={{ color: 'var(--primary)' }} /> Ficha de Treino & Gestão de Vídeos Técnicos
                       </h4>
+
                       {(() => {
-                        const workout = workoutsByStudent[viewingStudent.id];
-                        if (!workout) {
-                          return <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Nenhum treino definido para este aluno.</p>;
-                        }
+                        const workout = workoutsByStudent[viewingStudent.id] || {};
+                        const exercisesList = (workout.exercises && workout.exercises.length > 0)
+                          ? workout.exercises
+                          : DEFAULT_WORKOUTS;
 
-                        if (workout.isVip) {
-                          return (
-                            <div>
-                              <p style={{ margin: '0 0 10px 0', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
-                                Aluno com Plano VIP (Edição Visual Ativada).<br/>
-                                <span style={{ color: 'var(--text-secondary)' }}>Clique em qualquer texto abaixo e digite para editar. As alterações serão salvas no PDF do aluno.</span>
-                              </p>
-                              <div style={{
-                                  width: '100%', 
-                                  overflowX: 'auto', 
-                                  WebkitOverflowScrolling: 'touch',
-                                  border: '2px solid var(--primary-color)', 
-                                  borderRadius: '6px',
-                                  background: '#fff'
-                              }}>
-                                <iframe
-                                  id={`iframe-editor-${viewingStudent.id}`}
-                                  srcDoc={workout.vipHtml || ''}
-                                  onLoad={(e) => {
-                                    const doc = e.target.contentDocument;
-                                    if (doc) {
-                                      doc.designMode = "on";
-                                    }
-                                  }}
-                                  style={{ 
-                                    width: '100%', minWidth: '800px', height: '500px',
-                                    border: 'none', display: 'block'
-                                  }}
-                                />
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            {/* ── SEÇÃO 1: GESTÃO DE VÍDEOS DE EXECUÇÃO DE CADA EXERCÍCIO ── */}
+                            <div style={{
+                              background: 'var(--bg-secondary)',
+                              padding: '16px',
+                              borderRadius: '8px',
+                              border: '1px solid var(--border-color)'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                                <div>
+                                  <h5 style={{ margin: '0 0 4px 0', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem' }}>
+                                    <Video size={18} style={{ color: '#c084fc' }} /> 🎥 Vídeos Recomendados dos Exercícios
+                                  </h5>
+                                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                    Cadastre gravações da câmera ou selecione sugestões técnicas com 1 toque para cada exercício.
+                                  </p>
+                                </div>
+                                <span style={{ fontSize: '0.75rem', background: 'rgba(139,92,246,0.15)', color: '#c084fc', padding: '3px 8px', borderRadius: '6px', fontWeight: '700' }}>
+                                  {exercisesList.filter(e => e.video_oficial_url || e.videoUrl).length} de {exercisesList.length} com vídeo
+                                </span>
                               </div>
-                              <button 
-                                onClick={async () => {
-                                  const iframe = document.getElementById(`iframe-editor-${viewingStudent.id}`);
-                                  if (iframe && iframe.contentDocument) {
-                                    const finalHtml = "<!DOCTYPE html>\n" + iframe.contentDocument.documentElement.outerHTML;
-                                    await updateWorkoutByProfessor(viewingStudent.id, { vipHtml: finalHtml });
-                                    alert('Treino atualizado! O PDF do aluno foi alterado e o formato mantido.');
-                                  }
-                                }}
-                                style={{ marginTop: '15px', width: '100%', background: 'var(--primary-color)', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                Salvar Alterações no PDF
-                              </button>
-                            </div>
-                          );
-                        } else {
-                          return (
-                            <div>
-                              <p style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
-                                Aluno com Treino Livre (Manual).
-                              </p>
-                              {(!workout.exercises || workout.exercises.length === 0) ? (
-                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>A ficha está vazia.</p>
-                              ) : (
-                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                  {workout.exercises.map((ex, i) => {
-                                    const hasVideo = !!(ex.video_oficial_url || ex.videoUrl);
-                                    return (
-                                      <li key={i} style={{ padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                                        <div>
-                                          <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>{ex.name}</strong> - {ex.sets}x{ex.reps} (Carga: {ex.weight || ex.realLoad || 'Livre'})
-                                          {hasVideo && (
-                                            <span style={{ marginLeft: '8px', fontSize: '0.72rem', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                                              ✓ Vídeo Ativo
-                                            </span>
-                                          )}
-                                        </div>
-                                        
-                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                          <button 
-                                            type="button"
-                                            onClick={() => setEditingVideoExercise(ex)}
-                                            style={{
-                                              background: hasVideo ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-                                              color: hasVideo ? '#c084fc' : 'var(--text-secondary)',
-                                              border: '1px solid ' + (hasVideo ? 'rgba(139, 92, 246, 0.4)' : 'rgba(255, 255, 255, 0.1)'),
-                                              padding: '5px 10px',
-                                              borderRadius: '6px',
-                                              cursor: 'pointer',
-                                              fontSize: '0.78rem',
-                                              fontWeight: '700',
-                                              display: 'flex',
-                                              alignItems: 'center',
-                                              gap: '5px'
-                                            }}
-                                            title="Gravar vídeo ou escolher sugestão do YouTube com 1 toque"
-                                          >
-                                            <Video size={14} />
-                                            <span>{hasVideo ? 'Editar Vídeo' : '+ Vídeo'}</span>
-                                          </button>
 
-                                          <button 
-                                            onClick={async () => {
-                                              const newExs = workout.exercises.filter((_, idx) => idx !== i);
-                                              await updateWorkoutByProfessor(viewingStudent.id, { exercises: newExs, isVip: false });
-                                            }}
-                                            style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600' }}
-                                          >
-                                            Remover
-                                          </button>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {exercisesList.map((ex, i) => {
+                                  const hasVideo = !!(ex.video_oficial_url || ex.videoUrl);
+                                  return (
+                                    <div 
+                                      key={ex.id || i}
+                                      style={{
+                                        padding: '10px 14px',
+                                        borderRadius: '6px',
+                                        background: hasVideo ? 'rgba(139, 92, 246, 0.05)' : 'var(--bg-primary)',
+                                        border: '1px solid ' + (hasVideo ? 'rgba(139, 92, 246, 0.3)' : 'var(--border-color)'),
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        flexWrap: 'wrap',
+                                        gap: '10px'
+                                      }}
+                                    >
+                                      <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <span style={{ fontSize: '0.75rem', fontWeight: '800', background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', color: 'var(--primary)' }}>
+                                            Split {ex.split || 'A'}
+                                          </span>
+                                          <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>{ex.name}</strong>
                                         </div>
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
-                              )}
-                              
-                              {/* Mini Formulário de Adição de Exercício Manual */}
-                              <div style={{ marginTop: '15px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
-                                <h5 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', fontSize: '0.85rem' }}>+ Adicionar Exercício Manual</h5>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                  <input type="text" id={`new-ex-name-${viewingStudent.id}`} placeholder="Ex: Supino Reto" style={{ padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)', fontSize: '0.8rem' }} />
-                                  <input type="text" id={`new-ex-reps-${viewingStudent.id}`} placeholder="Ex: 4x10" style={{ padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)', fontSize: '0.8rem' }} />
+                                        <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '2px', display: 'block' }}>
+                                          Meta: {ex.reps || '4x10'} {ex.load ? `• Carga: ${ex.load}` : ''}
+                                        </span>
+                                      </div>
+
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        {hasVideo ? (
+                                          <span style={{ fontSize: '0.72rem', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', padding: '3px 8px', borderRadius: '4px', fontWeight: '700' }}>
+                                            ✓ Vídeo Ativo
+                                          </span>
+                                        ) : (
+                                          <span style={{ fontSize: '0.72rem', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-muted)', padding: '3px 8px', borderRadius: '4px' }}>
+                                            Sem vídeo customizado
+                                          </span>
+                                        )}
+
+                                        <button 
+                                          type="button"
+                                          onClick={() => setEditingVideoExercise(ex)}
+                                          style={{
+                                            background: hasVideo ? 'var(--primary)' : 'rgba(139, 92, 246, 0.2)',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            padding: '6px 12px',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.8rem',
+                                            fontWeight: '700',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '5px',
+                                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                                          }}
+                                          title="Gravar vídeo ou escolher sugestão do YouTube com 1 toque"
+                                        >
+                                          <Video size={14} />
+                                          <span>{hasVideo ? 'Editar Vídeo' : '🎥 + Cadastrar Vídeo'}</span>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* ── SEÇÃO 2: EDITOR VISUAL VIP OU FORMULÁRIO MANUAL ── */}
+                            {workout.isVip ? (
+                              <div>
+                                <div style={{ marginBottom: '10px' }}>
+                                  <strong style={{ color: 'var(--accent-primary)', fontSize: '0.88rem' }}>
+                                    📄 Edição Visual do Documento/PDF VIP:
+                                  </strong>
+                                  <p style={{ margin: '2px 0 0', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                                    Clique em qualquer texto no quadro abaixo e digite para personalizar o arquivo PDF oficial do aluno.
+                                  </p>
+                                </div>
+                                <div style={{
+                                    width: '100%', 
+                                    overflowX: 'auto', 
+                                    WebkitOverflowScrolling: 'touch',
+                                    border: '2px solid var(--primary-color)', 
+                                    borderRadius: '6px',
+                                    background: '#fff'
+                                }}>
+                                  <iframe
+                                    id={`iframe-editor-${viewingStudent.id}`}
+                                    srcDoc={workout.vipHtml || ''}
+                                    onLoad={(e) => {
+                                      const doc = e.target.contentDocument;
+                                      if (doc) {
+                                        doc.designMode = "on";
+                                      }
+                                    }}
+                                    style={{ 
+                                      width: '100%', minWidth: '800px', height: '450px',
+                                      border: 'none', display: 'block'
+                                    }}
+                                  />
                                 </div>
                                 <button 
                                   onClick={async () => {
-                                    const nameInput = document.getElementById(`new-ex-name-${viewingStudent.id}`);
-                                    const repsInput = document.getElementById(`new-ex-reps-${viewingStudent.id}`);
-                                    if(nameInput.value && repsInput.value) {
-                                      const parts = repsInput.value.toLowerCase().split('x');
-                                      const sets = parts[0] || '3';
-                                      const reps = parts[1] || '10';
-                                      const newEx = {
-                                        id: 'manual_' + Date.now(),
-                                        name: nameInput.value,
-                                        sets,
-                                        reps,
-                                        weight: 'Livre',
-                                        status: 'pendente'
-                                      };
-                                      const currentExs = workout.exercises || [];
-                                      await updateWorkoutByProfessor(viewingStudent.id, { exercises: [...currentExs, newEx], isVip: false });
-                                      nameInput.value = '';
-                                      repsInput.value = '';
+                                    const iframe = document.getElementById(`iframe-editor-${viewingStudent.id}`);
+                                    if (iframe && iframe.contentDocument) {
+                                      const finalHtml = "<!DOCTYPE html>\n" + iframe.contentDocument.documentElement.outerHTML;
+                                      await updateWorkoutByProfessor(viewingStudent.id, { vipHtml: finalHtml });
+                                      alert('Treino atualizado! O PDF do aluno foi alterado e o formato mantido.');
                                     }
                                   }}
-                                  style={{ marginTop: '10px', width: '100%', background: 'transparent', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)', padding: '8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
+                                  style={{ marginTop: '12px', width: '100%', background: 'var(--primary-color)', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
                                 >
-                                  Adicionar à Ficha
+                                  💾 Salvar Alterações no PDF VIP
                                 </button>
                               </div>
-                            </div>
-                          );
-                        }
+                            ) : null}
+                          </div>
+                        );
                       })()}
                     </div>
                   </div>
