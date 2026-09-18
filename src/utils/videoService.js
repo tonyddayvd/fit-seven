@@ -1,4 +1,4 @@
-﻿// Utilitarios de video e Catalogo Completo de Exercicios Fit Seven
+// Utilitarios de video e Catalogo Completo de Exercicios Fit Seven
 
 export const formatVideoEmbedUrl = (url) => {
   if (!url) return '';
@@ -372,3 +372,66 @@ export const EXERCISE_CATALOG = [
     video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk'
   }
 ];
+
+/**
+ * Retorna o video oficial padrao com base no nome do exercicio
+ */
+export const getDefaultOfficialVideo = (exerciseName) => {
+  if (!exerciseName) return 'https://www.youtube.com/embed/sqOw2Y6u9Xs';
+  const clean = exerciseName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  
+  const found = EXERCISE_CATALOG.find(item => {
+    const itemClean = item.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    return itemClean.includes(clean) || clean.includes(itemClean);
+  });
+  
+  if (found && found.video_oficial_url) {
+    return found.video_oficial_url;
+  }
+  
+  if (clean.includes('supino') || clean.includes('peito')) return 'https://www.youtube.com/embed/sqOw2Y6u9Xs';
+  if (clean.includes('remada') || clean.includes('puxada') || clean.includes('costas')) return 'https://www.youtube.com/embed/H6x4yY9_u2w';
+  if (clean.includes('agachamento') || clean.includes('leg') || clean.includes('perna')) return 'https://www.youtube.com/embed/Vn83S-A-9yU';
+  if (clean.includes('rosca') || clean.includes('biceps')) return 'https://www.youtube.com/embed/ly7TepL4pco';
+  if (clean.includes('triceps') || clean.includes('ombro') || clean.includes('desenvolvimento')) return 'https://www.youtube.com/embed/HlJ_nKpxJg8';
+  if (clean.includes('abdominal') || clean.includes('prancha') || clean.includes('burpee') || clean.includes('flexao')) return 'https://www.youtube.com/embed/0pkjOk0EiAk';
+
+  return 'https://www.youtube.com/embed/sqOw2Y6u9Xs';
+};
+
+/**
+ * Retorna sugestoes rapidas de videos para o exercicio
+ */
+export const getQuickVideoSuggestions = (exerciseName) => {
+  const defaultVideo = getDefaultOfficialVideo(exerciseName);
+  const videoId = (defaultVideo && defaultVideo.includes('/embed/')) ? defaultVideo.split('/embed/')[1] : 'sqOw2Y6u9Xs';
+  
+  return [
+    { 
+      id: 'sug_1', 
+      title: `Execução Correta: ${exerciseName || 'Exercício'}`, 
+      author: 'Treinador Fit Seven', 
+      duration: '1:45', 
+      embedUrl: defaultVideo, 
+      thumbUrl: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` 
+    },
+    { 
+      id: 'sug_2', 
+      title: `Biomecânica e Postura: ${exerciseName || 'Exercício'}`, 
+      author: 'Biomecânica Pro', 
+      duration: '2:10', 
+      embedUrl: 'https://www.youtube.com/embed/H6x4yY9_u2w', 
+      thumbUrl: 'https://img.youtube.com/vi/H6x4yY9_u2w/mqdefault.jpg' 
+    },
+    { 
+      id: 'sug_3', 
+      title: `Guia Rápido de Execução: ${exerciseName || 'Exercício'}`, 
+      author: 'Personal Trainer Oficial', 
+      duration: '1:15', 
+      embedUrl: 'https://www.youtube.com/embed/Vn83S-A-9yU', 
+      thumbUrl: 'https://img.youtube.com/vi/Vn83S-A-9yU/mqdefault.jpg' 
+    }
+  ];
+};
+
+

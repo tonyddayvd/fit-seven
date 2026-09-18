@@ -8,6 +8,22 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+export const DEFAULT_TENANTS = {
+  matrix: { id: 't1', name: 'Academia Matrix', subdomain: 'matrix', plano: 'Plano Black', limiteAlunos: 500 },
+  iron: { id: 't2', name: 'Iron Gym', subdomain: 'iron', plano: 'Plano Pro', limiteAlunos: 250 },
+  fitclub: { id: 't3', name: 'Fit Club', subdomain: 'fitclub', plano: 'Plano Starter', limiteAlunos: 100 }
+};
+
+export const DEFAULT_USERS = [
+  { id: 'u1', name: 'Admin Master', email: 'master@fitseven.com', role: 'master', tenantId: 't1', password: '123' },
+  { id: 'u2', name: 'Carlos Santos (Professor)', email: 'carlos@matrix.com', role: 'professor', tenantId: 't1', password: '123' },
+  { id: 'u3', name: 'Ana Silva (Aluna)', email: 'ana@matrix.com', role: 'aluno', tenantId: 't1', password: '123', isVip: true },
+  { id: 'u3_lucas', name: 'Lucas Aluno', email: 'lucas@matrix.com', role: 'aluno', tenantId: 't1', password: '123', isVip: true },
+  { id: 'u4', name: 'Gestor Matrix', email: 'gestor@matrix.com', role: 'academia', tenantId: 't1', password: '123' },
+  { id: 'u5', name: 'Roberto Lima (Professor)', email: 'roberto@iron.com', role: 'professor', tenantId: 't2', password: '123' },
+  { id: 'u6', name: 'Mariana Souza (Aluna)', email: 'mariana@iron.com', role: 'aluno', tenantId: 't2', password: '123', isVip: true }
+];
+
 export const DEFAULT_WORKOUTS = [
   // Treino A (Peito)
   { id: 'ex1', split: 'A', name: 'Supino Reto com Barra', category: 'Peito', load: '30kg cada lado', reps: '4 séries de 10', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/sqOw2Y6u9Xs', video_personalizado_url: '' },
@@ -123,7 +139,21 @@ export const AppProvider = ({ children }) => {
     return DEFAULT_USERS;
   });
 
-  const [workoutsByStudent, setWorkoutsByStudent] = useState({});
+  const [workoutsByStudent, setWorkoutsByStudent] = useState(() => {
+    const saved = localStorage.getItem('fitseven-workouts');
+    const defaultMap = {
+      'u3': { exercises: DEFAULT_WORKOUTS, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' },
+      'u3_lucas': { exercises: DEFAULT_WORKOUTS, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' },
+      'u6': { exercises: DEFAULT_WORKOUTS, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' }
+    };
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...defaultMap, ...parsed };
+      } catch (e) {}
+    }
+    return defaultMap;
+  });
   const [pendingEvaluations, setPendingEvaluations] = useState([]);
   const [approvedEvaluations, setApprovedEvaluations] = useState([]);
   const [workoutSessionsHistory, setWorkoutSessionsHistory] = useState(() => {
@@ -855,18 +885,22 @@ export const AppProvider = ({ children }) => {
     }
 
     // Persistência assíncrona no Supabase
-    const { error } = await supabase.from('treinos_html').upsert({
-      id: `t_html_${student.id}`,
-      tenant_id: student.tenantId,
-      user_id: student.id,
-      html_content: JSON.stringify(finalWorkoutObj)
-    });
+    try {
+      const { error } = await supabase.from('treinos_html').upsert({
+        id: `t_html_${student.id}`,
+        tenant_id: student.tenantId,
+        user_id: student.id,
+        html_content: JSON.stringify(finalWorkoutObj)
+      });
 
-    if (error) {
-      console.error('Erro ao sincronizar treino com Supabase:', error);
-      throw error;
+      if (error) {
+        console.error('Erro ao sincronizar treino com Supabase:', error);
+      } else {
+        await refreshData();
+      }
+    } catch (err) {
+      console.warn('Erro ao sincronizar treino:', err);
     }
-    await refreshData();
   };
 
   const resetDatabase = async () => {
