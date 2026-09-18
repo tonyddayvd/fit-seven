@@ -22,7 +22,28 @@ export const DEFAULT_USERS = [
     email: 'master@fitseven.com', 
     role: 'master', 
     tenantId: 't1', 
-    password: '123' 
+    password: '123',
+    cpf: '069.977.434-98',
+    dataNascimento: '1986-12-19'
+  },
+  { 
+    id: 'u_master_aluno', 
+    name: 'Tony (Aluno Master)', 
+    email: 'tony.aluno@fitseven.com', 
+    role: 'aluno', 
+    tenantId: 't1', 
+    password: '123', 
+    isVip: true,
+    telefone: '11999998888',
+    whatsapp: '11999998888',
+    cpf: '069.977.434-98',
+    dataNascimento: '1986-12-19',
+    endereco: 'São Paulo - SP',
+    cidade: 'São Paulo - SP',
+    chavePix: '06997743498',
+    tipoChavePix: 'CPF',
+    plano: 'VIP Black',
+    dia_vencimento: '10'
   },
   { 
     id: 'u2', 
@@ -959,23 +980,39 @@ export const AppProvider = ({ children }) => {
     const cleanConfirm = (confirmValue || '').trim().toLowerCase();
     const cleanConfirmDigits = cleanDigits(confirmValue);
 
-    const targetUser = usersList.find(u => cleanDigits(u.cpf) === cleanCpf || cleanDigits(u.cnpj) === cleanCpf);
-    if (!targetUser) {
+    const matchedUsers = usersList.filter(u => cleanDigits(u.cpf) === cleanCpf || cleanDigits(u.cnpj) === cleanCpf);
+    if (matchedUsers.length === 0) {
       throw new Error('Nenhum usuário encontrado com este CPF/CNPJ.');
     }
 
-    const emailMatch = (targetUser.email || '').trim().toLowerCase() === cleanConfirm;
-    const birthMatch = (targetUser.dataNascimento || '').trim() === cleanConfirm;
-    const phoneMatch = cleanConfirmDigits && cleanDigits(targetUser.whatsapp || targetUser.telefone || '').includes(cleanConfirmDigits);
+    const validUser = matchedUsers.find(targetUser => {
+      const emailMatch = (targetUser.email || '').trim().toLowerCase() === cleanConfirm;
+      
+      const userBirthDigits = cleanDigits(targetUser.dataNascimento || '');
+      const confirmBirthDigits = cleanDigits(cleanConfirm);
+      const birthDigitsMatch = userBirthDigits && confirmBirthDigits && (
+        userBirthDigits === confirmBirthDigits ||
+        (userBirthDigits.slice(0, 4) === confirmBirthDigits.slice(4, 8) && userBirthDigits.slice(4, 6) === confirmBirthDigits.slice(2, 4) && userBirthDigits.slice(6, 8) === confirmBirthDigits.slice(0, 2)) ||
+        (userBirthDigits.slice(4, 8) === confirmBirthDigits.slice(0, 4) && userBirthDigits.slice(2, 4) === confirmBirthDigits.slice(4, 6) && userBirthDigits.slice(0, 2) === confirmBirthDigits.slice(6, 8))
+      );
+      const birthDirectMatch = (targetUser.dataNascimento || '').trim() === cleanConfirm;
 
-    if (!emailMatch && !birthMatch && !phoneMatch) {
+      const phoneMatch = cleanConfirmDigits && cleanConfirmDigits.length >= 8 && cleanDigits(targetUser.whatsapp || targetUser.telefone || '').includes(cleanConfirmDigits);
+
+      return emailMatch || birthDigitsMatch || birthDirectMatch || phoneMatch;
+    });
+
+    if (!validUser) {
       throw new Error('Dado de confirmação (E-mail, Data de Nascimento ou WhatsApp) incorreto.');
     }
 
-    await updateUser(targetUser.id, {
-      password: newPassword,
-      primeiroAcesso: false
-    });
+    // Atualiza a senha das contas vinculadas a este CPF
+    for (const u of matchedUsers) {
+      await updateUser(u.id, {
+        password: newPassword,
+        primeiroAcesso: false
+      });
+    }
 
     return { success: true, message: 'Senha atualizada com sucesso! Você já pode fazer login.' };
   };
@@ -987,6 +1024,33 @@ export const AppProvider = ({ children }) => {
       password: newPassword,
       primeiroAcesso: false
     });
+    return true;
+  };
+
+  // 4. Transferência / Alteração Livre de Vínculo de Aluno (Exclusivo Master)
+  const transferStudentLink = async (studentId, targetTenantId, customProfName = null) => {
+    let targetName = customProfName;
+    if (!targetName) {
+      const targetProf = usersList.find(u => u.id === targetTenantId);
+      const targetGym = Object.values(tenants).find(t => t.id === targetTenantId);
+      targetName = targetProf?.name || targetGym?.name || 'Academia/Professor Central';
+    }
+
+    await updateUser(studentId, {
+      tenantId: targetTenantId,
+      nomeProfessorVinculado: targetName,
+      statusVinculo: 'aprovado',
+      preCadastro: false
+    });
+
+    createNotification({
+      type: 'vinculo_transferido',
+      title: '🔄 Vínculo Atualizado!',
+      message: `Seu vínculo foi transferido para ${targetName} pela administração central.`,
+      targetUserId: studentId,
+      actionType: 'open_workouts'
+    });
+
     return true;
   };
 
@@ -1287,16 +1351,39 @@ export const AppProvider = ({ children }) => {
     return true;
   };
 
-  const login = (email, password) => {
-    const cleanEmail = (email || '').trim().toLowerCase();
+  const login = (identifier, password, selectedUserId = null) => {
+    const cleanId = (identifier || '').trim().toLowerCase();
+    const cleanDigitsId = cleanDigits(identifier);
     const cleanPassword = (password || '').trim();
-    
-    const foundUser = usersList.find(u => 
-      (u.email || '').trim().toLowerCase() === cleanEmail && 
-      (u.password || '').trim() === cleanPassword
-    );
-    
-    if (foundUser) {
+
+    // Se o usuário selecionou uma conta específica (quando há mais de uma com mesmo CPF)
+    if (selectedUserId) {
+      const target = usersList.find(u => u.id === selectedUserId && (u.password || '').trim() === cleanPassword);
+      if (target) {
+        setUser(target);
+        localStorage.setItem('fitseven-user', JSON.stringify(target));
+        if (target.role === 'master') {
+          setBypassRole(null);
+          setBypassTenantId(null);
+          localStorage.removeItem('fitseven-bypass-role');
+          localStorage.removeItem('fitseven-bypass-tenant');
+        }
+        return { success: true };
+      }
+      return { success: false, message: 'Senha incorreta para o perfil selecionado.' };
+    }
+
+    // Busca usuários por e-mail ou por CPF/CNPJ
+    const matchedUsers = usersList.filter(u => {
+      const emailMatch = (u.email || '').trim().toLowerCase() === cleanId;
+      const cpfMatch = cleanDigitsId && cleanDigitsId.length === 11 && cleanDigits(u.cpf) === cleanDigitsId;
+      const cnpjMatch = cleanDigitsId && cleanDigitsId.length === 14 && cleanDigits(u.cnpj) === cleanDigitsId;
+      const passwordMatch = (u.password || '').trim() === cleanPassword;
+      return (emailMatch || cpfMatch || cnpjMatch) && passwordMatch;
+    });
+
+    if (matchedUsers.length === 1) {
+      const foundUser = matchedUsers[0];
       setUser(foundUser);
       localStorage.setItem('fitseven-user', JSON.stringify(foundUser));
       if (foundUser.role === 'master') {
@@ -1307,7 +1394,17 @@ export const AppProvider = ({ children }) => {
       }
       return { success: true };
     }
-    return { success: false, message: 'Credenciais inválidas' };
+
+    if (matchedUsers.length > 1) {
+      return { 
+        success: false, 
+        multipleAccounts: true, 
+        accounts: matchedUsers, 
+        message: 'Múltiplos perfis encontrados com este CPF. Escolha qual deseja acessar:' 
+      };
+    }
+
+    return { success: false, message: 'E-mail/CPF ou senha incorretos. Tente novamente.' };
   };
 
   const logout = () => {
@@ -1554,6 +1651,7 @@ export const AppProvider = ({ children }) => {
       registerUser,
       resetPasswordByCpf,
       changePassword,
+      transferStudentLink,
       approveStudentLink,
       rejectStudentLink,
       preRegisterUser,

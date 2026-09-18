@@ -46,13 +46,13 @@ const Login = () => {
 
   // Estados principais
   const [authMode, setAuthMode] = useState('login'); // 'login', 'register', 'forgot_password', 'invite'
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState(''); // Email ou CPF
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showDemoDrawer, setShowDemoDrawer] = useState(false);
+  const [multipleAccounts, setMultipleAccounts] = useState(null); // Perfis múltiplos para o mesmo CPF
 
   // Estados do Cadastro Multi-Perfil
   const [regRole, setRegRole] = useState('aluno'); // 'aluno', 'professor', 'estabelecimento'
@@ -115,20 +115,33 @@ const Login = () => {
   const availableProfessors = (usersList || []).filter(u => u.role === 'professor');
   const availableGyms = Object.values(tenants || {});
 
+  // Handler de Digitação de Identificador (Formata se for numérico/CPF)
+  const handleIdentifierChange = (val) => {
+    const digitsOnly = cleanDigits(val);
+    // Se o usuário digitou apenas números ou caracteres de CPF e não tem @
+    if (!val.includes('@') && digitsOnly.length > 0 && digitsOnly.length <= 11 && /^[0-9.\-_ ]+$/.test(val)) {
+      setIdentifier(formatCPF(val));
+    } else {
+      setIdentifier(val);
+    }
+  };
+
   // Handler de Login Direto
-  const handleLoginSubmit = (e) => {
-    if (e) e.preventDefault();
+  const handleLoginSubmit = (e, selectedUserId = null) => {
+    if (e && e.preventDefault) e.preventDefault();
     setError('');
     setSuccessMsg('');
     setLoading(true);
 
     setTimeout(() => {
-      const res = login(email, password);
+      const res = login(identifier, password, selectedUserId);
       setLoading(false);
-      if (!res.success) {
-        setError(res.message || 'E-mail ou senha incorretos. Tente novamente.');
+      if (res.multipleAccounts) {
+        setMultipleAccounts(res.accounts);
+      } else if (!res.success) {
+        setError(res.message || 'E-mail/CPF ou senha incorretos. Tente novamente.');
       }
-    }, 250);
+    }, 200);
   };
 
   // Handler de Cadastro
@@ -180,7 +193,7 @@ const Login = () => {
       });
 
       setSuccessMsg('Conta criada com sucesso! Faça login para começar.');
-      setEmail(regForm.email);
+      setIdentifier(regForm.email);
       setPassword(regForm.password);
       setAuthMode('login');
     } catch (err) {
@@ -269,20 +282,6 @@ const Login = () => {
     }
   };
 
-  const selectDemoUser = (demoEmail, demoPass = '123') => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setError('');
-    setLoading(true);
-    setTimeout(() => {
-      const res = login(demoEmail, demoPass);
-      setLoading(false);
-      if (!res.success) {
-        setError(res.message || 'Credenciais inválidas');
-      }
-    }, 150);
-  };
-
   const getRoleBadgeStyle = (role) => {
     switch (role) {
       case 'master':
@@ -295,8 +294,6 @@ const Login = () => {
         return { bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.4)', color: '#fb923c', label: '🏢 ACADEMIA' };
     }
   };
-
-  const displayUsers = (usersList && usersList.length > 0) ? usersList : DEFAULT_USERS;
 
   return (
     <div style={styles.container} className="animate-fade-in">
@@ -329,20 +326,20 @@ const Login = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* MODO 1: LOGIN DIRETO                                                      */}
+        {/* MODO 1: LOGIN DIRETO (E-mail ou CPF)                                      */}
         {/* ========================================================================= */}
-        {authMode === 'login' && (
+        {authMode === 'login' && !multipleAccounts && (
           <div className="animate-fade-in">
-            <form onSubmit={handleLoginSubmit} style={styles.form}>
+            <form onSubmit={(e) => handleLoginSubmit(e)} style={styles.form}>
               <div style={styles.inputGroup}>
-                <label style={styles.label}>E-mail</label>
+                <label style={styles.label}>E-mail ou CPF</label>
                 <div style={styles.inputWrapper}>
-                  <Mail size={18} style={styles.inputIcon} />
+                  <User size={18} style={styles.inputIcon} />
                   <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seu.email@fitseven.com"
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => handleIdentifierChange(e.target.value)}
+                    placeholder="seu.email@fitseven.com ou 000.000.000-00"
                     style={styles.input}
                     required
                   />
@@ -401,6 +398,83 @@ const Login = () => {
                 Criar Nova Conta Gratuitamente
               </button>
             </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SELETOR DE PERFIL QUANDO O MESMO CPF POSSUI MÚLTIPLAS CONTAS (Ex: Master) */}
+        {/* ========================================================================= */}
+        {authMode === 'login' && multipleAccounts && (
+          <div className="animate-fade-in">
+            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: '0 0 6px 0', fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+                Selecione seu Perfil
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Identificamos múltiplos perfis vinculados ao CPF <strong>{identifier}</strong>. Escolha como deseja acessar:
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+              {multipleAccounts.map(account => {
+                const badgeStyle = getRoleBadgeStyle(account.role);
+                return (
+                  <button
+                    key={account.id}
+                    type="button"
+                    onClick={() => handleLoginSubmit(null, account.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '14px 16px',
+                      borderRadius: '14px',
+                      backgroundColor: 'var(--bg-tertiary)',
+                      border: `1px solid ${badgeStyle.border}`,
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <span style={{ 
+                          fontSize: '0.7rem', 
+                          fontWeight: '800', 
+                          padding: '2px 8px', 
+                          borderRadius: '6px', 
+                          backgroundColor: badgeStyle.bg, 
+                          color: badgeStyle.color 
+                        }}>
+                          {badgeStyle.label}
+                        </span>
+                        <strong style={{ fontSize: '0.95rem' }}>{account.name}</strong>
+                      </div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{account.email}</span>
+                    </div>
+                    <ArrowRight size={18} color={badgeStyle.color} />
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => { setMultipleAccounts(null); setError(''); }}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '10px',
+                backgroundColor: 'transparent',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.85rem',
+                cursor: 'pointer'
+              }}
+            >
+              Voltar / Digitar outro login
+            </button>
           </div>
         )}
 
@@ -759,14 +833,14 @@ const Login = () => {
               </div>
 
               <div style={styles.inputGroup}>
-                <label style={styles.label}>Confirmação (E-mail, Data Nasc. AAAA-MM-DD ou WhatsApp)</label>
+                <label style={styles.label}>Confirmação de Segurança (Data de Nascimento, E-mail ou WhatsApp)</label>
                 <div style={styles.inputWrapper}>
                   <ShieldCheck size={18} style={styles.inputIcon} />
                   <input
                     type="text"
                     value={forgotForm.confirmValue}
                     onChange={(e) => setForgotForm({ ...forgotForm, confirmValue: e.target.value })}
-                    placeholder="Digite seu e-mail cadastrado ou WhatsApp"
+                    placeholder="Ex: 19/12/1986, seu.email@fitseven.com ou (11) 99999-8888"
                     style={styles.input}
                     required
                   />
@@ -891,55 +965,6 @@ const Login = () => {
             </form>
           </div>
         )}
-
-        {/* ========================================================================= */}
-        {/* MODO DEMONSTRAÇÃO / ACESSO RÁPIDO DISCRETO (Accordion)                     */}
-        {/* ========================================================================= */}
-        <div style={styles.demoAccordionContainer}>
-          <button
-            type="button"
-            onClick={() => setShowDemoDrawer(!showDemoDrawer)}
-            style={styles.demoAccordionBtn}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <KeyRound size={16} color="var(--accent-primary)" />
-              <span>⚡ Modo Demonstração / Testes Rápidos</span>
-            </div>
-            {showDemoDrawer ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-
-          {showDemoDrawer && (
-            <div style={styles.demoSection} className="animate-fade-in">
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
-                Clique em qualquer perfil abaixo para login instantâneo (Ideal para testes e apresentação):
-              </p>
-              <div style={styles.demoGrid}>
-                {displayUsers.map((u) => {
-                  const roleStyle = getRoleBadgeStyle(u.role);
-                  return (
-                    <button
-                      key={u.id || u.email}
-                      type="button"
-                      onClick={() => selectDemoUser(u.email, u.password || '123')}
-                      style={{
-                        ...styles.demoBadge,
-                        backgroundColor: roleStyle.bg,
-                        borderColor: roleStyle.border
-                      }}
-                      title={'Entrar como ' + u.name}
-                    >
-                      <span style={{ ...styles.demoBadgeRole, color: roleStyle.color }}>
-                        {roleStyle.label}
-                      </span>
-                      <span style={styles.demoBadgeName}>{u.name}</span>
-                      <span style={styles.demoBadgeEmail}>{u.email}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
 
       </div>
     </div>

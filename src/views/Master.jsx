@@ -29,6 +29,10 @@ import {
   Layers,
   Filter,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  KeyRound,
+  RefreshCw,
   Video,
   Play
 } from 'lucide-react';
@@ -105,6 +109,7 @@ const Master = () => {
     deleteUser,
     toggleUserVip,
     loginAsUser,
+    transferStudentLink,
     resetDatabase,
     exportDatabase,
     importDatabase,
@@ -125,6 +130,11 @@ const Master = () => {
   // Estado para o Cartão do Aluno
   const [viewingStudent, setViewingStudent] = useState(null);
   const [showMedidas, setShowMedidas] = useState(false);
+
+  // Estados de Transferência de Vínculo e Simulação Exclusiva do Master
+  const [transferModalStudent, setTransferModalStudent] = useState(null);
+  const [targetTenantTransferId, setTargetTenantTransferId] = useState('');
+  const [showMasterDemoDrawer, setShowMasterDemoDrawer] = useState(false);
 
   // Estados dos formulários CRUD
   const [showForm, setShowForm] = useState(null); // 'tenant', 'user', null
@@ -267,6 +277,39 @@ const Master = () => {
     }
   };
 
+  const handleTransferStudent = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!transferModalStudent || !targetTenantTransferId) {
+      alert('Selecione uma academia ou professor de destino.');
+      return;
+    }
+    try {
+      await transferStudentLink(transferModalStudent.id, targetTenantTransferId);
+      alert(`Vínculo do aluno ${transferModalStudent.name} transferido com sucesso!`);
+      if (viewingStudent && viewingStudent.id === transferModalStudent.id) {
+        setViewingStudent(prev => ({ ...prev, tenantId: targetTenantTransferId }));
+      }
+      setTransferModalStudent(null);
+      setTargetTenantTransferId('');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao transferir vínculo: ' + (err.message || 'Verifique sua conexão.'));
+    }
+  };
+
+  const getRoleBadgeStyle = (role) => {
+    switch (role) {
+      case 'master':
+        return { bg: 'rgba(168, 85, 247, 0.15)', border: 'rgba(168, 85, 247, 0.4)', color: '#c084fc', label: '👑 MASTER' };
+      case 'professor':
+        return { bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.4)', color: '#60a5fa', label: '👨‍🏫 PROFESSOR' };
+      case 'aluno':
+        return { bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.4)', color: '#4ade80', label: '🏋️ ALUNO' };
+      default:
+        return { bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.4)', color: '#fb923c', label: '🏢 ACADEMIA' };
+    }
+  };
+
   // Contadores KPIs
   const kpis = {
     totalTenants: Object.keys(tenants).length,
@@ -356,6 +399,86 @@ const Master = () => {
       {activeTab === 'kpis_crud' && (
         <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
+          {/* Gaveta Exclusiva do Master para Simulação e Testes Rápidos com 1 Clique */}
+          <div style={{
+            backgroundColor: 'var(--bg-secondary)',
+            border: '1px solid rgba(168, 85, 247, 0.3)',
+            borderRadius: '16px',
+            padding: '16px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)'
+          }}>
+            <div 
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+              onClick={() => setShowMasterDemoDrawer(!showMasterDemoDrawer)}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <KeyRound size={20} color="#c084fc" />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', fontWeight: '700' }}>
+                    ⚡ Central de Testes Rápidos & Simulação de Perfis (Exclusivo Master)
+                  </h4>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    Acesse qualquer conta com 1 clique para simular o aplicativo pela visão de Professores, Alunos e Academias.
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '6px' }}
+              >
+                {showMasterDemoDrawer ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </button>
+            </div>
+
+            {showMasterDemoDrawer && (
+              <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-color)' }} className="animate-fade-in">
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                  Clique em qualquer perfil abaixo para login instantâneo. O banner no topo permite retornar ao painel Master a qualquer momento:
+                </p>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                  gap: '10px'
+                }}>
+                  {usersList.map(u => {
+                    const badge = getRoleBadgeStyle(u.role);
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => loginAsUser(u)}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          padding: '10px 12px',
+                          borderRadius: '10px',
+                          backgroundColor: badge.bg,
+                          border: `1px solid ${badge.border}`,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'transform 0.15s ease'
+                        }}
+                        title={`Acessar como ${u.name}`}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: '800', color: badge.color }}>
+                            {badge.label}
+                          </span>
+                          <Eye size={14} color={badge.color} />
+                        </div>
+                        <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '2px' }}>{u.name}</strong>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{u.email}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Dashboard de KPIs */}
           <div style={styles.kpiGrid}>
             <div style={styles.kpiCard} className="glass">
@@ -759,6 +882,7 @@ const Master = () => {
                               <button onClick={() => toggleUserVip(a.id)} style={{ ...styles.iconBtn, color: '#eab308' }} title={a.isVip ? "Remover VIP" : "Conceder VIP"}>
                                 <Star size={14} fill={a.isVip ? '#eab308' : 'none'} />
                               </button>
+                              <button onClick={() => { setTransferModalStudent(a); setTargetTenantTransferId(a.tenantId || ''); }} style={{ ...styles.iconBtn, color: '#a855f7' }} title="Transferir / Alterar Vínculo Livremente"><RefreshCw size={14} /></button>
                               <button onClick={() => { setViewingStudent(a); setShowMedidas(false); }} style={{ ...styles.iconBtn, color: 'var(--primary)' }} title="Cartão do Aluno"><User size={14} /></button>
                               <button onClick={() => loginAsUser(a)} style={{ ...styles.iconBtn, color: '#06b6d4' }} title="Acessar como..."><Eye size={14} /></button>
                               <button onClick={() => openEditUser(a)} style={styles.iconBtn} title="Editar"><Edit2 size={14} /></button>
@@ -800,7 +924,16 @@ const Master = () => {
                   {!showMedidas ? (
                     <>
                       <div style={{ background: 'var(--bg-primary)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Contato e Endereço</h4>
+                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Contato, Vínculo e Endereço</h4>
+                        <p style={{ margin: '0 0 6px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                          Vínculo Atual: <strong style={{color: 'var(--accent-primary)'}}>{(Object.values(tenants).find(t => t.id === viewingStudent.tenantId) || usersList.find(u => u.id === viewingStudent.tenantId))?.name || viewingStudent.nomeProfessorVinculado || 'Sem Vínculo'}</strong>
+                          <button 
+                            onClick={() => { setTransferModalStudent(viewingStudent); setTargetTenantTransferId(viewingStudent.tenantId || ''); }}
+                            style={{ marginLeft: '10px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(168,85,247,0.2)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.4)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
+                          >
+                            🔄 Transferir Vínculo
+                          </button>
+                        </p>
                         <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Telefone: <strong style={{color: 'var(--text-primary)'}}>{viewingStudent.telefone || 'Não informado'}</strong></p>
                         <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Endereço: <strong style={{color: 'var(--text-primary)'}}>{viewingStudent.endereco || 'Não informado'}</strong></p>
                         <p style={{ margin: '0 0 4px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Plano Atual: <strong style={{color: 'var(--accent-primary)'}}>{viewingStudent.plano || 'Nenhum'}</strong></p>
@@ -1563,6 +1696,108 @@ Gere o programa formatado estritamente como um HTML rico usando variáveis e est
           onSave={handleSaveExerciseVideo}
           onClose={() => setEditingVideoExercise(null)}
         />
+      )}
+
+      {/* ── MODAL DE TRANSFERÊNCIA DE VÍNCULO (ACESSO MASTER TOTAL) ── */}
+      {transferModalStudent && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.82)',
+          zIndex: 100000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: '16px',
+            maxWidth: '500px',
+            width: '100%',
+            padding: '24px',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+          }} className="animate-fade-in">
+            <h3 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <RefreshCw size={20} color="var(--accent-primary)" />
+              Transferir / Alterar Vínculo de Aluno
+            </h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Como <strong>Master</strong>, você pode transferir ou vincular o aluno <strong>{transferModalStudent.name}</strong> para qualquer academia parceira ou professor independente:
+            </p>
+
+            <form onSubmit={handleTransferStudent}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  Selecione o Novo Destino (Academia ou Professor)
+                </label>
+                <select
+                  value={targetTenantTransferId}
+                  onChange={(e) => setTargetTenantTransferId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--bg-tertiary)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.9rem',
+                    outline: 'none'
+                  }}
+                  required
+                >
+                  <option value="">Selecione o destino...</option>
+                  <optgroup label="🏢 Academias / Estabelecimentos">
+                    {Object.keys(tenants).map(k => {
+                      const t = tenants[k];
+                      return <option key={t.id} value={t.id}>{t.name} ({t.subdomain})</option>;
+                    })}
+                  </optgroup>
+                  <optgroup label="👨‍🏫 Professores Independentes">
+                    {usersList.filter(u => u.role === 'professor').map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.email})</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setTransferModalStudent(null); setTargetTenantTransferId(''); }}
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: '10px',
+                    backgroundColor: 'transparent',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--accent-primary)',
+                    color: '#fff',
+                    border: 'none',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Confirmar Transferência
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
