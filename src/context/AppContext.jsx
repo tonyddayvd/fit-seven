@@ -22,28 +22,9 @@ export const DEFAULT_USERS = [
     email: 'master@fitseven.com', 
     role: 'master', 
     tenantId: 't1', 
-    password: '123',
+    password: '123', 
     cpf: '069.977.434-98',
     dataNascimento: '1986-12-19'
-  },
-  { 
-    id: 'u_master_aluno', 
-    name: 'Tony (Aluno Master)', 
-    email: 'tony.aluno@fitseven.com', 
-    role: 'aluno', 
-    tenantId: 't1', 
-    password: '123', 
-    isVip: true,
-    telefone: '11999998888',
-    whatsapp: '11999998888',
-    cpf: '069.977.434-98',
-    dataNascimento: '1986-12-19',
-    endereco: 'São Paulo - SP',
-    cidade: 'São Paulo - SP',
-    chavePix: '06997743498',
-    tipoChavePix: 'CPF',
-    plano: 'VIP Black',
-    dia_vencimento: '10'
   },
   { 
     id: 'u2', 
@@ -66,25 +47,24 @@ export const DEFAULT_USERS = [
   },
   { 
     id: 'u3', 
-    name: 'Ana Silva (Aluna)', 
-    email: 'ana@matrix.com', 
+    name: 'Tony (Aluno)', 
+    email: 'tony.aluno@fitseven.com', 
     role: 'aluno', 
-    tenantId: 't1', 
+    tenantId: '', 
+    nomeProfessorVinculado: '',
+    statusVinculo: 'aprovado',
     password: '123', 
     isVip: true,
-    telefone: '11988887777',
-    whatsapp: '11988887777',
-    cpf: '123.456.789-00',
-    dataNascimento: '1996-04-15',
-    endereco: 'Rua das Flores, 120, Apto 42',
+    telefone: '11999998888',
+    whatsapp: '11999998888',
+    cpf: '069.977.434-98',
+    dataNascimento: '1986-12-19',
+    endereco: 'São Paulo - SP',
     cidade: 'São Paulo - SP',
-    chavePix: '12345678900',
+    chavePix: '06997743498',
     tipoChavePix: 'CPF',
-    contatoEmergenciaNome: 'Marcos Silva (Esposo)',
-    contatoEmergenciaTel: '11977776666',
-    plano: 'Plano Black',
-    dia_vencimento: '10',
-    anotacoesProfessor: 'Aluna muito dedicada. Atenção com sobrecarga no joelho direito após lesão pregressa.'
+    plano: 'VIP Black',
+    dia_vencimento: '10'
   },
   { 
     id: 'u3_lucas', 
@@ -265,7 +245,13 @@ export const AppProvider = ({ children }) => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter(u => u.id !== 'u_master_aluno').map(u => {
+            if (u.id === 'u1') return { ...u, cpf: '069.977.434-98', dataNascimento: '1986-12-19' };
+            if (u.id === 'u3') return { ...u, name: 'Tony (Aluno)', cpf: '069.977.434-98', dataNascimento: '1986-12-19', tenantId: '', nomeProfessorVinculado: '', statusVinculo: 'aprovado' };
+            return u;
+          });
+        }
       } catch (e) {}
     }
     return DEFAULT_USERS;
@@ -324,7 +310,17 @@ export const AppProvider = ({ children }) => {
 
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('fitseven-user');
-    return saved ? JSON.parse(saved) : null;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && (parsed.id === 'u_master_aluno' || parsed.id === 'u3')) {
+          const u3Def = DEFAULT_USERS.find(u => u.id === 'u3');
+          return { ...u3Def, ...(parsed.id === 'u3' ? parsed : {}), name: 'Tony (Aluno)', id: 'u3', cpf: '069.977.434-98', dataNascimento: '1986-12-19', tenantId: '', nomeProfessorVinculado: '' };
+        }
+        return parsed;
+      } catch (e) {}
+    }
+    return null;
   });
 
   // Tema
@@ -419,7 +415,18 @@ export const AppProvider = ({ children }) => {
         mappedUsers.forEach(mu => {
           const idx = mergedUsers.findIndex(u => (u.id === mu.id) || (u.email && mu.email && u.email.toLowerCase() === mu.email.toLowerCase()));
           if (idx >= 0) {
-            mergedUsers[idx] = { ...mergedUsers[idx], ...mu };
+            const defUser = mergedUsers[idx];
+            mergedUsers[idx] = { 
+              ...defUser, 
+              ...mu,
+              // Preserva CPF e data de nascimento essenciais
+              cpf: mu.cpf || defUser.cpf,
+              dataNascimento: mu.dataNascimento || defUser.dataNascimento,
+              name: (mu.id === 'u3' && (!mu.name || mu.name.includes('Ana Silva'))) ? defUser.name : (mu.name || defUser.name),
+              email: (mu.id === 'u3' && (!mu.email || mu.email.includes('ana@'))) ? defUser.email : (mu.email || defUser.email),
+              tenantId: (mu.id === 'u3' && defUser.tenantId === '') ? '' : (mu.tenantId !== undefined ? mu.tenantId : defUser.tenantId),
+              nomeProfessorVinculado: (mu.id === 'u3' && defUser.nomeProfessorVinculado === '') ? '' : (mu.nomeProfessorVinculado || defUser.nomeProfessorVinculado)
+            };
           } else {
             mergedUsers.push(mu);
           }
