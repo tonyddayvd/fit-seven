@@ -29,7 +29,10 @@ import {
   ChevronRight,
   MoveRight,
   Layers,
-  Check
+  Check,
+  Smartphone,
+  HelpCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   EXERCISE_CATALOG, 
@@ -64,6 +67,7 @@ const Professor = () => {
   const [prescribeSplit, setPrescribeSplit] = useState('A');
   const [availableSplits, setAvailableSplits] = useState(['A', 'B', 'C', 'D', 'E']);
   const [studentExercises, setStudentExercises] = useState([]);
+  const [splitToDelete, setSplitToDelete] = useState(null); // Split selecionado para exclusão
   const [searchCatalog, setSearchCatalog] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [customExercise, setCustomExercise] = useState({
@@ -122,22 +126,27 @@ const Professor = () => {
   const ownStudentsCount = usersList.filter(u => u.role === 'aluno' && u.tenantId === user.id).length;
   const maxLimit = user.limiteAlunos || 10;
 
-  // Quando o selectedStudent mudar, carrega seus exercícios
+  // Quando o selectedStudent mudar, carrega seus exercícios e calcula as divisões reais
   useEffect(() => {
     if (selectedStudent) {
       const studentWorkout = workoutsByStudent[selectedStudent];
       if (studentWorkout && studentWorkout.exercises && studentWorkout.exercises.length > 0) {
         setStudentExercises(studentWorkout.exercises);
-        const splitsFound = Array.from(new Set(studentWorkout.exercises.map(e => e.split || 'A'))).sort();
+        const splitsFound = Array.from(new Set(studentWorkout.exercises.map(e => e.split || 'A'))).filter(Boolean).sort();
         if (splitsFound.length > 0) {
-          const mergedSplits = Array.from(new Set([...availableSplits, ...splitsFound])).sort();
-          setAvailableSplits(mergedSplits);
-          if (!mergedSplits.includes(prescribeSplit)) {
-            setPrescribeSplit(mergedSplits[0]);
+          setAvailableSplits(splitsFound);
+          if (!splitsFound.includes(prescribeSplit)) {
+            setPrescribeSplit(splitsFound[0]);
           }
+        } else {
+          setAvailableSplits(['A', 'B', 'C']);
+          setPrescribeSplit('A');
         }
       } else {
         setStudentExercises(DEFAULT_WORKOUTS);
+        const defaultSplits = Array.from(new Set(DEFAULT_WORKOUTS.map(e => e.split || 'A'))).filter(Boolean).sort();
+        setAvailableSplits(defaultSplits.length > 0 ? defaultSplits : ['A', 'B', 'C']);
+        setPrescribeSplit('A');
       }
     }
   }, [selectedStudent, workoutsByStudent]);
@@ -231,14 +240,48 @@ const Professor = () => {
     setStudentExercises(prev => prev.map(ex => ex.id === id ? { ...ex, split: targetSplit } : ex));
   };
 
-  // Adicionar novo Split (ex: F, G)
+  // Adicionar novo Split livre (ex: A, B, C, D... até Z ou quantos quiser)
   const handleAddNewSplit = () => {
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const nextLetter = letters[availableSplits.length] || `Split ${availableSplits.length + 1}`;
-    if (!availableSplits.includes(nextLetter)) {
-      setAvailableSplits(prev => [...prev, nextLetter]);
-      setPrescribeSplit(nextLetter);
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let nextLetter = '';
+    for (let char of alphabet) {
+      if (!availableSplits.includes(char)) {
+        nextLetter = char;
+        break;
+      }
     }
+    if (!nextLetter) {
+      nextLetter = `Split ${availableSplits.length + 1}`;
+    }
+    setAvailableSplits(prev => [...prev, nextLetter]);
+    setPrescribeSplit(nextLetter);
+    setSuccessMsg(`Divisão "Treino ${nextLetter}" adicionada com sucesso!`);
+    setTimeout(() => setSuccessMsg(''), 3000);
+  };
+
+  // Solicitar exclusão do split (abre modal de confirmação)
+  const handleRequestDeleteSplit = (splitLetter) => {
+    setSplitToDelete(splitLetter);
+  };
+
+  // Confirmar exclusão do split completo e de todos os seus exercícios
+  const handleConfirmDeleteSplit = () => {
+    if (!splitToDelete) return;
+    const count = studentExercises.filter(e => (e.split || 'A') === splitToDelete).length;
+    const remainingExercises = studentExercises.filter(ex => (ex.split || 'A') !== splitToDelete);
+    setStudentExercises(remainingExercises);
+
+    const remainingSplits = availableSplits.filter(s => s !== splitToDelete);
+    const finalSplits = remainingSplits.length > 0 ? remainingSplits : ['A'];
+    setAvailableSplits(finalSplits);
+
+    if (prescribeSplit === splitToDelete) {
+      setPrescribeSplit(finalSplits[0]);
+    }
+
+    setSuccessMsg(`O Treino ${splitToDelete} (${count} exercício(s)) foi removido com sucesso.`);
+    setTimeout(() => setSuccessMsg(''), 3500);
+    setSplitToDelete(null);
   };
 
   // Restaurar Treinos Padrão
@@ -987,10 +1030,43 @@ const Professor = () => {
                 <button 
                   onClick={handleAddNewSplit}
                   style={styles.addSplitBtn}
-                  title="Adicionar mais uma divisão de treino (Split)"
+                  title="Adicionar mais uma divisão de treino (Split até Z)"
                 >
                   <Plus size={14} /> Novo Split
                 </button>
+              </div>
+            </div>
+          </div>
+
+          {/* BANNER EDUCATIVO DIDÁTICO: VÍDEO DO YOUTUBE VS GRAVAÇÃO NO CELULAR */}
+          <div style={styles.videoInfoBanner} className="glass">
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(139, 92, 246, 0.15)', color: 'var(--primary)', flexShrink: 0, marginTop: '2px' }}>
+                <Smartphone size={22} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '6px' }}>
+                  <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    💡 Dica de Ouro sobre Vídeos de Execução (Para Professores e Alunos):
+                  </strong>
+                  <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(139,92,246,0.15)', color: 'var(--primary)', padding: '3px 10px', borderRadius: '12px', fontWeight: 'bold' }}>
+                    ⚡ 100% Gratuito / Sem custo de nuvem
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '2px' }}>
+                      🌐 1. Links do YouTube / Shorts (Recomendado):
+                    </strong>
+                    Cole o link do YouTube nos exercícios. Abre instantaneamente no celular de qualquer aluno sem ocupar espaço de memória.
+                  </div>
+                  <div style={{ backgroundColor: 'rgba(234, 179, 8, 0.06)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(234, 179, 8, 0.25)' }}>
+                    <strong style={{ color: '#eab308', display: 'block', marginBottom: '2px' }}>
+                      📱 2. Gravação Direta com a Câmera:
+                    </strong>
+                    Para não gastar armazenamento em nuvem, o vídeo fica salvo <strong>na memória do próprio celular onde foi gravado</strong>. Se for filmar o aluno na academia, <strong>grave direto pelo aplicativo no celular do próprio aluno</strong>!
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1009,9 +1085,19 @@ const Professor = () => {
                     {splitExercises.length} exercício(s) configurados nesta divisão.
                   </p>
                 </div>
-                <span style={styles.splitBigBadge}>
-                  Divisão {prescribeSplit}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleRequestDeleteSplit(prescribeSplit)}
+                    style={styles.deleteSplitBtn}
+                    title={`Excluir toda a divisão do Treino ${prescribeSplit} e todos os seus exercícios`}
+                  >
+                    <Trash2 size={13} /> Excluir Treino {prescribeSplit}
+                  </button>
+                  <span style={styles.splitBigBadge}>
+                    Divisão {prescribeSplit}
+                  </span>
+                </div>
               </div>
 
               {splitExercises.length === 0 ? (
@@ -1315,6 +1401,58 @@ const Professor = () => {
 
             </div>
           </div>
+
+          {/* Modal de Confirmação Segura para Exclusão de Treino Completo (Split) */}
+          {splitToDelete && (() => {
+            const countToDelete = studentExercises.filter(e => (e.split || 'A') === splitToDelete).length;
+            const currentStudentObj = myStudents.find(s => s.id === selectedStudent);
+            return (
+              <div style={styles.modalOverlay} className="animate-fade-in">
+                <div style={{ ...styles.modalCard, maxWidth: '460px' }} className="glass">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ padding: '10px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <AlertTriangle size={26} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)', fontWeight: '800' }}>
+                        Excluir Treino {splitToDelete} por Completo?
+                      </h3>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        Aluno: <strong>{currentStudentObj?.name || 'Aluno Selecionado'}</strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '8px', padding: '14px', marginBottom: '18px' }}>
+                    <p style={{ margin: '0 0 6px 0', fontSize: '0.88rem', color: '#f87171', fontWeight: 'bold' }}>
+                      ⚠️ Atenção: Esta ação excluirá toda a divisão do Treino {splitToDelete}.
+                    </p>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      Todos os <strong>{countToDelete} exercício(s)</strong> cadastrados nesta letra serão removidos da ficha. Se você só queria excluir um exercício individual, utilize a lixeira ao lado daquele exercício.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setSplitToDelete(null)}
+                      style={styles.cancelBtn}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmDeleteSplit}
+                      style={styles.confirmDeleteSplitBtn}
+                      className="btn-danger"
+                    >
+                      <Trash2 size={16} /> Sim, Excluir Treino {splitToDelete}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -2365,6 +2503,48 @@ const styles = {
     backgroundColor: '#000',
     borderRadius: '8px',
     overflow: 'hidden'
+  },
+  videoInfoBanner: {
+    padding: '16px 20px',
+    borderRadius: 'var(--radius-md)',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-color)',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+  },
+  deleteSplitBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '6px 12px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid rgba(239, 68, 68, 0.35)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    color: '#ef4444',
+    fontSize: '0.78rem',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  confirmDeleteSplitBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '10px 18px',
+    borderRadius: 'var(--radius-md)',
+    border: 'none',
+    backgroundColor: '#ef4444',
+    color: '#ffffff',
+    fontSize: '0.85rem',
+    fontWeight: 'bold',
+    cursor: 'pointer'
+  },
+  modalCard: {
+    backgroundColor: 'var(--bg-secondary)',
+    padding: '24px',
+    borderRadius: '16px',
+    width: '100%',
+    border: '1px solid var(--border-color)',
+    position: 'relative'
   }
 };
 

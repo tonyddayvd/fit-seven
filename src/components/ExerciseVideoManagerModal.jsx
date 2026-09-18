@@ -270,7 +270,7 @@ export default function ExerciseVideoManagerModal({ exercise, onSave, onClose })
                   Filmar o Aluno Executando
                 </h4>
                 <p style={{ margin: '0 0 14px 0', fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '320px' }}>
-                  Grave um vídeo curto de 5 a 15 segundos da execução correta diretamente pela câmera do seu celular!
+                  Grave um vídeo curto de 5 a 15 segundos da execução correta diretamente pela câmera do celular!
                 </p>
 
                 <button
@@ -283,6 +283,30 @@ export default function ExerciseVideoManagerModal({ exercise, onSave, onClose })
                   <Camera size={18} />
                   <span>{isUploading ? 'Processando vídeo...' : 'Abrir Câmera / Escolher da Galeria'}</span>
                 </button>
+              </div>
+
+              {/* AVISO EDUCATIVO PARA PROFESSORES E ALUNOS LEIGOS */}
+              <div style={{
+                backgroundColor: 'rgba(234, 179, 8, 0.08)',
+                border: '1px solid rgba(234, 179, 8, 0.3)',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                textAlign: 'left',
+                maxWidth: '440px',
+                fontSize: '0.78rem',
+                color: 'var(--text-secondary)',
+                lineHeight: '1.45'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#eab308', fontWeight: 'bold', marginBottom: '6px', fontSize: '0.82rem' }}>
+                  <HelpCircle size={15} />
+                  <span>Como funciona a gravação no celular (Sem custos de nuvem):</span>
+                </div>
+                <p style={{ margin: '0 0 6px 0' }}>
+                  • Para não gastar com servidores caros de nuvem, o vídeo gravado é guardado <strong>diretamente na memória deste celular</strong> (armazenamento local).
+                </p>
+                <p style={{ margin: 0, color: 'var(--text-primary)' }}>
+                  👉 <strong>Dica importante:</strong> Se você quer que o <strong>aluno</strong> veja esse vídeo no celular dele durante o treino, <strong>faça a gravação usando o aplicativo no celular do próprio aluno</strong>! (Ou use um link do YouTube na aba ao lado, que abre em qualquer celular).
+                </p>
               </div>
             </div>
           )}

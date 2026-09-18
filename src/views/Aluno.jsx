@@ -1562,7 +1562,9 @@ const Aluno = () => {
                           setWorkoutSessionFinished(false);
                           
                           // Sugere o próximo split se houver
-                          const remainingSplits = ['A', 'B', 'C', 'D', 'E'].filter(s => {
+                          const studentSplits = Array.from(new Set(exercises.map(ex => ex.split || 'A'))).filter(Boolean).sort();
+                          const splitsToDisplay = studentSplits.length > 0 ? studentSplits : ['A'];
+                          const remainingSplits = splitsToDisplay.filter(s => {
                             const count = exercises.filter(ex => (ex.split || 'A') === s).length;
                             return count > 0 && !updatedSplits.includes(s);
                           });
@@ -1591,36 +1593,40 @@ const Aluno = () => {
                       </div>
                     </div>
 
-                    {/* Seletor Horizontal de Splits */}
+                    {/* Seletor Horizontal de Splits Dinâmico (Livre de A a Z) */}
                     <div style={styles.splitSelector}>
-                      {['A', 'B', 'C', 'D', 'E'].map(letter => {
-                        const count = exercises.filter(ex => (ex.split || 'A') === letter).length;
-                        if (count === 0) return null; // Só renderiza splits que possuem exercícios cadastrados
-                        const isFinished = isSplitDone(letter);
-                        return (
-                          <button
-                            key={letter}
-                            type="button"
-                            disabled={isFinished}
-                            onClick={(e) => { if(isFinished) { e.preventDefault(); return; }
-                              setActiveSplit(letter);
-                              setWorkoutSessionFinished(false);
-                            }}
-                            style={{
-                              ...styles.splitBtn,
-                              ...(activeSplit === letter ? styles.splitBtnActive : {}),
-                              ...(isFinished ? { opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none', textDecoration: 'line-through', border: '1px dashed var(--border-color)' } : {})
-                            }}
-                          >
-                            {isFinished ? '🔒 Concluído' : `Treino ${letter}`}
-                            <span style={{
-                              ...styles.splitCountBadge,
-                              ...(activeSplit === letter ? styles.splitCountBadgeActive : {}),
-                              ...(isFinished ? { backgroundColor: 'var(--text-muted)' } : {})
-                            }}>{count}</span>
-                          </button>
-                        );
-                      })}
+                      {(() => {
+                        const studentSplits = Array.from(new Set(exercises.map(ex => ex.split || 'A'))).filter(Boolean).sort();
+                        const splitsToDisplay = studentSplits.length > 0 ? studentSplits : ['A'];
+                        return splitsToDisplay.map(letter => {
+                          const count = exercises.filter(ex => (ex.split || 'A') === letter).length;
+                          if (count === 0 && splitsToDisplay.length > 1) return null; // Só oculta se houver outros splits com exercícios
+                          const isFinished = isSplitDone(letter);
+                          return (
+                            <button
+                              key={letter}
+                              type="button"
+                              disabled={isFinished}
+                              onClick={(e) => { if(isFinished) { e.preventDefault(); return; }
+                                setActiveSplit(letter);
+                                setWorkoutSessionFinished(false);
+                              }}
+                              style={{
+                                ...styles.splitBtn,
+                                ...(activeSplit === letter ? styles.splitBtnActive : {}),
+                                ...(isFinished ? { opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none', textDecoration: 'line-through', border: '1px dashed var(--border-color)' } : {})
+                              }}
+                            >
+                              {isFinished ? '🔒 Concluído' : `Treino ${letter}`}
+                              <span style={{
+                                ...styles.splitCountBadge,
+                                ...(activeSplit === letter ? styles.splitCountBadgeActive : {}),
+                                ...(isFinished ? { backgroundColor: 'var(--text-muted)' } : {})
+                              }}>{count}</span>
+                            </button>
+                          );
+                        });
+                      })()}
                     </div>
 
                     <div style={styles.exercisesGrid}>
@@ -3416,9 +3422,14 @@ const Aluno = () => {
                     Salvar Meu Vídeo
                   </button>
                 </form>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>
-                  💡 Dica: O vídeo do professor sempre permanece como recomendação principal. Você pode alternar quando quiser usando as abas acima.
-                </span>
+                <div style={{ marginTop: '10px', padding: '8px 10px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                  <p style={{ margin: '0 0 3px 0' }}>
+                    💡 <strong>Dica:</strong> O vídeo do seu professor sempre permanece como recomendação técnica principal. Você pode alternar quando quiser usando as abas acima.
+                  </p>
+                  <p style={{ margin: 0 }}>
+                    📱 Se você ou seu professor gravaram uma execução com a câmera do seu celular, ela fica salva na memória deste aparelho (armazenamento local). Para vídeos da internet, basta colar o link do YouTube!
+                  </p>
+                </div>
               </div>
             </div>
           </div>
