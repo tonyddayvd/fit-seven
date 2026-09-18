@@ -1268,6 +1268,35 @@ const Aluno = () => {
     alert('Vídeo personalizado removido. Exibindo orientação do professor!');
   };
 
+  const handleDirectStudentVideoUpload = (ex, file) => {
+    if (!file || !ex) return;
+    if (file.size > 25 * 1024 * 1024) {
+      alert('Aviso: O vídeo gravado é grande (>25MB). Para economizar armazenamento no celular, grave vídeos curtos de 5 a 15 segundos.');
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64Url = reader.result;
+      const updated = exercises.map(item => 
+        (item.id === ex.id || item.name === ex.name) ? { ...item, video_personalizado_url: base64Url } : item
+      );
+      setExercises(updated);
+      updateStudentExercises(updated, finishedSplits);
+      saveCustomVideoStorage(user?.id, ex, base64Url);
+      if (activeVideoEx && (activeVideoEx.id === ex.id || activeVideoEx.name === ex.name)) {
+        setActiveVideoEx(prev => ({ ...prev, video_personalizado_url: base64Url }));
+        setVideoSourceTab('aluno');
+      } else {
+        openVideoModal({ ...ex, video_personalizado_url: base64Url });
+        setVideoSourceTab('aluno');
+      }
+      alert('Vídeo gravado e salvo no armazenamento do seu aparelho com sucesso!');
+    };
+    reader.onerror = () => {
+      alert('Erro ao processar o vídeo. Tente novamente.');
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleCompleteExercise = (id, realSets, realLoad) => {
     const updated = exercises.map(ex => 
       ex.id === id ? { 
@@ -1652,16 +1681,28 @@ const Aluno = () => {
                             <div style={styles.exInfo}>
                               <div style={styles.nameVideoRow}>
                                 <span style={styles.exCat}>{ex.category.toUpperCase()}</span>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                                   <button 
                                     onClick={() => {
                                       setReportModalEx(ex);
                                       setReportText(`[Exercício: ${ex.name}]\n- Split: ${activeSplit}\n- Categoria: ${ex.category}\n- Meta: ${ex.reps}\n\nDescreva o problema aqui:\n`);
                                     }} 
-                                    style={{ ...styles.videoLinkBtn, color: 'var(--status-danger)', borderColor: 'rgba(239, 68, 68, 0.2)', padding: '4px 8px', fontSize: '0.7rem' }}
+                                    style={{ ...styles.videoLinkBtn, color: 'var(--status-danger)', borderColor: 'rgba(239, 68, 68, 0.2)', padding: '4px 6px', fontSize: '0.7rem' }}
+                                    title="Reportar problema técnico"
                                   >
-                                    🚨 Reportar Bug
+                                    🚨 Bug
                                   </button>
+                                  <label style={{ ...styles.videoLinkBtn, cursor: 'pointer', borderColor: 'rgba(139, 92, 246, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px' }} title="Gravar execução agora com a câmera do celular">
+                                    <Camera size={12} color="var(--primary)" />
+                                    <span>Gravar</span>
+                                    <input 
+                                      type="file" 
+                                      accept="video/*" 
+                                      capture="environment" 
+                                      style={{ display: 'none' }}
+                                      onChange={(e) => handleDirectStudentVideoUpload(ex, e.target.files?.[0])}
+                                    />
+                                  </label>
                                   <button onClick={() => openVideoModal(ex)} style={styles.videoLinkBtn}>
                                     <Tv size={12} /> Vídeo
                                   </button>
@@ -3386,10 +3427,10 @@ const Aluno = () => {
                 )}
               </div>
 
-              {/* SEÇÃO DO ALUNO: PERSONALIZAR SEU VÍDEO DO YOUTUBE */}
+              {/* SEÇÃO DO ALUNO: PERSONALIZAR OU GRAVAR SEU VÍDEO */}
               <div style={styles.dualLinkBox}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={styles.dualLinkLabel}>⭐ Link do Seu Influenciador / Canal Favorito:</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <span style={styles.dualLinkLabel}>⭐ Gravação Própria ou Canal Favorito:</span>
                   {customVideo && (
                     <button
                       type="button"
@@ -3406,10 +3447,71 @@ const Aluno = () => {
                         fontWeight: '600'
                       }}
                     >
-                      <Trash2 size={12} /> Remover meu link
+                      <Trash2 size={12} /> Remover meu vídeo
                     </button>
                   )}
                 </div>
+
+                {/* BOTÕES RÁPIDOS DE CÂMERA E GALERIA */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                    border: '1px solid var(--primary)',
+                    color: 'var(--primary)',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    textAlign: 'center'
+                  }}>
+                    <Camera size={15} />
+                    <span>Gravar na Câmera</span>
+                    <input 
+                      type="file" 
+                      accept="video/*" 
+                      capture="environment" 
+                      style={{ display: 'none' }}
+                      onChange={(e) => handleDirectStudentVideoUpload(activeVideoEx, e.target.files?.[0])}
+                    />
+                  </label>
+
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.8rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    textAlign: 'center'
+                  }}>
+                    <Upload size={15} />
+                    <span>Pegar da Galeria</span>
+                    <input 
+                      type="file" 
+                      accept="video/*" 
+                      style={{ display: 'none' }}
+                      onChange={(e) => handleDirectStudentVideoUpload(activeVideoEx, e.target.files?.[0])}
+                    />
+                  </label>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }} />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ou cole link do YouTube</span>
+                  <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }} />
+                </div>
+
                 <form onSubmit={saveCustomVideoUrl} style={styles.dualForm}>
                   <input
                     type="url"
@@ -3419,15 +3521,16 @@ const Aluno = () => {
                     style={styles.dualInput}
                   />
                   <button type="submit" style={styles.dualSaveBtn} className="btn-primary">
-                    Salvar Meu Vídeo
+                    Salvar Link
                   </button>
                 </form>
+
                 <div style={{ marginTop: '10px', padding: '8px 10px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
                   <p style={{ margin: '0 0 3px 0' }}>
                     💡 <strong>Dica:</strong> O vídeo do seu professor sempre permanece como recomendação técnica principal. Você pode alternar quando quiser usando as abas acima.
                   </p>
                   <p style={{ margin: 0 }}>
-                    📱 Se você ou seu professor gravaram uma execução com a câmera do seu celular, ela fica salva na memória deste aparelho (armazenamento local). Para vídeos da internet, basta colar o link do YouTube!
+                    📱 Vídeos gravados na câmera ficam armazenados na memória deste celular (100% gratuito e sem custos de nuvem).
                   </p>
                 </div>
               </div>

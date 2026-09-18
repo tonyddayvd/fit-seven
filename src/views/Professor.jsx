@@ -32,8 +32,12 @@ import {
   Check,
   Smartphone,
   HelpCircle,
-  AlertTriangle
+  AlertTriangle,
+  Camera,
+  Upload,
+  Film
 } from 'lucide-react';
+import ExerciseVideoManagerModal from '../components/ExerciseVideoManagerModal';
 import { 
   EXERCISE_CATALOG, 
   EXERCISE_CATEGORIES, 
@@ -97,26 +101,81 @@ const Professor = () => {
   const [reviewingStudentId, setReviewingStudentId] = useState(null);
   const [reviewWorkoutData, setReviewWorkoutData] = useState(null);
 
+  // Modal Inteligente de Gestão / Sugestão / Gravação de Vídeo
+  const [editingVideoExercise, setEditingVideoExercise] = useState(null);
+
+  // Adicionar um novo exercício livre diretamente ao split ativo com 1 clique
+  const handleAddNewExerciseToSplit = () => {
+    const newEx = {
+      id: `ex_presc_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      split: prescribeSplit,
+      name: '',
+      category: 'Geral',
+      reps: '4x10-12',
+      load: 'Carga Livre',
+      status: 'pendente',
+      video_oficial_url: '',
+      video_personalizado_url: ''
+    };
+    setStudentExercises(prev => [...prev, newEx]);
+    setSuccessMsg(`Novo exercício adicionado ao Treino ${prescribeSplit}! Digite o nome e personalize os detalhes abaixo.`);
+    setTimeout(() => setSuccessMsg(''), 3000);
+  };
+
+  // Upload ou Gravação Direta com a Câmera do Celular
+  const handleDirectVideoUpload = (exerciseId, file) => {
+    if (!file) return;
+    if (file.size > 25 * 1024 * 1024) {
+      alert('Aviso: O vídeo é grande (>25MB). Recomendamos gravações curtas de 5 a 15 segundos para melhor desempenho.');
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64Url = reader.result;
+      handleUpdateExerciseField(exerciseId, 'video_oficial_url', base64Url);
+      setSuccessMsg('Vídeo gravado e anexado com sucesso ao exercício!');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    };
+    reader.onerror = () => {
+      alert('Erro ao carregar o vídeo. Tente novamente.');
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveExerciseVideo = async (newVideoUrl) => {
-    if (!viewingStudent || !editingVideoExercise) return;
-    const currentWorkout = workoutsByStudent[viewingStudent.id] || {};
-    
-    let exercisesList = (currentWorkout.exercises && currentWorkout.exercises.length > 0)
-      ? currentWorkout.exercises
-      : DEFAULT_WORKOUTS;
-    
-    const updatedExs = exercisesList.map(ex => 
-      (ex.id === editingVideoExercise.id || ex.name.trim().toLowerCase() === editingVideoExercise.name.trim().toLowerCase())
-        ? { ...ex, video_oficial_url: newVideoUrl, videoUrl: newVideoUrl }
-        : ex
-    );
-    
-    await updateWorkoutByProfessor(viewingStudent.id, { 
-      ...currentWorkout,
-      exercises: updatedExs, 
-      isVip: currentWorkout.isVip || false 
-    });
-    setEditingVideoExercise(prev => prev ? { ...prev, video_oficial_url: newVideoUrl, videoUrl: newVideoUrl } : null);
+    if (!editingVideoExercise) return;
+
+    // Se estiver no Studio de Prescrição
+    if (activeTab === 'prescribe') {
+      handleUpdateExerciseField(editingVideoExercise.id, 'video_oficial_url', newVideoUrl);
+      setEditingVideoExercise(null);
+      setSuccessMsg('Vídeo do exercício atualizado com sucesso!');
+      setTimeout(() => setSuccessMsg(''), 2500);
+      return;
+    }
+
+    // Se estiver visualizando o CRM do Aluno
+    if (viewingStudent) {
+      const currentWorkout = workoutsByStudent[viewingStudent.id] || {};
+      
+      let exercisesList = (currentWorkout.exercises && currentWorkout.exercises.length > 0)
+        ? currentWorkout.exercises
+        : DEFAULT_WORKOUTS;
+      
+      const updatedExs = exercisesList.map(ex => 
+        (ex.id === editingVideoExercise.id || ex.name.trim().toLowerCase() === editingVideoExercise.name.trim().toLowerCase())
+          ? { ...ex, video_oficial_url: newVideoUrl, videoUrl: newVideoUrl }
+          : ex
+      );
+      
+      await updateWorkoutByProfessor(viewingStudent.id, { 
+        ...currentWorkout,
+        exercises: updatedExs, 
+        isVip: currentWorkout.isVip || false 
+      });
+      setEditingVideoExercise(null);
+      setSuccessMsg('Vídeo oficial salvo na ficha do aluno com sucesso!');
+      setTimeout(() => setSuccessMsg(''), 2500);
+    }
   };
 
   // Filtrar apenas alunos do mesmo tenant (seja o ID do professor ou o tenantId do professor se ele estiver em uma academia)
@@ -1100,15 +1159,33 @@ const Professor = () => {
                 </div>
               </div>
 
+              {/* BOTÃO PRINCIPAL DE ADICIONAR NOVO EXERCÍCIO AO SPLIT ATUAL */}
+              <button
+                type="button"
+                onClick={handleAddNewExerciseToSplit}
+                style={styles.addExerciseTopBtn}
+                title={`Adicionar novo exercício ao Treino ${prescribeSplit}`}
+              >
+                <PlusCircle size={18} />
+                <span>+ Adicionar Novo Exercício ao Treino {prescribeSplit}</span>
+              </button>
+
               {splitExercises.length === 0 ? (
                 <div style={styles.emptySplitBox}>
                   <Dumbbell size={40} style={{ color: 'var(--text-muted)', marginBottom: '12px' }} />
                   <p style={{ fontWeight: 'bold', margin: '0 0 6px 0', color: 'var(--text-primary)' }}>
                     Nenhum exercício no Treino {prescribeSplit} ainda.
                   </p>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center', maxWidth: '300px' }}>
-                    Escolha exercícios na biblioteca ao lado ou crie um exercício personalizado com o vídeo de sua preferência!
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center', maxWidth: '320px', marginBottom: '16px' }}>
+                    Adicione exercícios livres pelo botão abaixo, escolha na biblioteca ao lado ou crie um exercício personalizado!
                   </span>
+                  <button
+                    type="button"
+                    onClick={handleAddNewExerciseToSplit}
+                    style={{ ...styles.addExerciseTopBtn, marginBottom: 0, width: 'auto', padding: '10px 20px' }}
+                  >
+                    <Plus size={16} /> Adicionar Primeiro Exercício ao Treino {prescribeSplit}
+                  </button>
                 </div>
               ) : (
                 <div style={styles.exercisesVerticalList}>
@@ -1122,7 +1199,7 @@ const Professor = () => {
                             value={ex.name}
                             onChange={(e) => handleUpdateExerciseField(ex.id, 'name', e.target.value)}
                             style={styles.exerciseNameInput}
-                            placeholder="Nome do exercício"
+                            placeholder="Nome do exercício (ex: Supino Reto)"
                           />
                         </div>
                         <span style={styles.exerciseCategoryBadge}>
@@ -1154,20 +1231,59 @@ const Professor = () => {
                         </div>
                       </div>
 
-                      {/* Linha do Vídeo Oficial Recomendado pelo Professor */}
+                      {/* Linha do Vídeo Oficial Recomendado pelo Professor com Câmera e Galeria Diretas */}
                       <div style={styles.videoConfigRow}>
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={styles.microLabel}>
-                            <Video size={12} style={{ display: 'inline', marginRight: '4px' }} />
-                            Vídeo Recomendado (YouTube ou Gravação do Professor):
-                          </label>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                            <label style={styles.microLabel}>
+                              <Video size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                              Vídeo do Exercício (YouTube ou Gravação do Celular):
+                            </label>
+                            
+                            {/* Botões Diretos de Gravação e Galeria */}
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <label style={styles.quickMediaBtn} title="Gravar execução agora com a câmera do celular">
+                                <Camera size={13} color="var(--primary)" />
+                                <span>Gravar</span>
+                                <input 
+                                  type="file" 
+                                  accept="video/*" 
+                                  capture="environment" 
+                                  style={{ display: 'none' }}
+                                  onChange={(e) => handleDirectVideoUpload(ex.id, e.target.files?.[0])}
+                                />
+                              </label>
+
+                              <label style={styles.quickMediaBtn} title="Escolher vídeo gravado da galeria">
+                                <Upload size={13} color="var(--accent-primary)" />
+                                <span>Galeria</span>
+                                <input 
+                                  type="file" 
+                                  accept="video/*" 
+                                  style={{ display: 'none' }}
+                                  onChange={(e) => handleDirectVideoUpload(ex.id, e.target.files?.[0])}
+                                />
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() => setEditingVideoExercise(ex)}
+                                style={styles.quickMediaBtn}
+                                title="Buscar sugestões automáticas ou gerenciar vídeo"
+                              >
+                                <Sparkles size={13} color="#eab308" />
+                                <span>Sugestões</span>
+                              </button>
+                            </div>
+                          </div>
+
                           <div style={{ display: 'flex', gap: '6px' }}>
                             <input 
                               type="text"
                               value={ex.video_oficial_url || ''}
                               onChange={(e) => handleUpdateExerciseField(ex.id, 'video_oficial_url', e.target.value)}
                               style={{ ...styles.metaInput, flex: 1, fontSize: '0.8rem' }}
-                              placeholder="Cole o link do vídeo do YouTube ou Shorts"
+                              placeholder="Cole o link do YouTube/Shorts ou grave pelo botão acima"
                             />
                             {ex.video_oficial_url && (
                               <button 
@@ -1210,6 +1326,17 @@ const Professor = () => {
                       </div>
                     </div>
                   ))}
+
+                  {/* BOTÃO NO RODAPÉ PARA ADICIONAR MAIS EXERCÍCIOS AO SPLIT */}
+                  <button
+                    type="button"
+                    onClick={handleAddNewExerciseToSplit}
+                    style={styles.addExerciseBottomBtn}
+                    title={`Adicionar mais um exercício ao Treino ${prescribeSplit}`}
+                  >
+                    <PlusCircle size={16} />
+                    <span>+ Adicionar Mais um Exercício ao Treino {prescribeSplit}</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -1684,29 +1811,51 @@ const Professor = () => {
       )}
 
       {/* Modal de Preview de Vídeo */}
-      {previewVideoUrl && (
-        <div style={styles.modalOverlay} onClick={() => setPreviewVideoUrl(null)}>
-          <div style={styles.videoModalContent} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h4 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Video size={18} color="var(--primary)" /> Demonstração da Execução
-              </h4>
-              <button onClick={() => setPreviewVideoUrl(null)} style={styles.modalCloseBtn}>
-                <X size={20} />
-              </button>
-            </div>
-            <div style={styles.videoWrapper}>
-              <iframe
-                src={previewVideoUrl}
-                title="Preview do Exercício"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                style={{ width: '100%', height: '100%', borderRadius: '8px' }}
-              />
+      {previewVideoUrl && (() => {
+        const isDirect = previewVideoUrl.startsWith('data:video') || previewVideoUrl.startsWith('blob:') || previewVideoUrl.endsWith('.mp4');
+        return (
+          <div style={styles.modalOverlay} onClick={() => setPreviewVideoUrl(null)}>
+            <div style={styles.videoModalContent} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h4 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Video size={18} color="var(--primary)" /> Demonstração da Execução
+                </h4>
+                <button onClick={() => setPreviewVideoUrl(null)} style={styles.modalCloseBtn}>
+                  <X size={20} />
+                </button>
+              </div>
+              <div style={styles.videoWrapper}>
+                {isDirect ? (
+                  <video
+                    src={previewVideoUrl}
+                    controls
+                    autoPlay
+                    playsInline
+                    style={{ width: '100%', height: '100%', borderRadius: '8px', objectFit: 'contain', backgroundColor: '#000' }}
+                  />
+                ) : (
+                  <iframe
+                    src={previewVideoUrl}
+                    title="Preview do Exercício"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    style={{ width: '100%', height: '100%', borderRadius: '8px' }}
+                  />
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        );
+      })()}
+
+      {/* MODAL INTELIGENTE DE GESTÃO / SUGESTÕES / GRAVAÇÃO DE VÍDEO (PROFESSOR) */}
+      {editingVideoExercise && (
+        <ExerciseVideoManagerModal
+          exercise={editingVideoExercise}
+          onSave={handleSaveExerciseVideo}
+          onClose={() => setEditingVideoExercise(null)}
+        />
       )}
 
     </div>
@@ -2545,6 +2694,54 @@ const styles = {
     width: '100%',
     border: '1px solid var(--border-color)',
     position: 'relative'
+  },
+  addExerciseTopBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    width: '100%',
+    padding: '12px 16px',
+    borderRadius: 'var(--radius-md)',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    border: '1px dashed var(--primary)',
+    color: 'var(--primary)',
+    fontWeight: 'bold',
+    fontSize: '0.9rem',
+    cursor: 'pointer',
+    marginBottom: '16px',
+    transition: 'all 0.2s ease'
+  },
+  addExerciseBottomBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    width: '100%',
+    padding: '12px 16px',
+    borderRadius: 'var(--radius-md)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    border: '1px dashed var(--border-color)',
+    color: 'var(--text-primary)',
+    fontWeight: '600',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    marginTop: '12px',
+    transition: 'all 0.2s ease'
+  },
+  quickMediaBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '4px 8px',
+    borderRadius: '6px',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid var(--border-color)',
+    color: 'var(--text-secondary)',
+    fontSize: '0.72rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
   }
 };
 
