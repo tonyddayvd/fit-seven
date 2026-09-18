@@ -27,8 +27,11 @@ import {
   Clock,
   Layers,
   Filter,
-  ChevronRight
+  ChevronRight,
+  Video,
+  Play
 } from 'lucide-react';
+import ExerciseVideoManagerModal from '../components/ExerciseVideoManagerModal';
 
 const INITIAL_EXERCISES = [
   { id: 'e1', name: 'Supino Reto com Barra', category: 'Peito', reps: '4x10' },
@@ -78,6 +81,7 @@ const Professor = () => {
   const [activeModalTab, setActiveModalTab] = useState('medidas'); // 'medidas', 'fotos', 'treinos', 'dificuldades', 'editor', 'financeiro'
   const [editWorkoutHtml, setEditWorkoutHtml] = useState('');
   const [lightboxPhoto, setLightboxPhoto] = useState(null);
+  const [editingVideoExercise, setEditingVideoExercise] = useState(null);
 
   // Histórico de Treinos e Falhas states
   const [historyPeriod, setHistoryPeriod] = useState('atual'); // 'atual', 'anteriores', 'meses', 'todos'
@@ -87,6 +91,21 @@ const Professor = () => {
   // Revisão IA state
   const [reviewingStudentId, setReviewingStudentId] = useState(null);
   const [reviewWorkoutData, setReviewWorkoutData] = useState(null);
+
+  const handleSaveExerciseVideo = async (newVideoUrl) => {
+    if (!viewingStudent || !editingVideoExercise) return;
+    const currentWorkout = workoutsByStudent[viewingStudent.id];
+    if (!currentWorkout) return;
+    
+    const updatedExs = (currentWorkout.exercises || []).map(ex => 
+      (ex.id === editingVideoExercise.id || ex.name === editingVideoExercise.name)
+        ? { ...ex, video_oficial_url: newVideoUrl, videoUrl: newVideoUrl }
+        : ex
+    );
+    
+    await updateWorkoutByProfessor(viewingStudent.id, { exercises: updatedExs, isVip: currentWorkout.isVip || false });
+    setEditingVideoExercise(prev => prev ? { ...prev, video_oficial_url: newVideoUrl, videoUrl: newVideoUrl } : null);
+  };
 
   // Filtrar apenas alunos do mesmo tenant (seja o ID do professor ou o tenantId do professor se ele estiver em uma academia)
   const myStudents = usersList.filter(u => u.role === 'aluno' && (u.tenantId === user.id || u.tenantId === user.tenantId));
@@ -1488,28 +1507,61 @@ const Professor = () => {
                               {(!workout.exercises || workout.exercises.length === 0) ? (
                                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>A ficha está vazia.</p>
                               ) : (
-                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                  {workout.exercises.map((ex, i) => (
-                                    <li key={i} style={{ padding: '8px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <div>
-                                        <strong style={{ color: 'var(--text-primary)' }}>{ex.name}</strong> - {ex.sets}x{ex.reps} (Carga: {ex.weight || ex.realLoad || 'Livre'})
-                                      </div>
-                                      <button 
-                                        onClick={async () => {
-                                          const newExs = workout.exercises.filter((_, idx) => idx !== i);
-                                          await updateWorkoutByProfessor(viewingStudent.id, { exercises: newExs, isVip: false });
-                                        }}
-                                        style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                      >
-                                        Remover
-                                      </button>
-                                    </li>
-                                  ))}
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  {workout.exercises.map((ex, i) => {
+                                    const hasVideo = !!(ex.video_oficial_url || ex.videoUrl);
+                                    return (
+                                      <li key={i} style={{ padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                        <div>
+                                          <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>{ex.name}</strong> - {ex.sets}x{ex.reps} (Carga: {ex.weight || ex.realLoad || 'Livre'})
+                                          {hasVideo && (
+                                            <span style={{ marginLeft: '8px', fontSize: '0.72rem', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                                              ✓ Vídeo Ativo
+                                            </span>
+                                          )}
+                                        </div>
+                                        
+                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                          <button 
+                                            type="button"
+                                            onClick={() => setEditingVideoExercise(ex)}
+                                            style={{
+                                              background: hasVideo ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                                              color: hasVideo ? '#c084fc' : 'var(--text-secondary)',
+                                              border: '1px solid ' + (hasVideo ? 'rgba(139, 92, 246, 0.4)' : 'rgba(255, 255, 255, 0.1)'),
+                                              padding: '5px 10px',
+                                              borderRadius: '6px',
+                                              cursor: 'pointer',
+                                              fontSize: '0.78rem',
+                                              fontWeight: '700',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '5px'
+                                            }}
+                                            title="Gravar vídeo ou escolher sugestão do YouTube com 1 toque"
+                                          >
+                                            <Video size={14} />
+                                            <span>{hasVideo ? 'Editar Vídeo' : '+ Vídeo'}</span>
+                                          </button>
+
+                                          <button 
+                                            onClick={async () => {
+                                              const newExs = workout.exercises.filter((_, idx) => idx !== i);
+                                              await updateWorkoutByProfessor(viewingStudent.id, { exercises: newExs, isVip: false });
+                                            }}
+                                            style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600' }}
+                                          >
+                                            Remover
+                                          </button>
+                                        </div>
+                                      </li>
+                                    );
+                                  })}
                                 </ul>
                               )}
                               
                               {/* Mini Formulário de Adição de Exercício Manual */}
-                              <div style={{ marginTop: '15px', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                              <div style={{ marginTop: '15px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
                                 <h5 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', fontSize: '0.85rem' }}>+ Adicionar Exercício Manual</h5>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                                   <input type="text" id={`new-ex-name-${viewingStudent.id}`} placeholder="Ex: Supino Reto" style={{ padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)', fontSize: '0.8rem' }} />
@@ -1919,6 +1971,15 @@ const Professor = () => {
           />
           <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', marginTop: '12px' }}>Clique fora da foto para fechar</span>
         </div>
+      )}
+
+      {/* ── MODAL ULTRA SIMPLES DE GESTÃO DE VÍDEO DO EXERCÍCIO ── */}
+      {editingVideoExercise && (
+        <ExerciseVideoManagerModal
+          exercise={editingVideoExercise}
+          onSave={handleSaveExerciseVideo}
+          onClose={() => setEditingVideoExercise(null)}
+        />
       )}
     </div>
   );

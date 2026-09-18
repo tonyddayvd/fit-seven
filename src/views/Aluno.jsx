@@ -33,9 +33,14 @@ import {
   ImageOff,
   BarChart2,
   Scale,
-  Download
+  Download,
+  GraduationCap,
+  Star,
+  Trash2,
+  Video
 } from 'lucide-react';
 import MedalComposer from '../components/MedalComposer';
+import { formatVideoEmbedUrl, getDefaultOfficialVideo } from '../utils/videoService';
 
 const TABS = [
   { id: 'treinos', label: 'Treinos', icon: Dumbbell, desc: 'Ficha de treinos ativa, séries e cronograma de exercícios.' },
@@ -448,6 +453,7 @@ const Aluno = () => {
   // Estados dos recursos interativos
   const [activeVideoEx, setActiveVideoEx] = useState(null);
   const [tempCustomUrl, setTempCustomUrl] = useState('');
+  const [videoSourceTab, setVideoSourceTab] = useState('professor'); // 'professor' (prioritário por padrão) ou 'aluno'
 
   // Estados do Assistente em Tempo Real (Ativado por Exercício)
   const [activeAssistantExId, setActiveAssistantExId] = useState(null); // armazena o id do exercício ativo
@@ -1207,7 +1213,7 @@ const Aluno = () => {
 
   const openVideoModal = (ex) => {
     const customUrl = getSavedCustomVideo(user?.id, ex) || ex.video_personalizado_url || '';
-    const officialUrl = ex.video_oficial_url || getDefaultOfficialVideo(ex.name) || '';
+    const officialUrl = ex.video_oficial_url || ex.videoUrl || getDefaultOfficialVideo(ex.name) || '';
     const resolvedEx = {
       ...ex,
       video_personalizado_url: customUrl,
@@ -1215,15 +1221,23 @@ const Aluno = () => {
     };
     setActiveVideoEx(resolvedEx);
     setTempCustomUrl(customUrl);
+    // Prioridade SEMPRE para o vídeo do professor caso exista
+    if (officialUrl) {
+      setVideoSourceTab('professor');
+    } else if (customUrl) {
+      setVideoSourceTab('aluno');
+    } else {
+      setVideoSourceTab('professor');
+    }
   };
 
   const saveCustomVideoUrl = (e) => {
     e.preventDefault();
     if (!activeVideoEx) return;
 
-    const formattedUrl = formatYouTubeEmbedUrl(tempCustomUrl);
+    const formattedUrl = formatVideoEmbedUrl(tempCustomUrl);
     if (!formattedUrl && tempCustomUrl.trim() !== '') {
-      alert('Por favor, insira um link válido do YouTube.');
+      alert('Por favor, insira um link válido do YouTube ou de vídeo.');
       return;
     }
 
@@ -1236,7 +1250,22 @@ const Aluno = () => {
     
     // Salva com redundância total no localStorage
     saveCustomVideoStorage(user?.id, activeVideoEx, formattedUrl);
-    alert('Link do influenciador favorito salvo com sucesso e priorizado!');
+    setVideoSourceTab('aluno');
+    alert('Vídeo personalizado do YouTube salvo com sucesso!');
+  };
+
+  const removeCustomVideoUrl = () => {
+    if (!activeVideoEx) return;
+    const updated = exercises.map(ex => 
+      (ex.id === activeVideoEx.id || ex.name === activeVideoEx.name) ? { ...ex, video_personalizado_url: '' } : ex
+    );
+    setExercises(updated);
+    updateStudentExercises(updated, finishedSplits);
+    setActiveVideoEx(prev => ({ ...prev, video_personalizado_url: '' }));
+    saveCustomVideoStorage(user?.id, activeVideoEx, '');
+    setTempCustomUrl('');
+    setVideoSourceTab('professor');
+    alert('Vídeo personalizado removido. Exibindo orientação do professor!');
   };
 
   const handleCompleteExercise = (id, realSets, realLoad) => {
@@ -3167,60 +3196,240 @@ const Aluno = () => {
       </div>
 
       {/* Modal de Vídeo */}
-      {activeVideoEx && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modalCard} className="glass">
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>Execução do Exercício</h3>
-              <button onClick={() => setActiveVideoEx(null)} style={styles.closeModalBtn}>
-                <X size={18} />
-              </button>
-            </div>
-            
-            <p style={{ ...styles.exName, margin: '4px 0 16px 0' }}>{activeVideoEx.name}</p>
+      {activeVideoEx && (() => {
+        const officialVideo = activeVideoEx.video_oficial_url || activeVideoEx.videoUrl || getDefaultOfficialVideo(activeVideoEx.name);
+        const customVideo = activeVideoEx.video_personalizado_url || getSavedCustomVideo(user?.id, activeVideoEx);
+        const currentPlayingUrl = videoSourceTab === 'professor' ? (officialVideo || customVideo) : (customVideo || officialVideo);
+        const isDirectVideo = currentPlayingUrl && (
+          currentPlayingUrl.startsWith('data:video/') || 
+          currentPlayingUrl.startsWith('blob:') || 
+          currentPlayingUrl.endsWith('.mp4') || 
+          currentPlayingUrl.endsWith('.webm')
+        );
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: activeVideoEx.video_personalizado_url ? 'var(--status-success)' : 'var(--primary)' }}>
-                {activeVideoEx.video_personalizado_url ? '★ Seu Vídeo Priorizado Ativo' : '📺 Demonstração de Execução'}
-              </span>
-            </div>
-
-            <div style={styles.videoWrapper}>
-              {(activeVideoEx.video_personalizado_url || activeVideoEx.video_oficial_url) ? (
-                <iframe
-                  src={activeVideoEx.video_personalizado_url || activeVideoEx.video_oficial_url}
-                  title={`Instruções de execução - ${activeVideoEx.name}`}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  style={styles.iframe}
-                />
-              ) : (
-                <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  <p style={{ margin: '0 0 6px 0', fontWeight: '700', color: 'var(--text-primary)', fontSize: '0.95rem' }}>Nenhum vídeo cadastrado para este exercício</p>
-                  <p style={{ margin: 0, fontSize: '0.8rem' }}>Cole o link do seu influenciador ou canal favorito abaixo para salvar e assistir sempre que treinar!</p>
+        return (
+          <div style={styles.modalOverlay} onClick={() => setActiveVideoEx(null)}>
+            <div style={{ ...styles.modalCard, maxWidth: '580px' }} className="glass animate-fade-in" onClick={e => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Tv size={20} style={{ color: 'var(--primary)' }} />
+                  <h3 style={styles.modalTitle}>Execução do Exercício</h3>
                 </div>
-              )}
-            </div>
-
-            <div style={styles.dualLinkBox}>
-              <span style={styles.dualLinkLabel}>📺 Link Prioritário do Aluno (Seu Influenciador):</span>
-              <form onSubmit={saveCustomVideoUrl} style={styles.dualForm}>
-                <input
-                  type="url"
-                  placeholder="Insira link do YouTube..."
-                  value={tempCustomUrl}
-                  onChange={(e) => setTempCustomUrl(e.target.value)}
-                  style={styles.dualInput}
-                />
-                <button type="submit" style={styles.dualSaveBtn} className="btn-primary">
-                  Priorizar Link
+                <button onClick={() => setActiveVideoEx(null)} style={styles.closeModalBtn}>
+                  <X size={18} />
                 </button>
-              </form>
+              </div>
+              
+              <p style={{ ...styles.exName, margin: '6px 0 14px 0', fontSize: '1.1rem' }}>{activeVideoEx.name}</p>
+
+              {/* ABAS DE SELEÇÃO: VÍDEO DO PROFESSOR (PRIORITÁRIO) vs MEU VÍDEO DO YOUTUBE */}
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                marginBottom: '14px',
+                background: 'var(--bg-secondary)',
+                padding: '4px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setVideoSourceTab('professor')}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontSize: '0.8rem',
+                    fontWeight: videoSourceTab === 'professor' ? '800' : '600',
+                    backgroundColor: videoSourceTab === 'professor' ? 'var(--primary)' : 'transparent',
+                    color: videoSourceTab === 'professor' ? '#ffffff' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <GraduationCap size={15} />
+                  <span>Vídeo do Professor</span>
+                  <span style={{ 
+                    fontSize: '0.65rem', 
+                    padding: '1px 6px', 
+                    borderRadius: '10px', 
+                    background: videoSourceTab === 'professor' ? 'rgba(255,255,255,0.25)' : 'rgba(139,92,246,0.15)',
+                    color: videoSourceTab === 'professor' ? '#fff' : 'var(--primary)',
+                    fontWeight: '800'
+                  }}>
+                    Prioritário
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setVideoSourceTab('aluno')}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    fontSize: '0.8rem',
+                    fontWeight: videoSourceTab === 'aluno' ? '800' : '600',
+                    backgroundColor: videoSourceTab === 'aluno' ? 'var(--primary)' : 'transparent',
+                    color: videoSourceTab === 'aluno' ? '#ffffff' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Star size={14} style={{ color: customVideo ? '#eab308' : 'inherit' }} />
+                  <span>Meu Vídeo (YouTube)</span>
+                  {customVideo && (
+                    <span style={{ 
+                      fontSize: '0.65rem', 
+                      padding: '1px 6px', 
+                      borderRadius: '10px', 
+                      background: 'rgba(52, 211, 153, 0.2)', 
+                      color: 'var(--status-success)', 
+                      fontWeight: '800' 
+                    }}>
+                      Salvo
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* INDICADOR VISUAL DA FONTE DO VÍDEO ATUALMENTE EM EXIBIÇÃO */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ 
+                  fontSize: '0.75rem', 
+                  fontWeight: '700', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '5px',
+                  color: videoSourceTab === 'professor' ? 'var(--primary)' : 'var(--status-success)' 
+                }}>
+                  {videoSourceTab === 'professor' ? (
+                    <>
+                      <GraduationCap size={14} /> Recomendado pelo seu Professor/Treinador
+                    </>
+                  ) : (
+                    <>
+                      <Star size={14} /> Seu Vídeo Personalizado do YouTube
+                    </>
+                  )}
+                </span>
+              </div>
+
+              {/* PLAYER DE VÍDEO INTELIGENTE */}
+              <div style={styles.videoWrapper}>
+                {currentPlayingUrl ? (
+                  isDirectVideo ? (
+                    <video
+                      src={currentPlayingUrl}
+                      controls
+                      autoPlay
+                      playsInline
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        backgroundColor: '#000'
+                      }}
+                    />
+                  ) : (
+                    <iframe
+                      src={formatVideoEmbedUrl(currentPlayingUrl)}
+                      title={`Instruções de execução - ${activeVideoEx.name}`}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      style={styles.iframe}
+                    />
+                  )
+                ) : (
+                  <div style={{ 
+                    position: 'absolute', 
+                    top: 0, 
+                    left: 0, 
+                    width: '100%', 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    padding: '20px', 
+                    textAlign: 'center', 
+                    color: 'var(--text-secondary)' 
+                  }}>
+                    {videoSourceTab === 'aluno' ? (
+                      <>
+                        <Star size={32} style={{ opacity: 0.35, color: '#eab308', marginBottom: '8px' }} />
+                        <p style={{ margin: '0 0 6px 0', fontWeight: '700', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Nenhum vídeo personalizado salvo</p>
+                        <p style={{ margin: 0, fontSize: '0.78rem' }}>Cole o link do seu influenciador do YouTube no campo abaixo para salvar!</p>
+                      </>
+                    ) : (
+                      <>
+                        <Tv size={32} style={{ opacity: 0.35, color: 'var(--primary)', marginBottom: '8px' }} />
+                        <p style={{ margin: '0 0 6px 0', fontWeight: '700', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Nenhum vídeo do professor cadastrado</p>
+                        <p style={{ margin: 0, fontSize: '0.78rem' }}>O professor ainda não definiu um vídeo técnico para este exercício.</p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* SEÇÃO DO ALUNO: PERSONALIZAR SEU VÍDEO DO YOUTUBE */}
+              <div style={styles.dualLinkBox}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={styles.dualLinkLabel}>⭐ Link do Seu Influenciador / Canal Favorito:</span>
+                  {customVideo && (
+                    <button
+                      type="button"
+                      onClick={removeCustomVideoUrl}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--status-danger)',
+                        fontSize: '0.72rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontWeight: '600'
+                      }}
+                    >
+                      <Trash2 size={12} /> Remover meu link
+                    </button>
+                  )}
+                </div>
+                <form onSubmit={saveCustomVideoUrl} style={styles.dualForm}>
+                  <input
+                    type="url"
+                    placeholder="Ex: https://www.youtube.com/watch?v=..."
+                    value={tempCustomUrl}
+                    onChange={(e) => setTempCustomUrl(e.target.value)}
+                    style={styles.dualInput}
+                  />
+                  <button type="submit" style={styles.dualSaveBtn} className="btn-primary">
+                    Salvar Meu Vídeo
+                  </button>
+                </form>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>
+                  💡 Dica: O vídeo do professor sempre permanece como recomendação principal. Você pode alternar quando quiser usando as abas acima.
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Modal de Reportar Bug */}
       {reportModalEx && (
