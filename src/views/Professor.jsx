@@ -141,6 +141,11 @@ const Professor = () => {
   const [activeTab, setActiveTab] = useState('alunos'); // 'alunos', 'prescribe', 'planos', 'financeiro', 'revisao'
   const [successMsg, setSuccessMsg] = useState('');
   
+  // Filtrar apenas alunos do mesmo tenant (seja o ID do professor ou o tenantId do professor se ele estiver em uma academia)
+  const myStudents = (usersList || []).filter(u => u.role === 'aluno' && (u.tenantId === user?.id || u.tenantId === user?.tenantId));
+  const ownStudentsCount = (usersList || []).filter(u => u.role === 'aluno' && u.tenantId === user?.id).length;
+  const maxLimit = user?.limiteAlunos || 10;
+
   // Prescrição Studio states
   const [selectedStudent, setSelectedStudent] = useState('');
   const [prescribeSplit, setPrescribeSplit] = useState('A');
@@ -365,13 +370,6 @@ const Professor = () => {
       setTimeout(() => setSuccessMsg(''), 2500);
     }
   };
-
-  // Filtrar apenas alunos do mesmo tenant (seja o ID do professor ou o tenantId do professor se ele estiver em uma academia)
-  const myStudents = usersList.filter(u => u.role === 'aluno' && (u.tenantId === user.id || u.tenantId === user.tenantId));
-
-  // Alunos cadastrados especificamente pelo professor sob o seu limite
-  const ownStudentsCount = usersList.filter(u => u.role === 'aluno' && u.tenantId === user.id).length;
-  const maxLimit = user.limiteAlunos || 10;
 
   // Quando o selectedStudent mudar, carrega seus exercícios e calcula as divisões reais
   useEffect(() => {
