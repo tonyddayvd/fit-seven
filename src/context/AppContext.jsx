@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { cleanDigits, validateCPF, validateCNPJ, validateDoc } from '../utils/validators';
 
 const AppContext = createContext();
 
@@ -382,6 +383,13 @@ export const AppProvider = ({ children }) => {
           videoApresentacaoUrl: u.dados_pessoais?.videoApresentacaoUrl || '',
           videoIncentivoUrl: u.dados_pessoais?.videoIncentivoUrl || '',
           dia_vencimento: u.dados_pessoais?.dia_vencimento || '',
+          statusVinculo: u.dados_pessoais?.statusVinculo || (u.role === 'aluno' ? 'aprovado' : undefined),
+          primeiroAcesso: u.dados_pessoais?.primeiroAcesso !== undefined ? u.dados_pessoais.primeiroAcesso : (u.dados_pessoais?.password === '123'),
+          preCadastro: u.dados_pessoais?.preCadastro || false,
+          solicitadoEm: u.dados_pessoais?.solicitadoEm || null,
+          nomeProfessorVinculado: u.dados_pessoais?.nomeProfessorVinculado || '',
+          cnpj: u.dados_pessoais?.cnpj || '',
+          responsavel: u.dados_pessoais?.responsavel || '',
           historico_pagamentos: u.dados_pessoais?.historico_pagamentos || []
         }));
 
@@ -608,6 +616,13 @@ export const AppProvider = ({ children }) => {
       videoApresentacaoUrl: userData.videoApresentacaoUrl || '',
       videoIncentivoUrl: userData.videoIncentivoUrl || '',
       dia_vencimento: userData.dia_vencimento || '',
+      statusVinculo: userData.statusVinculo || (userData.role === 'aluno' ? 'aprovado' : undefined),
+      primeiroAcesso: userData.primeiroAcesso !== undefined ? userData.primeiroAcesso : (userData.password === '123'),
+      preCadastro: userData.preCadastro || false,
+      solicitadoEm: userData.solicitadoEm || null,
+      nomeProfessorVinculado: userData.nomeProfessorVinculado || '',
+      cnpj: userData.cnpj || '',
+      responsavel: userData.responsavel || '',
       historico_pagamentos: gerarHistoricoPagamentos(userData.dia_vencimento, [])
     };
 
@@ -660,6 +675,13 @@ export const AppProvider = ({ children }) => {
       videoApresentacaoUrl: updatedData.videoApresentacaoUrl !== undefined ? updatedData.videoApresentacaoUrl : (userObj.videoApresentacaoUrl || ''),
       videoIncentivoUrl: updatedData.videoIncentivoUrl !== undefined ? updatedData.videoIncentivoUrl : (userObj.videoIncentivoUrl || ''),
       dia_vencimento: updatedData.dia_vencimento !== undefined ? updatedData.dia_vencimento : (userObj.dia_vencimento || ''),
+      statusVinculo: updatedData.statusVinculo !== undefined ? updatedData.statusVinculo : (userObj.statusVinculo || (userObj.role === 'aluno' ? 'aprovado' : undefined)),
+      primeiroAcesso: updatedData.primeiroAcesso !== undefined ? updatedData.primeiroAcesso : (userObj.primeiroAcesso || false),
+      preCadastro: updatedData.preCadastro !== undefined ? updatedData.preCadastro : (userObj.preCadastro || false),
+      solicitadoEm: updatedData.solicitadoEm !== undefined ? updatedData.solicitadoEm : (userObj.solicitadoEm || null),
+      nomeProfessorVinculado: updatedData.nomeProfessorVinculado !== undefined ? updatedData.nomeProfessorVinculado : (userObj.nomeProfessorVinculado || ''),
+      cnpj: updatedData.cnpj !== undefined ? updatedData.cnpj : (userObj.cnpj || ''),
+      responsavel: updatedData.responsavel !== undefined ? updatedData.responsavel : (userObj.responsavel || ''),
       historico_pagamentos: updatedData.historico_pagamentos !== undefined ? updatedData.historico_pagamentos : (
         updatedData.dia_vencimento !== undefined && updatedData.dia_vencimento !== userObj.dia_vencimento 
           ? gerarHistoricoPagamentos(updatedData.dia_vencimento, userObj.historico_pagamentos || [])
@@ -857,6 +879,235 @@ export const AppProvider = ({ children }) => {
       setOriginalUser(null);
       localStorage.removeItem('fitseven-original-user');
     }
+  };
+
+  // 1. Cadastro Público de Usuários (Aluno, Professor, Estabelecimento)
+  const registerUser = async (userData) => {
+    const cleanEmail = (userData.email || '').trim().toLowerCase();
+    if (!cleanEmail) throw new Error('E-mail é obrigatório.');
+
+    const emailExists = usersList.some(u => (u.email || '').trim().toLowerCase() === cleanEmail);
+    if (emailExists) throw new Error('Este e-mail já está cadastrado na plataforma.');
+
+    const cleanCpf = cleanDigits(userData.cpf);
+    const cleanCnpj = cleanDigits(userData.cnpj);
+
+    if (userData.role === 'aluno' || userData.role === 'professor') {
+      if (!cleanCpf) throw new Error('CPF é obrigatório.');
+      if (!validateCPF(cleanCpf)) throw new Error('CPF inválido. Verifique os números digitados.');
+      
+      const cpfExists = usersList.some(u => cleanDigits(u.cpf) === cleanCpf);
+      if (cpfExists) throw new Error('Este CPF já está cadastrado no Fit Seven.');
+    } else if (userData.role === 'estabelecimento') {
+      const doc = cleanCnpj || cleanCpf;
+      if (!doc) throw new Error('CNPJ ou CPF é obrigatório para estabelecimentos.');
+      if (!validateDoc(doc)) throw new Error('CNPJ/CPF inválido. Verifique os números digitados.');
+      
+      const docExists = usersList.some(u => cleanDigits(u.cnpj) === doc || cleanDigits(u.cpf) === doc);
+      if (docExists) throw new Error('Este documento já está cadastrado no Fit Seven.');
+    }
+
+    let tenantId = userData.tenantId || 't1';
+    let statusVinculo = 'aprovado';
+    let nomeProfVinculado = '';
+
+    if (userData.role === 'aluno') {
+      if (userData.professorTargetId) {
+        tenantId = userData.professorTargetId;
+        statusVinculo = 'pendente_aprovacao';
+        const targetProf = usersList.find(u => u.id === userData.professorTargetId) || Object.values(tenants).find(t => t.id === userData.professorTargetId);
+        nomeProfVinculado = targetProf?.name || '';
+      }
+    }
+
+    const newUser = await addUser({
+      ...userData,
+      email: cleanEmail,
+      cpf: cleanCpf || '',
+      cnpj: cleanCnpj || '',
+      statusVinculo,
+      nomeProfessorVinculado: nomeProfVinculado,
+      primeiroAcesso: false,
+      preCadastro: false,
+      solicitadoEm: statusVinculo === 'pendente_aprovacao' ? new Date().toISOString() : null,
+      limiteAlunos: userData.role === 'professor' ? 10 : (userData.role === 'estabelecimento' ? 50 : undefined)
+    });
+
+    if (statusVinculo === 'pendente_aprovacao' && userData.professorTargetId) {
+      createNotification({
+        type: 'solicitacao_vinculo',
+        title: '🔔 Nova Solicitação de Aluno!',
+        message: `${userData.name} solicitou entrar na sua consultoria/academia. Aprove para ativar o aluno.`,
+        senderId: newUser.id,
+        senderName: userData.name,
+        targetUserId: userData.professorTargetId,
+        targetTenantId: userData.professorTargetId,
+        actionType: 'open_students_tab'
+      });
+    }
+
+    return newUser;
+  };
+
+  // 2. Recuperação de Senha Segura e Sem Custos por CPF + Confirmação Secundária
+  const resetPasswordByCpf = async (cpf, confirmValue, newPassword) => {
+    const cleanCpf = cleanDigits(cpf);
+    if (!cleanCpf) throw new Error('Informe o CPF cadastrado.');
+    if (!validateCPF(cleanCpf)) throw new Error('CPF com formato inválido.');
+    if (!newPassword || newPassword.length < 3) throw new Error('A nova senha deve ter no mínimo 3 caracteres.');
+
+    const cleanConfirm = (confirmValue || '').trim().toLowerCase();
+    const cleanConfirmDigits = cleanDigits(confirmValue);
+
+    const targetUser = usersList.find(u => cleanDigits(u.cpf) === cleanCpf || cleanDigits(u.cnpj) === cleanCpf);
+    if (!targetUser) {
+      throw new Error('Nenhum usuário encontrado com este CPF/CNPJ.');
+    }
+
+    const emailMatch = (targetUser.email || '').trim().toLowerCase() === cleanConfirm;
+    const birthMatch = (targetUser.dataNascimento || '').trim() === cleanConfirm;
+    const phoneMatch = cleanConfirmDigits && cleanDigits(targetUser.whatsapp || targetUser.telefone || '').includes(cleanConfirmDigits);
+
+    if (!emailMatch && !birthMatch && !phoneMatch) {
+      throw new Error('Dado de confirmação (E-mail, Data de Nascimento ou WhatsApp) incorreto.');
+    }
+
+    await updateUser(targetUser.id, {
+      password: newPassword,
+      primeiroAcesso: false
+    });
+
+    return { success: true, message: 'Senha atualizada com sucesso! Você já pode fazer login.' };
+  };
+
+  // 3. Troca de Senha (Primeiro Acesso)
+  const changePassword = async (userId, newPassword) => {
+    if (!newPassword || newPassword.length < 3) throw new Error('A senha deve ter no mínimo 3 caracteres.');
+    await updateUser(userId, {
+      password: newPassword,
+      primeiroAcesso: false
+    });
+    return true;
+  };
+
+  // 4. Aprovação de Vínculo de Aluno com Controle Estrito de Vagas do Plano
+  const approveStudentLink = async (studentId, targetId = null) => {
+    const activeProfId = targetId || user?.id;
+    const profObj = usersList.find(u => u.id === activeProfId) || Object.values(tenants).find(t => t.id === activeProfId);
+    const limit = profObj?.limiteAlunos || user?.limiteAlunos || 10;
+
+    const approvedCount = usersList.filter(u => 
+      u.role === 'aluno' && 
+      (u.tenantId === activeProfId || u.tenantId === user?.tenantId) && 
+      u.statusVinculo !== 'pendente_aprovacao'
+    ).length;
+
+    if (approvedCount >= limit) {
+      const errMsg = `Limite de ${limit} vagas do seu plano foi atingido. Faça upgrade para aprovar mais alunos.`;
+      throw new Error(errMsg);
+    }
+
+    await updateUser(studentId, {
+      statusVinculo: 'aprovado',
+      tenantId: activeProfId,
+      preCadastro: false
+    });
+
+    createNotification({
+      type: 'vinculo_aprovado',
+      title: '🎉 Vínculo Aprovado!',
+      message: `Seu professor ${user?.name || 'Personal'} aprovou seu acesso! Seus treinos já estão liberados.`,
+      senderId: user?.id,
+      senderName: user?.name,
+      targetUserId: studentId,
+      actionType: 'open_workouts'
+    });
+
+    return true;
+  };
+
+  // 5. Recusa de Vínculo de Aluno
+  const rejectStudentLink = async (studentId) => {
+    await updateUser(studentId, {
+      statusVinculo: 'recusado'
+    });
+    return true;
+  };
+
+  // 6. Pré-Cadastro de Aluno ou Professor (por Professor ou Academia)
+  const preRegisterUser = async (userData, inviter = null) => {
+    const inviterObj = inviter || user;
+    const cleanEmail = (userData.email || '').trim().toLowerCase();
+    const finalEmail = cleanEmail || `user_${Date.now()}_${Math.random().toString(36).substr(2, 4)}@fitseven.app`;
+    
+    const cleanCpf = cleanDigits(userData.cpf);
+    if (cleanCpf && !validateCPF(cleanCpf)) {
+      throw new Error('CPF inválido. Verifique os números digitados.');
+    }
+
+    const tenantId = inviterObj?.id || inviterObj?.tenantId || 't1';
+
+    const newUser = await addUser({
+      ...userData,
+      email: finalEmail,
+      cpf: cleanCpf || '',
+      role: userData.role || 'aluno',
+      tenantId: tenantId,
+      password: userData.password || '123',
+      statusVinculo: 'aprovado',
+      preCadastro: true,
+      primeiroAcesso: true,
+      nomeProfessorVinculado: inviterObj?.name || ''
+    });
+
+    return newUser;
+  };
+
+  // 7. Gerador de Convite para WhatsApp com Link Personalizado
+  const generateWhatsAppInvite = (targetUser, inviterUser = null) => {
+    const inviter = inviterUser || user;
+    const baseUrl = typeof window !== 'undefined' ? (window.location.origin + window.location.pathname) : 'https://tonyddayvd.github.io/fit-seven/';
+    const inviteUrl = `${baseUrl}?invite=true&userId=${targetUser.id}&profName=${encodeURIComponent(inviter?.name || 'Seu Professor')}`;
+    
+    const roleLabel = targetUser.role === 'professor' ? 'professor(a)' : 'aluno(a)';
+    const text = `Olá, *${targetUser.name}*! 👋\n\n` +
+      `Seu pré-cadastro como ${roleLabel} no *Fit Seven* foi realizado por *${inviter?.name || 'sua academia/professor'}*.\n\n` +
+      `📲 Clique no link seguro abaixo para definir sua senha pessoal e acessar seu painel:\n` +
+      `${inviteUrl}\n\n` +
+      `Bons treinos! 💪🏋️`;
+
+    const cleanPhone = cleanDigits(targetUser.whatsapp || targetUser.telefone);
+    const phoneParam = cleanPhone ? `&phone=55${cleanPhone}` : '';
+    
+    return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}${phoneParam}`;
+  };
+
+  // 8. Concluir Cadastro de Convite (Aluno ou Professor pré-cadastrado define CPF e senha)
+  const completeInviteRegistration = async (userId, cpf, newPassword, extraData = {}) => {
+    const cleanCpf = cleanDigits(cpf);
+    if (!cleanCpf || !validateCPF(cleanCpf)) {
+      throw new Error('CPF obrigatório e deve ser válido.');
+    }
+    if (!newPassword || newPassword.length < 3) {
+      throw new Error('Defina uma senha com no mínimo 3 caracteres.');
+    }
+
+    const updated = await updateUser(userId, {
+      ...extraData,
+      cpf: cleanCpf,
+      password: newPassword,
+      preCadastro: false,
+      primeiroAcesso: false,
+      statusVinculo: 'aprovado'
+    });
+
+    const userObj = usersList.find(u => u.id === userId);
+    if (userObj) {
+      const merged = { ...userObj, ...extraData, cpf: cleanCpf, password: newPassword, preCadastro: false, primeiroAcesso: false, statusVinculo: 'aprovado' };
+      setUser(merged);
+      localStorage.setItem('fitseven-user', JSON.stringify(merged));
+    }
+    return updated;
   };
 
   // Motor de Inteligência Artificial Mockado
@@ -1300,6 +1551,14 @@ export const AppProvider = ({ children }) => {
       deleteBug,
       workoutSessionsHistory,
       isLoading,
+      registerUser,
+      resetPasswordByCpf,
+      changePassword,
+      approveStudentLink,
+      rejectStudentLink,
+      preRegisterUser,
+      generateWhatsAppInvite,
+      completeInviteRegistration,
       notifications,
       createNotification,
       markNotificationAsRead,

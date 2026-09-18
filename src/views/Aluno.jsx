@@ -163,7 +163,8 @@ const Aluno = () => {
     updateUserProfile,
     notifications,
     markNotificationAsRead,
-    getUnreadNotificationsForUser
+    getUnreadNotificationsForUser,
+    changePassword
   } = useApp();
   
   const [showMedalModal, setShowMedalModal] = useState(false);
@@ -172,6 +173,13 @@ const Aluno = () => {
   const [copiedPixProfAluno, setCopiedPixProfAluno] = useState(false);
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
   const [activePopupNotif, setActivePopupNotif] = useState(null);
+
+  // Primeiro Acesso & Troca Obrigatória de Senha
+  const [showFirstAccessModal, setShowFirstAccessModal] = useState(user?.primeiroAcesso === true || user?.password === '123');
+  const [firstAccessPassword, setFirstAccessPassword] = useState('');
+  const [firstAccessConfirm, setFirstAccessConfirm] = useState('');
+  const [firstAccessError, setFirstAccessError] = useState('');
+  const [isSavingFirstPass, setIsSavingFirstPass] = useState(false);
 
   // Localiza o professor do aluno
   const myProfessor = useMemo(() => {
@@ -237,6 +245,30 @@ const Aluno = () => {
     navigator.clipboard.writeText(pixKey);
     setCopiedPixProfAluno(true);
     setTimeout(() => setCopiedPixProfAluno(false), 2500);
+  };
+
+  const handleSaveFirstAccessPassword = async (e) => {
+    if (e) e.preventDefault();
+    setFirstAccessError('');
+    if (firstAccessPassword !== firstAccessConfirm) {
+      setFirstAccessError('As senhas digitadas não coincidem.');
+      return;
+    }
+    if (firstAccessPassword.length < 3) {
+      setFirstAccessError('A nova senha deve ter no mínimo 3 caracteres.');
+      return;
+    }
+
+    setIsSavingFirstPass(true);
+    try {
+      await changePassword(user.id, firstAccessPassword);
+      setShowFirstAccessModal(false);
+      alert('Sua nova senha foi definida com sucesso! Bem-vindo ao Fit Seven.');
+    } catch (err) {
+      setFirstAccessError(err.message || 'Erro ao definir nova senha.');
+    } finally {
+      setIsSavingFirstPass(false);
+    }
   };
 
   const userDbData = workoutsByStudent && workoutsByStudent[user?.id];
@@ -1575,6 +1607,157 @@ const Aluno = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL OBRIGATÓRIO DE PRIMEIRO ACESSO (DEFINIR SENHA PESSOAL) ── */}
+      {showFirstAccessModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '20px'
+        }} className="animate-fade-in">
+          <div style={{
+            width: '100%',
+            maxWidth: '440px',
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: '20px',
+            border: '1px solid var(--border-color)',
+            padding: '28px 24px',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.7)'
+          }} className="glass">
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 12px auto'
+              }}>
+                <Lock size={26} color="var(--accent-primary)" />
+              </div>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                Primeiro Acesso ao Fit Seven 🔐
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Por segurança da sua conta, defina sua senha pessoal para continuar.
+              </p>
+            </div>
+
+            {firstAccessError && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                color: '#f87171',
+                padding: '10px 14px',
+                borderRadius: '10px',
+                fontSize: '0.85rem',
+                marginBottom: '16px'
+              }}>
+                <AlertTriangle size={16} />
+                <span>{firstAccessError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveFirstAccessPassword} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                  Nova Senha Pessoal:
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={firstAccessPassword}
+                  onChange={(e) => setFirstAccessPassword(e.target.value)}
+                  placeholder="Mínimo 3 caracteres"
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    backgroundColor: 'var(--bg-tertiary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.9rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                  Confirmar Nova Senha:
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={firstAccessConfirm}
+                  onChange={(e) => setFirstAccessConfirm(e.target.value)}
+                  placeholder="Repita sua nova senha"
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    backgroundColor: 'var(--bg-tertiary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.9rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSavingFirstPass}
+                style={{
+                  marginTop: '8px',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  fontWeight: '700',
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  border: 'none'
+                }}
+                className="btn-primary"
+              >
+                {isSavingFirstPass ? 'Salvando...' : 'Salvar Minha Nova Senha & Continuar'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── BANNER DE SOLICITAÇÃO DE VÍNCULO PENDENTE (SE HOUVER) ── */}
+      {user?.statusVinculo === 'pendente_aprovacao' && (
+        <div style={{
+          backgroundColor: 'rgba(234, 179, 8, 0.12)',
+          border: '1px solid rgba(234, 179, 8, 0.4)',
+          borderRadius: '14px',
+          padding: '14px 18px',
+          marginBottom: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }} className="animate-fade-in">
+          <AlertTriangle size={22} color="#eab308" style={{ flexShrink: 0 }} />
+          <div style={{ fontSize: '0.88rem', color: 'var(--text-primary)', lineHeight: '1.4' }}>
+            <strong>Solicitação de Vínculo em Análise:</strong> Seu pedido de conexão com <strong>{user?.nomeProfessorVinculado || 'seu Professor'}</strong> está aguardando aprovação. Enquanto isso, você já tem acesso a treinos completos gerados por Inteligência Artificial!
           </div>
         </div>
       )}

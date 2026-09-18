@@ -57,12 +57,12 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import ExerciseVideoManagerModal from '../components/ExerciseVideoManagerModal';
 import { 
   EXERCISE_CATALOG, 
   EXERCISE_CATEGORIES, 
   formatVideoEmbedUrl 
 } from '../utils/videoService';
+import { formatCPF, formatPhone, validateCPF } from '../utils/validators';
 
 const InstagramIcon = ({ size = 16, color = "currentColor" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -157,7 +157,11 @@ const Professor = () => {
     updateWorkoutByProfessor,
     approvedEvaluations,
     workoutSessionsHistory,
-    submitEvaluation
+    submitEvaluation,
+    preRegisterUser,
+    approveStudentLink,
+    rejectStudentLink,
+    generateWhatsAppInvite
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('alunos'); // 'alunos', 'prescribe', 'anamnese', 'planos', 'financeiro', 'perfil'
@@ -207,9 +211,10 @@ const Professor = () => {
     }
   }, [user]);
 
-  // Filtrar apenas alunos do mesmo tenant (seja o ID do professor ou o tenantId do professor se ele estiver em uma academia)
-  const myStudents = (usersList || []).filter(u => u.role === 'aluno' && (u.tenantId === user?.id || u.tenantId === user?.tenantId));
-  const ownStudentsCount = (usersList || []).filter(u => u.role === 'aluno' && u.tenantId === user?.id).length;
+  // Alunos vinculados e solicitações pendentes de aprovação
+  const pendingStudentLinks = (usersList || []).filter(u => u.role === 'aluno' && (u.tenantId === user?.id || u.tenantId === user?.tenantId) && u.statusVinculo === 'pendente_aprovacao');
+  const myStudents = (usersList || []).filter(u => u.role === 'aluno' && (u.tenantId === user?.id || u.tenantId === user?.tenantId) && u.statusVinculo !== 'pendente_aprovacao' && u.statusVinculo !== 'recusado');
+  const ownStudentsCount = myStudents.filter(u => u.tenantId === user?.id).length;
   const maxLimit = user?.limiteAlunos || 10;
 
   // Prescrição Studio states
@@ -231,10 +236,12 @@ const Professor = () => {
   const [editingVideoExercise, setEditingVideoExercise] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Alunos CRUD states
+  // Alunos CRUD & Modal de Convite WhatsApp
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [studentForm, setStudentForm] = useState({ name: '', email: '', password: '123', plano: '' });
+  const [studentForm, setStudentForm] = useState({ name: '', email: '', whatsapp: '', cpf: '', password: '123', plano: '', dia_vencimento: '10' });
+  const [createdInviteModal, setCreatedInviteModal] = useState(null);
+  const [copiedInviteLink, setCopiedInviteLink] = useState(false);
 
   // Custom Plans states
   const [newPlanName, setNewPlanName] = useState('');
@@ -911,24 +918,26 @@ const Professor = () => {
     }
   };
 
-  // CRUD Handlers
+  // CRUD & Convite Handlers
   const openAddStudent = () => {
-    // Checagem de limite antes de abrir ou cadastrar
     if (ownStudentsCount >= maxLimit) {
-      alert('Você atingiu o limite de vagas da sua licença. Entre em contato com a administração do Fit Seven para liberar mais espaço.');
+      alert(`Você atingiu o limite de ${maxLimit} vagas do seu plano. Faça um upgrade de plano ou libere vagas para adicionar novos alunos.`);
       return;
     }
-    setStudentForm({ name: '', email: '', password: '123', plano: '' });
+    setStudentForm({ name: '', email: '', whatsapp: '', cpf: '', password: '123', plano: '', dia_vencimento: '10' });
     setEditingId(null);
     setShowForm(true);
   };
 
   const openEditStudent = (student) => {
     setStudentForm({
-      name: student.name,
-      email: student.email,
+      name: student.name || '',
+      email: student.email || '',
+      whatsapp: student.whatsapp || student.telefone || '',
+      cpf: student.cpf || '',
       password: student.password || '123',
-      plano: student.plano || ''
+      plano: student.plano || '',
+      dia_vencimento: student.dia_vencimento || '10'
     });
     setEditingId(student.id);
     setShowForm(true);
@@ -939,22 +948,67 @@ const Professor = () => {
     try {
       if (editingId) {
         await updateUser(editingId, studentForm);
-        alert('Cadastro do aluno atualizado com sucesso!');
+        setSuccessMsg('Cadastro do aluno atualizado com sucesso!');
+        setTimeout(() => setSuccessMsg(''), 3500);
         setShowForm(false);
       } else {
-        // Tenta cadastrar. addUser já fará o check final de limite
-        await addUser({
+        const newStudent = await preRegisterUser({
           ...studentForm,
           role: 'aluno',
-          tenantId: user.id // Vinculado diretamente a este professor
+          tenantId: user.id
+        }, user);
+
+        const whatsAppUrl = generateWhatsAppInvite(newStudent, user);
+        const baseUrl = typeof window !== 'undefined' ? (window.location.origin + window.location.pathname) : 'https://tonyddayvd.github.io/fit-seven/';
+        const inviteUrl = `${baseUrl}?invite=true&userId=${newStudent.id}&profName=${encodeURIComponent(user.name)}`;
+
+        setCreatedInviteModal({
+          student: newStudent,
+          whatsAppUrl,
+          inviteUrl
         });
-        alert('Novo aluno cadastrado com sucesso!');
+
+        setSuccessMsg(`Aluno ${newStudent.name} pré-cadastrado com sucesso!`);
         setShowForm(false);
       }
     } catch (err) {
       console.error(err);
-      alert('Erro ao salvar aluno: ' + (err.message || err.details || 'Verifique os dados.'));
+      alert('Erro ao salvar aluno: ' + (err.message || 'Verifique os dados.'));
     }
+  };
+
+  const handleApproveStudent = async (studentId) => {
+    try {
+      await approveStudentLink(studentId, user.id);
+      setSuccessMsg('Vínculo do aluno aprovado com sucesso! Acesso aos treinos liberado.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err) {
+      alert(err.message || 'Erro ao aprovar aluno.');
+    }
+  };
+
+  const handleRejectStudent = async (studentId) => {
+    if (confirm('Deseja realmente recusar a solicitação de vínculo deste aluno?')) {
+      try {
+        await rejectStudentLink(studentId);
+        setSuccessMsg('Solicitação de vínculo recusada.');
+        setTimeout(() => setSuccessMsg(''), 3000);
+      } catch (err) {
+        alert(err.message || 'Erro ao recusar aluno.');
+      }
+    }
+  };
+
+  const handleSendExistingStudentInvite = (student) => {
+    const whatsAppUrl = generateWhatsAppInvite(student, user);
+    const baseUrl = typeof window !== 'undefined' ? (window.location.origin + window.location.pathname) : 'https://tonyddayvd.github.io/fit-seven/';
+    const inviteUrl = `${baseUrl}?invite=true&userId=${student.id}&profName=${encodeURIComponent(user.name)}`;
+
+    setCreatedInviteModal({
+      student,
+      whatsAppUrl,
+      inviteUrl
+    });
   };
 
   const handleDeleteStudent = (id) => {
@@ -1162,6 +1216,8 @@ const Professor = () => {
       {/* CONTEÚDO DA ABA DE MEUS ALUNOS */}
       {activeTab === 'alunos' && (
         <div className="animate-fade-in">
+          
+          {/* Card de Licença & Vagas */}
           <div style={{
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -1185,11 +1241,112 @@ const Professor = () => {
               <span style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: 'bold' }}>Limite Atingido</span>
             )}
           </div>
+
+          {/* Card de Solicitações de Vínculo Pendentes (Se houver) */}
+          {pendingStudentLinks.length > 0 && (
+            <div style={{
+              backgroundColor: 'rgba(168, 85, 247, 0.12)',
+              border: '1px solid rgba(168, 85, 247, 0.4)',
+              borderRadius: '16px',
+              padding: '18px 20px',
+              marginBottom: '20px'
+            }} className="animate-fade-in">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(168, 85, 247, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <AlertCircle size={18} color="#c084fc" />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                    Novas Solicitações de Alunos ({pendingStudentLinks.length})
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Estes alunos se cadastraram e solicitaram entrar na sua consultoria. Cada aprovação ocupará 1 vaga do seu plano.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {pendingStudentLinks.map(pStudent => (
+                  <div key={pStudent.id} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    padding: '12px 16px',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div>
+                      <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>{pStudent.name}</strong>
+                      <div style={{ display: 'flex', gap: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '3px', flexWrap: 'wrap' }}>
+                        <span>✉️ {pStudent.email}</span>
+                        {pStudent.whatsapp && <span>📱 {pStudent.whatsapp}</span>}
+                        {pStudent.cpf && <span>🪪 CPF: {pStudent.cpf}</span>}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => handleApproveStudent(pStudent.id)}
+                        style={{
+                          backgroundColor: '#22c55e',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '8px 14px',
+                          fontSize: '0.85rem',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <Check size={14} /> Aprovar Aluno (1 Vaga)
+                      </button>
+                      <button
+                        onClick={() => handleRejectStudent(pStudent.id)}
+                        style={{
+                          backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                          color: '#f87171',
+                          border: '1px solid rgba(239, 68, 68, 0.4)',
+                          borderRadius: '8px',
+                          padding: '8px 12px',
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <X size={14} /> Recusar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {showForm ? (
             <form onSubmit={handleSaveStudent} style={styles.formCard} className="glass">
               <h3 style={styles.sectionTitle}>
-                {editingId ? 'Editar Aluno' : 'Cadastrar Novo Aluno'}
+                {editingId ? 'Editar Aluno' : 'Pré-Cadastrar Novo Aluno'}
               </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '-8px', marginBottom: '16px' }}>
+                {editingId 
+                  ? 'Atualize os dados cadastrais do aluno.' 
+                  : 'Ao salvar, você poderá enviar o link de convite instantâneo diretamente pelo WhatsApp do aluno para ele definir a senha e acessar!'}
+              </p>
+
               <div style={styles.formGrid}>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Nome Completo:</label>
@@ -1202,29 +1359,41 @@ const Professor = () => {
                     placeholder="Ex: Carlos Daniel"
                   />
                 </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>WhatsApp / Celular com DDD:</label>
+                  <input
+                    type="text"
+                    value={studentForm.whatsapp}
+                    onChange={(e) => setStudentForm(prev => ({ ...prev, whatsapp: formatPhone(e.target.value) }))}
+                    style={styles.input}
+                    placeholder="(11) 98888-7777"
+                  />
+                </div>
+
                 <div style={styles.formGroup}>
                   <label style={styles.label}>E-mail (Login):</label>
                   <input
                     type="email"
-                    required
                     value={studentForm.email}
                     onChange={(e) => setStudentForm(prev => ({ ...prev, email: e.target.value }))}
                     style={styles.input}
-                    placeholder="Ex: carlos@email.com"
+                    placeholder="Ex: carlos@email.com (opcional no pré-cadastro)"
                   />
                 </div>
-                {!editingId && (
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Senha Inicial:</label>
-                    <input
-                      type="password"
-                      required
-                      value={studentForm.password}
-                      onChange={(e) => setStudentForm(prev => ({ ...prev, password: e.target.value }))}
-                      style={styles.input}
-                    />
-                  </div>
-                )}
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>CPF do Aluno:</label>
+                  <input
+                    type="text"
+                    value={studentForm.cpf}
+                    onChange={(e) => setStudentForm(prev => ({ ...prev, cpf: formatCPF(e.target.value) }))}
+                    style={styles.input}
+                    placeholder="000.000.000-00 (pode ser preenchido pelo aluno)"
+                    maxLength={14}
+                  />
+                </div>
+
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Vincular a um Plano:</label>
                   <select
@@ -1238,10 +1407,24 @@ const Professor = () => {
                     ))}
                   </select>
                 </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Dia do Vencimento da Mensalidade:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={studentForm.dia_vencimento || '10'}
+                    onChange={(e) => setStudentForm(prev => ({ ...prev, dia_vencimento: e.target.value }))}
+                    style={styles.input}
+                    placeholder="Dia (1 a 31)"
+                  />
+                </div>
               </div>
+
               <div style={styles.formActions}>
                 <button type="submit" style={styles.saveBtn} className="btn-primary">
-                  Salvar Cadastro
+                  {editingId ? 'Atualizar Dados' : 'Concluir Pré-Cadastro & Gerar Convite WhatsApp'}
                 </button>
                 <button type="button" onClick={() => setShowForm(false)} style={styles.cancelBtn}>
                   Cancelar
@@ -1253,7 +1436,7 @@ const Professor = () => {
               <div style={styles.tableHeader}>
                 <h3 style={styles.sectionTitle}>Alunos Ativos</h3>
                 <button onClick={openAddStudent} style={styles.addBtn} className="btn-primary">
-                  <Plus size={16} /> Cadastrar Novo Aluno
+                  <Plus size={16} /> Pré-Cadastrar Novo Aluno
                 </button>
               </div>
 
@@ -1261,7 +1444,7 @@ const Professor = () => {
                 <div style={styles.emptyBox}>
                   <Users size={36} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
                   <p>Você não possui alunos cadastrados no momento.</p>
-                  <span>Clique no botão acima para adicionar seu primeiro aluno!</span>
+                  <span>Clique no botão acima para pré-cadastrar e enviar o convite de acesso!</span>
                 </div>
               ) : (
                 <div style={styles.tableResponsive}>
@@ -1269,7 +1452,7 @@ const Professor = () => {
                     <thead>
                       <tr style={styles.tableHeaderRow}>
                         <th style={styles.tableCellHeader}>Nome</th>
-                        <th style={styles.tableCellHeader}>E-mail</th>
+                        <th style={styles.tableCellHeader}>Contato / E-mail</th>
                         <th style={styles.tableCellHeader}>Vínculo (Tenant)</th>
                         <th style={{ ...styles.tableCellHeader, textAlign: 'right' }}>Ações de Gestão / Fichas</th>
                       </tr>
@@ -1281,8 +1464,13 @@ const Professor = () => {
                           <tr key={student.id} style={styles.tableRow}>
                             <td style={styles.tableCell}>
                               <strong>{student.name}</strong>
+                              {student.preCadastro && (
+                                <span style={{ ...styles.vipBadge, background: 'rgba(234, 179, 8, 0.15)', color: '#eab308', marginLeft: '6px' }}>
+                                  Pré-Cadastro
+                                </span>
+                              )}
                               {student.plano && (
-                                <span style={{ ...styles.vipBadge, background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', marginLeft: '8px' }}>
+                                <span style={{ ...styles.vipBadge, background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', marginLeft: '6px' }}>
                                   {student.plano}
                                 </span>
                               )}
@@ -1290,7 +1478,12 @@ const Professor = () => {
                                 <span style={styles.vipBadge}>VIP</span>
                               )}
                             </td>
-                            <td style={styles.tableCell}>{student.email}</td>
+                            <td style={styles.tableCell}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span>{student.email}</span>
+                                {student.whatsapp && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>📱 {student.whatsapp}</span>}
+                              </div>
+                            </td>
                             <td style={styles.tableCell}>
                               <span style={styles.tenantBadge}>
                                 {isDirectStudent ? 'Direto (Você)' : activeTenant.name}
@@ -1298,6 +1491,13 @@ const Professor = () => {
                             </td>
                             <td style={{ ...styles.tableCell, textAlign: 'right' }}>
                               <div style={styles.actionsGroup}>
+                                <button 
+                                  onClick={() => handleSendExistingStudentInvite(student)}
+                                  style={{ ...styles.actionBtn, color: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.12)' }}
+                                  title="Enviar / Reenviar Link de Convite via WhatsApp"
+                                >
+                                  <Phone size={14} style={{ marginRight: '4px' }} /> Convite WhatsApp
+                                </button>
                                 <button 
                                   onClick={() => setViewingStudent(student)} 
                                   style={{ ...styles.actionBtn, color: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)' }} 
@@ -1335,9 +1535,9 @@ const Professor = () => {
                                 </button>
                                 {isDirectStudent && (
                                   <button 
-                                    onClick={() => { setViewingStudent(student); setShowMedidas(false); }}
-                                    style={{ ...styles.iconBtn, color: 'var(--primary)' }}
-                                    title="Ver CRM do Aluno"
+                                    onClick={() => handleDeleteStudent(student.id)}
+                                    style={{ ...styles.iconBtn, color: 'var(--status-danger)' }}
+                                    title="Remover Aluno"
                                   >
                                     <Trash2 size={13} />
                                   </button>
@@ -3884,6 +4084,91 @@ const Professor = () => {
                 alt={evalZoomPhoto.title || 'Foto de Avaliação'} 
                 style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain' }}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONVITE GERADO COM BOTÃO WHATSAPP */}
+      {createdInviteModal && (
+        <div style={styles.modalOverlay} className="animate-fade-in" onClick={() => setCreatedInviteModal(null)}>
+          <div style={{ ...styles.videoModalContent, maxWidth: '500px', padding: '24px' }} className="glass" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'rgba(34, 197, 94, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Sparkles size={22} color="#22c55e" />
+                </div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+                  Aluno Pré-Cadastrado! 🎉
+                </h3>
+              </div>
+              <button onClick={() => setCreatedInviteModal(null)} style={styles.modalCloseBtn}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '16px' }}>
+              O aluno <strong>{createdInviteModal.student.name}</strong> foi adicionado à sua lista. Envie o convite abaixo para que ele defina sua senha e comece a treinar!
+            </p>
+
+            <div style={{ backgroundColor: 'var(--bg-tertiary)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '18px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Link de Convite Seguro:</span>
+              <input
+                type="text"
+                readOnly
+                value={createdInviteModal.inviteUrl}
+                style={{ ...styles.input, fontSize: '0.8rem', padding: '8px 10px', backgroundColor: 'var(--bg-secondary)' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <a
+                href={createdInviteModal.whatsAppUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  backgroundColor: '#22c55e',
+                  color: '#fff',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  fontWeight: '800',
+                  fontSize: '0.95rem',
+                  textDecoration: 'none',
+                  boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)'
+                }}
+              >
+                <Phone size={18} /> Enviar Convite no WhatsApp Agora
+              </a>
+
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(createdInviteModal.inviteUrl);
+                  setCopiedInviteLink(true);
+                  setTimeout(() => setCopiedInviteLink(false), 2500);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  backgroundColor: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-primary)',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  fontWeight: '600',
+                  fontSize: '0.88rem',
+                  cursor: 'pointer'
+                }}
+              >
+                {copiedInviteLink ? <Check size={16} color="#4ade80" /> : <Copy size={16} />}
+                {copiedInviteLink ? 'Link Copiado para a Área de Transferência!' : 'Copiar Link de Convite'}
+              </button>
             </div>
           </div>
         </div>
