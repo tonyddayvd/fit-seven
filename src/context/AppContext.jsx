@@ -611,36 +611,50 @@ export const AppProvider = ({ children }) => {
     return workoutSplits;
   };
 
-  // Enviar Avaliação para a Fila do Supabase
-  const submitEvaluation = async (formData) => {
+  // Enviar Avaliação para a Fila do Supabase (Pelo Aluno ou Pelo Professor)
+  const submitEvaluation = async (formData, targetStudent = null) => {
+    const targetUserId = targetStudent?.id || formData.userId || user?.id || 'u3';
+    const targetUserName = targetStudent?.name || formData.nome || user?.name || 'Aluno';
+    const targetTenantId = targetStudent?.tenantId || user?.tenantId || 't1';
+
     const evalId = `eval-${Date.now()}`;
     const newEval = {
       id: evalId,
-      userId: user?.id || 'u3',
-      userName: user?.name || 'Aluno Desconhecido',
-      tenantId: user?.tenantId || 't1',
+      userId: targetUserId,
+      userName: targetUserName,
+      tenantId: targetTenantId,
+      evaluatedBy: user?.role === 'professor' ? `Prof. ${user?.name}` : 'Aluno',
       date: new Date().toLocaleDateString('pt-BR'),
       formData: {
         ...formData,
-        userId: user?.id || 'u3',
-        tenantId: user?.tenantId || 't1'
+        userId: targetUserId,
+        tenantId: targetTenantId,
+        nome: targetUserName
       },
       aiSuggestedWorkout: mockAIEngine(formData),
-      ...(formData.workoutCompleted ? { _approvedAt: new Date().toISOString(), _approvedBy: 'Auto' } : {})
+      ...(formData.workoutCompleted ? { _approvedAt: new Date().toISOString(), _approvedBy: user?.role === 'professor' ? user.name : 'Auto' } : {})
     };
 
-    const { error } = await supabase.from('avaliacoes').insert({
-      id: evalId,
-      tenant_id: user?.tenantId || 't1',
-      user_id: user?.id || 'u3',
-      medidas: newEval,
-      fotos_urls: formData.fotos || {}
-    });
+    try {
+      const { error } = await supabase.from('avaliacoes').insert({
+        id: evalId,
+        tenant_id: targetTenantId,
+        user_id: targetUserId,
+        medidas: newEval,
+        fotos_urls: formData.fotos || {}
+      });
 
-    if (error) throw error;
+      if (error) {
+        console.warn('Erro ao inserir avaliação no Supabase, salvando local:', error);
+      }
+    } catch (err) {
+      console.warn('Exceção ao inserir avaliação:', err);
+    }
 
-    localStorage.setItem(`fitseven-last-eval-${user?.id || 'u3'}`, new Date().toISOString());
+    localStorage.setItem(`fitseven-last-eval-${targetUserId}`, new Date().toISOString());
+    localStorage.setItem(`fitseven-last-eval-data-${targetUserId}`, JSON.stringify(formData));
     await refreshData();
+    return newEval;
   };
 
   const approveAndPublishWorkout = async (evalId, vipOptions = {}) => {

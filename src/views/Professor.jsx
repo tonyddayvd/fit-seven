@@ -35,7 +35,15 @@ import {
   AlertTriangle,
   Camera,
   Upload,
-  Film
+  Film,
+  Ruler,
+  Scale,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  ImageOff,
+  Calendar,
+  TrendingUp
 } from 'lucide-react';
 import ExerciseVideoManagerModal from '../components/ExerciseVideoManagerModal';
 import { 
@@ -43,6 +51,72 @@ import {
   EXERCISE_CATEGORIES, 
   formatVideoEmbedUrl 
 } from '../utils/videoService';
+
+const SILHOUETTES = {
+  masculino: {
+    frente: '/fit-seven/assets/silhouettes/masculino_frente.jpg',
+    costas: '/fit-seven/assets/silhouettes/masculino_costas.png',
+    perfil: '/fit-seven/assets/silhouettes/masculino_perfil.jpg'
+  },
+  feminino: {
+    frente: '/fit-seven/assets/silhouettes/feminino_frente.jpg',
+    costas: '/fit-seven/assets/silhouettes/feminino_costas.png',
+    perfil: '/fit-seven/assets/silhouettes/feminino_perfil.jpg'
+  }
+};
+
+const INITIAL_EVAL_DATA = {
+  nome: '',
+  objetivo: 'hipertrofia',
+  sexoBiologico: 'masculino',
+  idade: '',
+  descricaoRotina: '',
+  peso: '',
+  altura: '',
+  pescoco: '',
+  peitoral: '',
+  cintura: '',
+  abdomen: '',
+  quadril: '',
+  braçoEsq: '',
+  braçoDir: '',
+  coxaEsqSuperior: '',
+  coxaEsqInferior: '',
+  coxaDirSuperior: '',
+  coxaDirInferior: '',
+  panturrilhaEsq: '',
+  panturrilhaDir: '',
+  frequenciaSemanal: '3',
+  nivelExperiencia: 'intermediario',
+  horasSono: '7',
+  refeicoesDiarias: '4',
+  tempoSessao: '60',
+  equipamentos: 'completa',
+  lesoes: '',
+  preferencias: '',
+  restricoesAlimentares: '',
+  preferenciasAlimentares: '',
+  qualidadeSono: '5',
+  hidratacaoAtual: '2.5',
+  suplementos: '',
+  nivelAtividade: 'sentado',
+  parqCardiaco: 'nao',
+  parqDorPeito: 'nao',
+  parqMedicamento: 'nao',
+  parqTermo: true,
+  percentualGordura: '',
+  massaMagra: '',
+  gorduraVisceral: '',
+  fcRepouso: '',
+  laudoFile: null,
+  laudoFileBase64: '',
+  fotoFrente: '',
+  fotoFrenteBase64: '',
+  fotoCostas: '',
+  fotoCostasBase64: '',
+  fotoPerfil: '',
+  fotoPerfilBase64: ''
+};
 
 const Professor = () => {
   const { 
@@ -60,7 +134,8 @@ const Professor = () => {
     workoutsByStudent,
     updateWorkoutByProfessor,
     approvedEvaluations,
-    workoutSessionsHistory
+    workoutSessionsHistory,
+    submitEvaluation
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('alunos'); // 'alunos', 'prescribe', 'planos', 'financeiro', 'revisao'
@@ -97,9 +172,122 @@ const Professor = () => {
   const [viewingStudent, setViewingStudent] = useState(null);
   const [crmTab, setCrmTab] = useState('geral'); // 'geral', 'medidas', 'treinos'
 
+  // Anamnese & Avaliação Física states (Professor)
+  const [selectedStudentForEval, setSelectedStudentForEval] = useState('');
+  const [evalViewMode, setEvalViewMode] = useState('form'); // 'form' ou 'history'
+  const [evalFormData, setEvalFormData] = useState(INITIAL_EVAL_DATA);
+  const [activeAccordion, setActiveAccordion] = useState('identificacao');
+  const [isSubmittingEval, setIsSubmittingEval] = useState(false);
+  const [evalZoomPhoto, setEvalZoomPhoto] = useState(null);
+
   // Revisão IA state
   const [reviewingStudentId, setReviewingStudentId] = useState(null);
   const [reviewWorkoutData, setReviewWorkoutData] = useState(null);
+
+  // Sincronizar aluno selecionado para avaliação física
+  useEffect(() => {
+    if (!selectedStudentForEval && myStudents.length > 0) {
+      setSelectedStudentForEval(myStudents[0].id);
+    }
+  }, [myStudents, selectedStudentForEval]);
+
+  useEffect(() => {
+    if (selectedStudentForEval) {
+      const studentObj = myStudents.find(s => s.id === selectedStudentForEval);
+      const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
+      const latestEval = allEvals.find(e => e.userId === selectedStudentForEval || e.student_id === selectedStudentForEval);
+      
+      if (latestEval?.formData) {
+        const prevData = { ...latestEval.formData };
+        delete prevData.fotoFrente;
+        delete prevData.fotoFrenteBase64;
+        delete prevData.fotoCostas;
+        delete prevData.fotoCostasBase64;
+        delete prevData.fotoPerfil;
+        delete prevData.fotoPerfilBase64;
+        delete prevData.laudoFile;
+        delete prevData.laudoFileBase64;
+        setEvalFormData({
+          ...INITIAL_EVAL_DATA,
+          ...prevData,
+          nome: studentObj?.name || prevData.nome || '',
+          parqTermo: true
+        });
+      } else if (studentObj) {
+        setEvalFormData({
+          ...INITIAL_EVAL_DATA,
+          nome: studentObj.name || ''
+        });
+      }
+    }
+  }, [selectedStudentForEval, approvedEvaluations, pendingEvaluations]);
+
+  const handleEvalInputChange = (field, value) => {
+    setEvalFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleEvalPhotoUpload = (photoType, file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEvalFormData(prev => ({
+        ...prev,
+        [`foto${photoType}`]: file.name,
+        [`foto${photoType}Base64`]: reader.result
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveEvaluation = async (actionType = 'save_only') => {
+    if (!selectedStudentForEval) {
+      alert('Por favor, selecione um aluno para registrar a avaliação.');
+      return;
+    }
+    const studentObj = myStudents.find(s => s.id === selectedStudentForEval);
+    if (!studentObj) return;
+
+    if (!evalFormData.peso || !evalFormData.altura) {
+      alert('Por favor, preencha ao menos o Peso (kg) e a Altura (cm) do aluno.');
+      return;
+    }
+
+    setIsSubmittingEval(true);
+    try {
+      const savedEval = await submitEvaluation(evalFormData, studentObj);
+
+      if (actionType === 'save_and_ai') {
+        if (savedEval?.id) {
+          await approveAndPublishWorkout(savedEval.id, { isVip: true });
+        }
+        setSuccessMsg(`Avaliação salva e treino gerado pela Inteligência Artificial para ${studentObj.name}!`);
+        setTimeout(() => setSuccessMsg(''), 4500);
+        setSelectedStudent(studentObj.id);
+        setActiveTab('prescribe');
+      } else if (actionType === 'save_and_studio') {
+        setSuccessMsg(`Avaliação de ${studentObj.name} salva! Abrindo o Studio de Prescrição...`);
+        setTimeout(() => setSuccessMsg(''), 3500);
+        setSelectedStudent(studentObj.id);
+        setActiveTab('prescribe');
+      } else {
+        setSuccessMsg(`Avaliação física de ${studentObj.name} registrada com sucesso!`);
+        setTimeout(() => setSuccessMsg(''), 3500);
+        setEvalViewMode('history');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao registrar avaliação física: ' + (err.message || 'Verifique sua conexão'));
+    } finally {
+      setIsSubmittingEval(false);
+    }
+  };
+
+  const handleStartAnamneseForStudent = (studentId) => {
+    setSelectedStudentForEval(studentId);
+    setEvalViewMode('form');
+    setActiveTab('anamnese');
+    setViewingStudent(null);
+  };
 
   // Modal Inteligente de Gestão / Sugestão / Gravação de Vídeo
   const [editingVideoExercise, setEditingVideoExercise] = useState(null);
@@ -565,6 +753,16 @@ const Professor = () => {
           Meus Alunos
         </button>
         <button 
+          onClick={() => { setActiveTab('anamnese'); setShowForm(false); }}
+          style={{
+            ...styles.tabButton,
+            ...(activeTab === 'anamnese' ? styles.tabButtonActive : {})
+          }}
+        >
+          <Ruler size={16} />
+          Anamnese & Avaliações
+        </button>
+        <button 
           onClick={() => { setActiveTab('prescribe'); setShowForm(false); }}
           style={{
             ...styles.tabButton,
@@ -758,11 +956,11 @@ const Professor = () => {
                                   <User size={14} style={{ marginRight: '4px' }} /> Cartão
                                 </button>
                                 <button 
-                                  onClick={() => loginAsUser(student)} 
+                                  onClick={() => handleStartAnamneseForStudent(student.id)} 
                                   style={{ ...styles.actionBtn, color: '#eab308', backgroundColor: 'rgba(234, 179, 8, 0.1)' }} 
-                                  title="Abrir Avaliação Física / Ver Painel"
+                                  title="Fazer Anamnese & Avaliação Física do Aluno"
                                 >
-                                  <Activity size={14} style={{ marginRight: '4px' }} /> Avaliação Física
+                                  <Ruler size={14} style={{ marginRight: '4px' }} /> Avaliação / Anamnese
                                 </button>
                                 <button 
                                   onClick={() => handleStartPrescription(student.id)} 
@@ -895,44 +1093,113 @@ const Professor = () => {
                   </div>
                 )}
 
-                {/* Conteúdo: Medidas */}
+                {/* Conteúdo: Medidas & Avaliações Físicas */}
                 {crmTab === 'medidas' && (
-                  <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                  <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        Avaliações Antropométricas do Aluno
+                      </span>
+                      <button 
+                        onClick={() => handleStartAnamneseForStudent(viewingStudent.id)}
+                        style={{ ...styles.actionBtn, background: 'var(--primary)', color: '#fff', padding: '6px 12px' }}
+                      >
+                        <Plus size={13} style={{ marginRight: '4px' }} /> Nova Anamnese
+                      </button>
+                    </div>
+
                     {(() => {
                       const allEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])];
-                      const latestEval = allEvals.sort((a, b) => {
+                      const studentEvals = allEvals.filter(e => e.userId === viewingStudent?.id || e.student_id === viewingStudent?.id).sort((a, b) => {
                         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
                         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
                         return dateB - dateA;
-                      }).find(e => e.userId === viewingStudent?.id || e.student_id === viewingStudent?.id);
+                      });
+                      const latestEval = studentEvals[0];
                       const studentEval = latestEval?.formData;
 
                       if (!studentEval) {
                         return (
                           <div style={styles.emptyBox}>
-                            <p>Nenhuma Avaliação Física enviada por este aluno ainda.</p>
+                            <Ruler size={32} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
+                            <p style={{ margin: '0 0 8px 0' }}>Nenhuma Avaliação Física cadastrada para este aluno ainda.</p>
+                            <button 
+                              onClick={() => handleStartAnamneseForStudent(viewingStudent.id)}
+                              style={{ ...styles.saveBtn, padding: '8px 16px', fontSize: '0.8rem', width: 'auto' }}
+                              className="btn-primary"
+                            >
+                              <Plus size={14} style={{ marginRight: '4px' }} /> Fazer Primeira Avaliação
+                            </button>
                           </div>
                         );
                       }
 
+                      const evalDate = latestEval.date || (latestEval.created_at ? new Date(latestEval.created_at).toLocaleDateString('pt-BR') : 'Recente');
+
                       return (
-                        <div style={styles.crmBox}>
-                          <h4 style={styles.crmBoxTitle}>Perfil Fisiológico</h4>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-                            <p style={styles.crmText}>Sexo: <strong>{studentEval.sexoBiologico || '-'}</strong></p>
-                            <p style={styles.crmText}>Idade: <strong>{studentEval.idade || '-'} anos</strong></p>
-                            <p style={styles.crmText}>Peso: <strong>{studentEval.peso || '-'} kg</strong></p>
-                            <p style={styles.crmText}>Altura: <strong>{studentEval.altura || '-'} cm</strong></p>
-                          </div>
-                          <h5 style={{ margin: '8px 0 4px 0', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>Objetivos e Rotina</h5>
-                          <p style={styles.crmText}>Objetivo: <strong>{studentEval.objetivo || '-'}</strong></p>
-                          <p style={styles.crmText}>Frequência: <strong>{studentEval.frequenciaSemanal || '-'} dias/sem</strong></p>
-                          <p style={styles.crmText}>Tempo/Sessão: <strong>{studentEval.tempoSessao || '-'} min</strong></p>
-                          {studentEval.lesoes && (
-                            <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginTop: '8px' }}>
-                              <p style={{ margin: 0, color: '#ef4444', fontSize: '0.8rem' }}><strong>⚠️ Histórico/Lesões:</strong> {studentEval.lesoes}</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div style={styles.crmBox}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+                              <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                                Última Avaliação ({evalDate})
+                              </h4>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: 'bold' }}>
+                                Por: {latestEval.evaluatedBy || 'Aluno'}
+                              </span>
                             </div>
-                          )}
+                            
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '6px', marginBottom: '10px', fontSize: '0.8rem' }}>
+                              <p style={styles.crmText}>Sexo: <strong>{studentEval.sexoBiologico || '-'}</strong></p>
+                              <p style={styles.crmText}>Idade: <strong>{studentEval.idade || '-'} anos</strong></p>
+                              <p style={styles.crmText}>Peso: <strong>{studentEval.peso || '-'} kg</strong></p>
+                              <p style={styles.crmText}>Altura: <strong>{studentEval.altura || '-'} cm</strong></p>
+                              <p style={styles.crmText}>Cintura: <strong>{studentEval.cintura || '-'} cm</strong></p>
+                              <p style={styles.crmText}>Abdômen: <strong>{studentEval.abdomen || '-'} cm</strong></p>
+                              <p style={styles.crmText}>Braço D/E: <strong>{studentEval.braçoDir || '-'}/{studentEval.braçoEsq || '-'} cm</strong></p>
+                              <p style={styles.crmText}>Gordura: <strong>{studentEval.percentualGordura ? `${studentEval.percentualGordura}%` : '-'}</strong></p>
+                            </div>
+
+                            {/* Fotos comparativas */}
+                            {(studentEval.fotoFrenteBase64 || studentEval.fotoCostasBase64 || studentEval.fotoPerfilBase64) && (
+                              <div style={{ marginTop: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '8px' }}>
+                                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>
+                                  Fotos de Evolução (Data: {evalDate}):
+                                </span>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                                  {studentEval.fotoFrenteBase64 && (
+                                    <img 
+                                      src={studentEval.fotoFrenteBase64} 
+                                      alt="Frente" 
+                                      style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }}
+                                      onClick={() => setEvalZoomPhoto({ url: studentEval.fotoFrenteBase64, title: `Frente - ${evalDate}` })}
+                                    />
+                                  )}
+                                  {studentEval.fotoCostasBase64 && (
+                                    <img 
+                                      src={studentEval.fotoCostasBase64} 
+                                      alt="Costas" 
+                                      style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }}
+                                      onClick={() => setEvalZoomPhoto({ url: studentEval.fotoCostasBase64, title: `Costas - ${evalDate}` })}
+                                    />
+                                  )}
+                                  {studentEval.fotoPerfilBase64 && (
+                                    <img 
+                                      src={studentEval.fotoPerfilBase64} 
+                                      alt="Perfil" 
+                                      style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }}
+                                      onClick={() => setEvalZoomPhoto({ url: studentEval.fotoPerfilBase64, title: `Perfil - ${evalDate}` })}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {studentEval.lesoes && (
+                              <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', marginTop: '8px' }}>
+                                <p style={{ margin: 0, color: '#ef4444', fontSize: '0.8rem' }}><strong>⚠️ Limitações/Lesões:</strong> {studentEval.lesoes}</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })()}
@@ -998,6 +1265,694 @@ const Professor = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* CONTEÚDO DA ABA DE ANAMNESE & AVALIAÇÃO FÍSICA (PROFESSOR) */}
+      {activeTab === 'anamnese' && (
+        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* Header de Seleção do Aluno e Modos (Preencher / Histórico) */}
+          <div style={styles.studioHeaderCard} className="glass">
+            <div style={styles.studioHeaderTop}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '280px' }}>
+                <Ruler size={28} color="var(--primary)" />
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                    SELECIONE O ALUNO PARA ANAMNESE / AVALIAÇÃO FÍSICA:
+                  </label>
+                  <select
+                    value={selectedStudentForEval}
+                    onChange={(e) => setSelectedStudentForEval(e.target.value)}
+                    style={styles.studioSelect}
+                  >
+                    <option value="">Selecione um aluno...</option>
+                    {myStudents.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.email}) {s.plano ? `• Plano ${s.plano}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Botões de alternância: Preencher Formulário vs Histórico de Fotos */}
+              {(() => {
+                const studentEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])]
+                  .filter(e => e.userId === selectedStudentForEval || e.student_id === selectedStudentForEval);
+                return (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => setEvalViewMode('form')}
+                      style={{
+                        ...styles.actionBtn,
+                        padding: '10px 16px',
+                        background: evalViewMode === 'form' ? 'var(--primary)' : 'rgba(255,255,255,0.06)',
+                        color: evalViewMode === 'form' ? '#fff' : 'var(--text-secondary)',
+                        border: '1px solid var(--border-color)',
+                        fontWeight: '700'
+                      }}
+                    >
+                      <Edit2 size={14} style={{ marginRight: '6px' }} /> Preencher Avaliação
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEvalViewMode('history')}
+                      style={{
+                        ...styles.actionBtn,
+                        padding: '10px 16px',
+                        background: evalViewMode === 'history' ? 'var(--primary)' : 'rgba(255,255,255,0.06)',
+                        color: evalViewMode === 'history' ? '#fff' : 'var(--text-secondary)',
+                        border: '1px solid var(--border-color)',
+                        fontWeight: '700'
+                      }}
+                    >
+                      <Camera size={14} style={{ marginRight: '6px' }} /> Histórico & Fotos ({studentEvals.length})
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Banner Didático para o Professor */}
+          <div style={styles.videoInfoBanner} className="glass">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Sparkles size={24} color="var(--primary)" style={{ flexShrink: 0 }} />
+              <div>
+                <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem', display: 'block', marginBottom: '2px' }}>
+                  🎯 Anamnese Profissional & Avaliação Antropométrica
+                </strong>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                  Preencha as medidas corporais e registre as fotos de evolução do aluno. Após preencher, você pode escolher se a <strong>Inteligência Artificial monta a ficha automaticamente</strong> ou se você mesmo <strong>prescreve os exercícios no Studio</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* MODO FORMULÁRIO DE ANAMNESE */}
+          {evalViewMode === 'form' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              
+              {/* Acordeão 1: Identificação & Objetivos */}
+              <div style={styles.accordionItem} className="glass">
+                <div style={styles.accordionHeader} onClick={() => setActiveAccordion(activeAccordion === 'identificacao' ? null : 'identificacao')}>
+                  <h4 style={styles.accordionTitle}>1. Identificação & Objetivos</h4>
+                  {activeAccordion === 'identificacao' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </div>
+                {activeAccordion === 'identificacao' && (
+                  <div style={styles.accordionContent}>
+                    <div style={styles.formRow}>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Nome do Aluno</label>
+                        <input 
+                          type="text" 
+                          value={evalFormData.nome} 
+                          onChange={(e) => handleEvalInputChange('nome', e.target.value)} 
+                          style={styles.inputField} 
+                          required
+                        />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Objetivo Principal</label>
+                        <select 
+                          value={evalFormData.objetivo} 
+                          onChange={(e) => handleEvalInputChange('objetivo', e.target.value)} 
+                          style={styles.selectField}
+                        >
+                          <option value="hipertrofia">Hipertrofia (Ganho de Massa)</option>
+                          <option value="emagrecimento">Emagrecimento / Definição</option>
+                          <option value="condicionamento">Condicionamento Físico</option>
+                          <option value="saude">Saúde / Postura / Reabilitação</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ ...styles.formRow, marginTop: '12px' }}>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Sexo Biológico *</label>
+                        <select 
+                          value={evalFormData.sexoBiologico} 
+                          onChange={(e) => handleEvalInputChange('sexoBiologico', e.target.value)} 
+                          style={styles.selectField}
+                        >
+                          <option value="masculino">Masculino</option>
+                          <option value="feminino">Feminino</option>
+                        </select>
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Idade (anos) *</label>
+                        <input 
+                          type="number" 
+                          placeholder="Ex: 28" 
+                          value={evalFormData.idade} 
+                          onChange={(e) => handleEvalInputChange('idade', e.target.value)} 
+                          style={styles.inputField} 
+                        />
+                      </div>
+                    </div>
+                    <div style={{ marginTop: '12px' }}>
+                      <label style={styles.formLabel}>Rotina e Histórico do Aluno</label>
+                      <textarea
+                        placeholder="Ex: Trabalha em escritório, relata pouco tempo disponível, treina 4x na semana..."
+                        value={evalFormData.descricaoRotina}
+                        onChange={(e) => handleEvalInputChange('descricaoRotina', e.target.value)}
+                        style={{ ...styles.inputField, minHeight: '70px', resize: 'vertical' }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Acordeão 2: Composição Básica */}
+              <div style={styles.accordionItem} className="glass">
+                <div style={styles.accordionHeader} onClick={() => setActiveAccordion(activeAccordion === 'composicao' ? null : 'composicao')}>
+                  <h4 style={styles.accordionTitle}>2. Composição Básica (Peso & Altura)</h4>
+                  {activeAccordion === 'composicao' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </div>
+                {activeAccordion === 'composicao' && (
+                  <div style={styles.accordionContent}>
+                    <div style={styles.formRow}>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Peso Atual (kg) *</label>
+                        <input 
+                          type="number" 
+                          step="0.1" 
+                          placeholder="Ex: 78.5" 
+                          value={evalFormData.peso} 
+                          onChange={(e) => handleEvalInputChange('peso', e.target.value)} 
+                          style={styles.inputField} 
+                          required
+                        />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Altura (cm) *</label>
+                        <input 
+                          type="number" 
+                          placeholder="Ex: 178" 
+                          value={evalFormData.altura} 
+                          onChange={(e) => handleEvalInputChange('altura', e.target.value)} 
+                          style={styles.inputField} 
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Acordeão 3: Circunferências Corporais */}
+              <div style={styles.accordionItem} className="glass">
+                <div style={styles.accordionHeader} onClick={() => setActiveAccordion(activeAccordion === 'circunferencias' ? null : 'circunferencias')}>
+                  <h4 style={styles.accordionTitle}>3. Circunferências Corporais (Medidas em cm)</h4>
+                  {activeAccordion === 'circunferencias' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </div>
+                {activeAccordion === 'circunferencias' && (
+                  <div style={styles.accordionContent}>
+                    <div style={styles.gridMedidas}>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Pescoço (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.pescoco} onChange={(e) => handleEvalInputChange('pescoco', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Peitoral (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.peitoral} onChange={(e) => handleEvalInputChange('peitoral', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Cintura (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.cintura} onChange={(e) => handleEvalInputChange('cintura', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Abdômen (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.abdomen} onChange={(e) => handleEvalInputChange('abdomen', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Quadril (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.quadril} onChange={(e) => handleEvalInputChange('quadril', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Braço Esq. (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.braçoEsq} onChange={(e) => handleEvalInputChange('braçoEsq', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Braço Dir. (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.braçoDir} onChange={(e) => handleEvalInputChange('braçoDir', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Coxa Esq. Superior (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.coxaEsqSuperior} onChange={(e) => handleEvalInputChange('coxaEsqSuperior', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Coxa Esq. Inferior (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.coxaEsqInferior} onChange={(e) => handleEvalInputChange('coxaEsqInferior', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Coxa Dir. Superior (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.coxaDirSuperior} onChange={(e) => handleEvalInputChange('coxaDirSuperior', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Coxa Dir. Inferior (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.coxaDirInferior} onChange={(e) => handleEvalInputChange('coxaDirInferior', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Panturrilha Esq. (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.panturrilhaEsq} onChange={(e) => handleEvalInputChange('panturrilhaEsq', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Panturrilha Dir. (cm)</label>
+                        <input type="number" step="0.1" placeholder="cm" value={evalFormData.panturrilhaDir} onChange={(e) => handleEvalInputChange('panturrilhaDir', e.target.value)} style={styles.inputField} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Acordeão 4: Logística, Hábitos & Lesões */}
+              <div style={styles.accordionItem} className="glass">
+                <div style={styles.accordionHeader} onClick={() => setActiveAccordion(activeAccordion === 'logistica' ? null : 'logistica')}>
+                  <h4 style={styles.accordionTitle}>4. Logística, Hábitos & Restrições Físicas</h4>
+                  {activeAccordion === 'logistica' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </div>
+                {activeAccordion === 'logistica' && (
+                  <div style={styles.accordionContent}>
+                    <div style={styles.gridMedidas}>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Frequência Semanal</label>
+                        <select value={evalFormData.frequenciaSemanal} onChange={(e) => handleEvalInputChange('frequenciaSemanal', e.target.value)} style={styles.selectField}>
+                          <option value="2">2 dias/semana</option>
+                          <option value="3">3 dias/semana</option>
+                          <option value="4">4 dias/semana</option>
+                          <option value="5">5+ dias/semana</option>
+                        </select>
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Nível de Experiência</label>
+                        <select value={evalFormData.nivelExperiencia} onChange={(e) => handleEvalInputChange('nivelExperiencia', e.target.value)} style={styles.selectField}>
+                          <option value="iniciante">Iniciante</option>
+                          <option value="intermediario">Intermediário</option>
+                          <option value="avancado">Avançado</option>
+                        </select>
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Tempo por Sessão (min)</label>
+                        <input type="number" placeholder="Ex: 60" value={evalFormData.tempoSessao} onChange={(e) => handleEvalInputChange('tempoSessao', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Equipamentos Disponíveis</label>
+                        <select value={evalFormData.equipamentos} onChange={(e) => handleEvalInputChange('equipamentos', e.target.value)} style={styles.selectField}>
+                          <option value="completa">Academia Completa</option>
+                          <option value="basica">Academia Básica / Condomínio</option>
+                          <option value="calistenia">Halteres / Peso Corporal</option>
+                        </select>
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Lesões ou Limitações *</label>
+                        <input type="text" placeholder="Ex: Joelho esquerdo, hérnia de disco..." value={evalFormData.lesoes} onChange={(e) => handleEvalInputChange('lesoes', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Preferências de Treino</label>
+                        <input type="text" placeholder="Ex: Gosta de halteres, evita máquinas..." value={evalFormData.preferencias} onChange={(e) => handleEvalInputChange('preferencias', e.target.value)} style={styles.inputField} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Acordeão 5: Triagem PAR-Q */}
+              <div style={styles.accordionItem} className="glass">
+                <div style={styles.accordionHeader} onClick={() => setActiveAccordion(activeAccordion === 'parq' ? null : 'parq')}>
+                  <h4 style={styles.accordionTitle}>5. Triagem de Saúde (PAR-Q)</h4>
+                  {activeAccordion === 'parq' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </div>
+                {activeAccordion === 'parq' && (
+                  <div style={styles.accordionContent}>
+                    <div style={styles.parqQuestionRow}>
+                      <span style={styles.parqText}>1. O aluno possui histórico de problemas cardíacos ou dores no peito?</span>
+                      <div style={styles.radioGroup}>
+                        <label><input type="radio" name="profParqCardiaco" checked={evalFormData.parqCardiaco === 'sim'} onChange={() => handleEvalInputChange('parqCardiaco', 'sim')} /> Sim</label>
+                        <label><input type="radio" name="profParqCardiaco" checked={evalFormData.parqCardiaco === 'nao'} onChange={() => handleEvalInputChange('parqCardiaco', 'nao')} /> Não</label>
+                      </div>
+                    </div>
+                    <div style={styles.parqQuestionRow}>
+                      <span style={styles.parqText}>2. Faz uso de medicamentos contínuos para pressão arterial?</span>
+                      <div style={styles.radioGroup}>
+                        <label><input type="radio" name="profParqMed" checked={evalFormData.parqMedicamento === 'sim'} onChange={() => handleEvalInputChange('parqMedicamento', 'sim')} /> Sim</label>
+                        <label><input type="radio" name="profParqMed" checked={evalFormData.parqMedicamento === 'nao'} onChange={() => handleEvalInputChange('parqMedicamento', 'nao')} /> Não</label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Acordeão 6: Composição Avançada & Bioimpedância */}
+              <div style={styles.accordionItem} className="glass">
+                <div style={styles.accordionHeader} onClick={() => setActiveAccordion(activeAccordion === 'avancado' ? null : 'avancado')}>
+                  <h4 style={styles.accordionTitle}>6. Composição Avançada / Bioimpedância (Opcionais)</h4>
+                  {activeAccordion === 'avancado' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </div>
+                {activeAccordion === 'avancado' && (
+                  <div style={styles.accordionContent}>
+                    <div style={styles.gridMedidas}>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Gordura Corporal (%)</label>
+                        <input type="number" step="0.1" placeholder="Ex: 14.5" value={evalFormData.percentualGordura} onChange={(e) => handleEvalInputChange('percentualGordura', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Massa Magra (kg)</label>
+                        <input type="number" step="0.1" placeholder="Ex: 65.2" value={evalFormData.massaMagra} onChange={(e) => handleEvalInputChange('massaMagra', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>Gordura Visceral</label>
+                        <input type="number" placeholder="Ex: 4" value={evalFormData.gorduraVisceral} onChange={(e) => handleEvalInputChange('gorduraVisceral', e.target.value)} style={styles.inputField} />
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.formLabel}>FC Repouso (bpm)</label>
+                        <input type="number" placeholder="Ex: 62" value={evalFormData.fcRepouso} onChange={(e) => handleEvalInputChange('fcRepouso', e.target.value)} style={styles.inputField} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Acordeão 7: REGISTRO FOTOGRÁFICO DE COMPARAÇÃO & EVOLUÇÃO */}
+              <div style={{ ...styles.accordionItem, border: '1px solid var(--primary)' }} className="glass">
+                <div style={styles.accordionHeader} onClick={() => setActiveAccordion(activeAccordion === 'fotos' ? null : 'fotos')}>
+                  <h4 style={{ ...styles.accordionTitle, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Camera size={18} /> 7. Registro Fotográfico do Aluno (Frente, Costas e Perfil)
+                  </h4>
+                  {activeAccordion === 'fotos' ? <ChevronUp size={18} style={{ color: 'var(--primary)' }} /> : <ChevronDown size={18} style={{ color: 'var(--primary)' }} />}
+                </div>
+                {activeAccordion === 'fotos' && (
+                  <div style={styles.accordionContent}>
+                    <p style={{ ...styles.parqDisclaimer, color: 'var(--text-primary)', marginBottom: '14px' }}>
+                      📸 <strong>Tire a foto diretamente com a câmera do celular</strong> ou selecione imagens da galeria. As fotos ficam salvas no histórico com a data da avaliação para acompanhamento comparativo visual.
+                    </p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                      {/* Foto Frente */}
+                      <div style={styles.photoUploadCard}>
+                        {evalFormData.fotoFrenteBase64 ? (
+                          <div style={styles.photoPreviewWrapper}>
+                            <img src={evalFormData.fotoFrenteBase64} alt="Foto Frente" style={styles.photoImg} />
+                            <span style={styles.photoDateTag}>Frente • {new Date().toLocaleDateString('pt-BR')}</span>
+                          </div>
+                        ) : (
+                          <img 
+                            src={evalFormData.sexoBiologico === 'feminino' ? SILHOUETTES.feminino.frente : SILHOUETTES.masculino.frente} 
+                            alt="Silhueta Frente" 
+                            style={{ width: '80px', height: '140px', objectFit: 'contain', marginBottom: '8px' }} 
+                          />
+                        )}
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', margin: '6px 0' }}>1. Foto de Frente</span>
+                        <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                          <label style={styles.photoUploadBtnPrimary}>
+                            <Camera size={13} />
+                            <span>Câmera</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              capture="environment" 
+                              style={{ display: 'none' }}
+                              onChange={(e) => handleEvalPhotoUpload('Frente', e.target.files?.[0])}
+                            />
+                          </label>
+                          <label style={styles.photoUploadBtnSecondary}>
+                            <Upload size={13} />
+                            <span>Galeria</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              style={{ display: 'none' }}
+                              onChange={(e) => handleEvalPhotoUpload('Frente', e.target.files?.[0])}
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Foto Costas */}
+                      <div style={styles.photoUploadCard}>
+                        {evalFormData.fotoCostasBase64 ? (
+                          <div style={styles.photoPreviewWrapper}>
+                            <img src={evalFormData.fotoCostasBase64} alt="Foto Costas" style={styles.photoImg} />
+                            <span style={styles.photoDateTag}>Costas • {new Date().toLocaleDateString('pt-BR')}</span>
+                          </div>
+                        ) : (
+                          <img 
+                            src={evalFormData.sexoBiologico === 'feminino' ? SILHOUETTES.feminino.costas : SILHOUETTES.masculino.costas} 
+                            alt="Silhueta Costas" 
+                            style={{ width: '80px', height: '140px', objectFit: 'contain', marginBottom: '8px' }} 
+                          />
+                        )}
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', margin: '6px 0' }}>2. Foto de Costas</span>
+                        <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                          <label style={styles.photoUploadBtnPrimary}>
+                            <Camera size={13} />
+                            <span>Câmera</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              capture="environment" 
+                              style={{ display: 'none' }}
+                              onChange={(e) => handleEvalPhotoUpload('Costas', e.target.files?.[0])}
+                            />
+                          </label>
+                          <label style={styles.photoUploadBtnSecondary}>
+                            <Upload size={13} />
+                            <span>Galeria</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              style={{ display: 'none' }}
+                              onChange={(e) => handleEvalPhotoUpload('Costas', e.target.files?.[0])}
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Foto Perfil */}
+                      <div style={styles.photoUploadCard}>
+                        {evalFormData.fotoPerfilBase64 ? (
+                          <div style={styles.photoPreviewWrapper}>
+                            <img src={evalFormData.fotoPerfilBase64} alt="Foto Perfil" style={styles.photoImg} />
+                            <span style={styles.photoDateTag}>Perfil • {new Date().toLocaleDateString('pt-BR')}</span>
+                          </div>
+                        ) : (
+                          <img 
+                            src={evalFormData.sexoBiologico === 'feminino' ? SILHOUETTES.feminino.perfil : SILHOUETTES.masculino.perfil} 
+                            alt="Silhueta Perfil" 
+                            style={{ width: '80px', height: '140px', objectFit: 'contain', marginBottom: '8px' }} 
+                          />
+                        )}
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', margin: '6px 0' }}>3. Foto de Perfil</span>
+                        <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                          <label style={styles.photoUploadBtnPrimary}>
+                            <Camera size={13} />
+                            <span>Câmera</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              capture="environment" 
+                              style={{ display: 'none' }}
+                              onChange={(e) => handleEvalPhotoUpload('Perfil', e.target.files?.[0])}
+                            />
+                          </label>
+                          <label style={styles.photoUploadBtnSecondary}>
+                            <Upload size={13} />
+                            <span>Galeria</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              style={{ display: 'none' }}
+                              onChange={(e) => handleEvalPhotoUpload('Perfil', e.target.files?.[0])}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* BARRA DE AÇÕES DO PROFESSOR AO FINAL DA AVALIAÇÃO */}
+              <div style={{ ...styles.card, marginTop: '8px' }} className="glass">
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  🚀 O que deseja fazer com esta Avaliação Física?
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                  <button
+                    type="button"
+                    disabled={isSubmittingEval}
+                    onClick={() => handleSaveEvaluation('save_and_ai')}
+                    style={{ ...styles.saveBtn, padding: '14px', background: 'linear-gradient(135deg, var(--primary) 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    className="btn-primary"
+                  >
+                    <Sparkles size={18} />
+                    <span>{isSubmittingEval ? 'Processando...' : 'Salvar & Gerar Treino por IA'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSubmittingEval}
+                    onClick={() => handleSaveEvaluation('save_and_studio')}
+                    style={{ ...styles.saveBtn, padding: '14px', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    className="btn-primary"
+                  >
+                    <Dumbbell size={18} />
+                    <span>Salvar & Montar no Studio</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSubmittingEval}
+                    onClick={() => handleSaveEvaluation('save_only')}
+                    style={{ ...styles.saveBtn, padding: '14px', background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  >
+                    <Save size={18} />
+                    <span>Salvar Apenas Avaliação</span>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* MODO HISTÓRICO & FOTOS COMPARATIVAS */}
+          {evalViewMode === 'history' && (() => {
+            const studentEvals = [...(approvedEvaluations || []), ...(pendingEvaluations || [])]
+              .filter(e => e.userId === selectedStudentForEval || e.student_id === selectedStudentForEval)
+              .sort((a, b) => {
+                const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                return dateB - dateA;
+              });
+
+            if (studentEvals.length === 0) {
+              return (
+                <div style={styles.emptyBox} className="glass">
+                  <Ruler size={44} style={{ color: 'var(--text-muted)', marginBottom: '10px' }} />
+                  <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)' }}>Nenhuma avaliação física cadastrada para este aluno.</h4>
+                  <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    Clique no botão abaixo para preencher a primeira anamnese e registrar as fotos de avaliação!
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setEvalViewMode('form')}
+                    style={{ ...styles.actionBtn, background: 'var(--primary)', color: '#fff', padding: '10px 20px', fontWeight: 'bold' }}
+                  >
+                    <Plus size={16} style={{ marginRight: '6px' }} /> Preencher Primeira Avaliação
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {studentEvals.map((ev, evIdx) => {
+                  const data = ev.formData || {};
+                  const evalDate = ev.date || (ev.created_at ? new Date(ev.created_at).toLocaleDateString('pt-BR') : 'Data não informada');
+                  const evaluator = ev.evaluatedBy || 'Aluno';
+                  return (
+                    <div key={ev.id || evIdx} style={styles.card} className="glass">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                        <div>
+                          <strong style={{ fontSize: '1.05rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Calendar size={16} color="var(--primary)" /> Avaliação de {evalDate}
+                          </strong>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                            Realizada por: <strong>{evaluator}</strong> • Objetivo: <strong>{data.objetivo || 'Geral'}</strong>
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <span style={styles.splitTag}>
+                            {data.peso ? `${data.peso} kg` : '-'} • {data.altura ? `${data.altura} cm` : '-'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Resumo Antropométrico */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '16px', backgroundColor: 'var(--bg-primary)', padding: '12px', borderRadius: '8px' }}>
+                        <div><span style={styles.microLabel}>Pescoço:</span> <strong>{data.pescoco || '-'} cm</strong></div>
+                        <div><span style={styles.microLabel}>Peitoral:</span> <strong>{data.peitoral || '-'} cm</strong></div>
+                        <div><span style={styles.microLabel}>Cintura:</span> <strong>{data.cintura || '-'} cm</strong></div>
+                        <div><span style={styles.microLabel}>Abdômen:</span> <strong>{data.abdomen || '-'} cm</strong></div>
+                        <div><span style={styles.microLabel}>Quadril:</span> <strong>{data.quadril || '-'} cm</strong></div>
+                        <div><span style={styles.microLabel}>Braço D / E:</span> <strong>{data.braçoDir || '-'}/{data.braçoEsq || '-'} cm</strong></div>
+                        <div><span style={styles.microLabel}>Coxa D / E:</span> <strong>{data.coxaDirSuperior || '-'}/{data.coxaEsqSuperior || '-'} cm</strong></div>
+                        <div><span style={styles.microLabel}>Gordura (%):</span> <strong>{data.percentualGordura ? `${data.percentualGordura}%` : '-'}</strong></div>
+                      </div>
+
+                      {/* Galeria de Fotos Comparativas com Data Visível */}
+                      <div>
+                        <h5 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Camera size={14} color="var(--accent-primary)" /> Registro Fotográfico Comparativo (Data: {evalDate}):
+                        </h5>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                          {/* Foto Frente */}
+                          <div style={styles.historyPhotoBox}>
+                            <span style={styles.historyPhotoLabel}>Frente</span>
+                            {data.fotoFrenteBase64 ? (
+                              <img 
+                                src={data.fotoFrenteBase64} 
+                                alt={`Frente ${evalDate}`} 
+                                style={styles.historyPhotoImg} 
+                                onClick={() => setEvalZoomPhoto({ url: data.fotoFrenteBase64, title: `Foto de Frente - ${evalDate}` })}
+                              />
+                            ) : (
+                              <div style={styles.noPhotoPlaceholder}>
+                                <ImageOff size={24} style={{ opacity: 0.3 }} />
+                                <span>Sem foto</span>
+                              </div>
+                            )}
+                            <span style={styles.historyPhotoDate}>{evalDate}</span>
+                          </div>
+
+                          {/* Foto Costas */}
+                          <div style={styles.historyPhotoBox}>
+                            <span style={styles.historyPhotoLabel}>Costas</span>
+                            {data.fotoCostasBase64 ? (
+                              <img 
+                                src={data.fotoCostasBase64} 
+                                alt={`Costas ${evalDate}`} 
+                                style={styles.historyPhotoImg} 
+                                onClick={() => setEvalZoomPhoto({ url: data.fotoCostasBase64, title: `Foto de Costas - ${evalDate}` })}
+                              />
+                            ) : (
+                              <div style={styles.noPhotoPlaceholder}>
+                                <ImageOff size={24} style={{ opacity: 0.3 }} />
+                                <span>Sem foto</span>
+                              </div>
+                            )}
+                            <span style={styles.historyPhotoDate}>{evalDate}</span>
+                          </div>
+
+                          {/* Foto Perfil */}
+                          <div style={styles.historyPhotoBox}>
+                            <span style={styles.historyPhotoLabel}>Perfil</span>
+                            {data.fotoPerfilBase64 ? (
+                              <img 
+                                src={data.fotoPerfilBase64} 
+                                alt={`Perfil ${evalDate}`} 
+                                style={styles.historyPhotoImg} 
+                                onClick={() => setEvalZoomPhoto({ url: data.fotoPerfilBase64, title: `Foto de Perfil - ${evalDate}` })}
+                              />
+                            ) : (
+                              <div style={styles.noPhotoPlaceholder}>
+                                <ImageOff size={24} style={{ opacity: 0.3 }} />
+                                <span>Sem foto</span>
+                              </div>
+                            )}
+                            <span style={styles.historyPhotoDate}>{evalDate}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
         </div>
       )}
 
@@ -1863,6 +2818,29 @@ const Professor = () => {
           onSave={handleSaveExerciseVideo}
           onClose={() => setEditingVideoExercise(null)}
         />
+      )}
+
+      {/* MODAL DE ZOOM DE FOTOS DE AVALIAÇÃO FÍSICA */}
+      {evalZoomPhoto && (
+        <div style={styles.modalOverlay} className="animate-fade-in" onClick={() => setEvalZoomPhoto(null)}>
+          <div style={{ ...styles.videoModalContent, maxWidth: '600px', padding: '16px' }} className="glass" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h4 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem' }}>
+                <Camera size={18} color="var(--primary)" /> {evalZoomPhoto.title || 'Foto de Avaliação'}
+              </h4>
+              <button onClick={() => setEvalZoomPhoto(null)} style={styles.modalCloseBtn}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ width: '100%', maxHeight: '75vh', overflow: 'hidden', borderRadius: '8px', backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img 
+                src={evalZoomPhoto.url} 
+                alt={evalZoomPhoto.title || 'Foto de Avaliação'} 
+                style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain' }}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
@@ -2761,6 +3739,211 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s ease'
+  },
+  // Anamnese & Avaliação Física Styles
+  accordionItem: {
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-color)',
+    overflow: 'hidden',
+    backgroundColor: 'var(--bg-secondary)',
+    marginBottom: '8px'
+  },
+  accordionHeader: {
+    padding: '16px 20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    cursor: 'pointer',
+    userSelect: 'none',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)'
+  },
+  accordionTitle: {
+    margin: 0,
+    fontSize: '0.98rem',
+    fontWeight: '700',
+    color: 'var(--text-primary)'
+  },
+  accordionContent: {
+    padding: '16px 20px',
+    borderTop: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-primary)'
+  },
+  formRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '12px'
+  },
+  gridMedidas: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+    gap: '12px'
+  },
+  inputGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+  formLabel: {
+    fontSize: '0.8rem',
+    fontWeight: '600',
+    color: 'var(--text-secondary)'
+  },
+  inputField: {
+    padding: '10px 12px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    fontSize: '0.9rem',
+    outline: 'none'
+  },
+  selectField: {
+    padding: '10px 12px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    fontSize: '0.9rem',
+    outline: 'none'
+  },
+  parqDisclaimer: {
+    fontSize: '0.82rem',
+    color: 'var(--text-secondary)',
+    lineHeight: '1.4',
+    margin: '0 0 12px 0'
+  },
+  parqQuestionRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 0',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+    gap: '16px',
+    flexWrap: 'wrap'
+  },
+  parqText: {
+    fontSize: '0.85rem',
+    color: 'var(--text-primary)',
+    flex: 1
+  },
+  radioGroup: {
+    display: 'flex',
+    gap: '16px',
+    fontSize: '0.85rem',
+    color: 'var(--text-primary)'
+  },
+  photoUploadCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '14px',
+    borderRadius: 'var(--radius-md)',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-color)',
+    textAlign: 'center'
+  },
+  photoPreviewWrapper: {
+    position: 'relative',
+    width: '100%',
+    height: '160px',
+    borderRadius: '6px',
+    overflow: 'hidden',
+    marginBottom: '8px',
+    backgroundColor: '#000'
+  },
+  photoImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain'
+  },
+  photoDateTag: {
+    position: 'absolute',
+    bottom: '4px',
+    left: '4px',
+    right: '4px',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    color: '#fff',
+    fontSize: '0.68rem',
+    fontWeight: 'bold',
+    padding: '2px 4px',
+    borderRadius: '4px',
+    textAlign: 'center'
+  },
+  photoUploadBtnPrimary: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '4px',
+    flex: 1,
+    padding: '6px 10px',
+    backgroundColor: 'var(--primary)',
+    color: '#fff',
+    borderRadius: '6px',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    border: 'none',
+    transition: 'all 0.2s'
+  },
+  photoUploadBtnSecondary: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '4px',
+    flex: 1,
+    padding: '6px 10px',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    color: 'var(--text-primary)',
+    borderRadius: '6px',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    border: '1px solid var(--border-color)',
+    transition: 'all 0.2s'
+  },
+  historyPhotoBox: {
+    position: 'relative',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-color)',
+    padding: '8px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
+  },
+  historyPhotoLabel: {
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    color: 'var(--text-secondary)',
+    marginBottom: '6px'
+  },
+  historyPhotoImg: {
+    width: '100%',
+    height: '140px',
+    objectFit: 'cover',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    transition: 'transform 0.2s',
+    backgroundColor: '#000'
+  },
+  historyPhotoDate: {
+    fontSize: '0.7rem',
+    color: 'var(--text-muted)',
+    marginTop: '6px'
+  },
+  noPhotoPlaceholder: {
+    width: '100%',
+    height: '140px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: '6px',
+    color: 'var(--text-muted)',
+    fontSize: '0.75rem'
   }
 };
 
