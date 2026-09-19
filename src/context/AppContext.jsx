@@ -658,10 +658,17 @@ export const AppProvider = ({ children }) => {
       historico_pagamentos: gerarHistoricoPagamentos(userData.dia_vencimento, [])
     };
 
+    // Professores e academias não pertencem a um tenant (evita violação de FK)
+    // Apenas alunos têm tenant_id preenchido (apontando para o tenant real no banco)
+    const roleFinal = userData.role || 'aluno';
+    const dbTenantId = (roleFinal === 'professor' || roleFinal === 'estabelecimento' || roleFinal === 'academia')
+      ? null
+      : (tenantId || null);
+
     const { error } = await supabase.from('users').insert({
       id,
-      tenant_id: tenantId,
-      role: userData.role,
+      tenant_id: dbTenantId,
+      role: roleFinal,
       plano_vip: false,
       dados_pessoais: dadosPessoais
     });
@@ -1148,7 +1155,7 @@ export const AppProvider = ({ children }) => {
     return true;
   };
 
-  // 6. Pré-Cadastro de Aluno ou Professor (por Professor ou Academia)
+  // 6. Pré-Cadastro de Aluno, Professor ou Academia
   const preRegisterUser = async (userData, inviter = null) => {
     const inviterObj = inviter || user;
     const cleanEmail = (userData.email || '').trim().toLowerCase();
@@ -1159,19 +1166,29 @@ export const AppProvider = ({ children }) => {
       throw new Error('CPF inválido. Verifique os números digitados.');
     }
 
-    const tenantId = inviterObj?.id || inviterObj?.tenantId || 't1';
+    const role = userData.role || 'aluno';
+
+    // Alunos ficam vinculados ao prof/academia que os cadastrou (tenantId = id do inviter)
+    // Professores e academias ficam com tenantId null para não violar a FK da tabela tenants
+    const tenantId = (role === 'professor' || role === 'estabelecimento' || role === 'academia')
+      ? null
+      : (userData.tenantId || inviterObj?.id || null);
+
+    const nomeVinculado = (role === 'aluno')
+      ? (inviterObj?.name || '')
+      : '';
 
     const newUser = await addUser({
       ...userData,
       email: finalEmail,
       cpf: cleanCpf || '',
-      role: userData.role || 'aluno',
-      tenantId: tenantId,
+      role,
+      tenantId,
       password: userData.password || '123',
       statusVinculo: 'aprovado',
       preCadastro: true,
       primeiroAcesso: true,
-      nomeProfessorVinculado: inviterObj?.name || ''
+      nomeProfessorVinculado: nomeVinculado
     });
 
     return newUser;
