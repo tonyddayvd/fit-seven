@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
 class ErrorBoundary extends React.Component {
@@ -20,7 +20,19 @@ class ErrorBoundary extends React.Component {
     window.location.reload();
   };
 
-  handleReset = () => {
+  handleReset = async () => {
+    try {
+      if (typeof caches !== 'undefined') {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      if (navigator && navigator.serviceWorker) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(r => r.unregister()));
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar caches do SW:', e);
+    }
     localStorage.clear();
     sessionStorage.clear();
     window.location.href = window.location.pathname;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp, DEFAULT_WORKOUTS } from '../context/AppContext';
+import { useApp } from '../context/AppContext';
 import { 
   ShieldAlert, 
   Database, 
@@ -21,31 +21,18 @@ import {
   Users,
   Check,
   User,
-  Camera,
-  AlertTriangle,
-  Calendar,
-  History,
-  Activity,
-  Layers,
-  Filter,
-  ChevronRight,
   ChevronDown,
   ChevronUp,
   KeyRound,
   RefreshCw,
-  Video,
-  Play,
   Share2,
   Sparkles,
   Copy,
   CheckCircle2,
-  QrCode,
-  Smartphone,
-  Send,
-  ExternalLink
+  Smartphone
 } from 'lucide-react';
 import ExerciseVideoManagerModal from '../components/ExerciseVideoManagerModal';
-import { formatCPF, formatDoc, formatPhone } from '../utils/validators';
+import { formatPhone } from '../utils/validators';
 
 const TABLES_SCHEMA = [
   { 
@@ -103,7 +90,6 @@ const PLANOS_DISPONIVEIS = ['Básico', 'Start', 'Grow', 'Scale'];
 
 const Master = () => {
   const { 
-    activeTenant, 
     pendingEvaluations, 
     approvedEvaluations,
     approveAndPublishWorkout,
@@ -127,7 +113,6 @@ const Master = () => {
     deleteBug,
     workoutsByStudent,
     updateWorkoutByProfessor,
-    workoutSessionsHistory,
     preRegisterUser,
     generateWhatsAppInvite,
     getDirectInviteUrl
@@ -143,6 +128,7 @@ const Master = () => {
   const [viewingStudent, setViewingStudent] = useState(null);
   const [showMedidas, setShowMedidas] = useState(false);
   const [lightboxPhoto, setLightboxPhoto] = useState(null);
+  const [editingVideoExercise, setEditingVideoExercise] = useState(null);
 
   // Estados de Transferência de Vínculo e Simulação Exclusiva do Master
   const [transferModalStudent, setTransferModalStudent] = useState(null);
@@ -327,6 +313,29 @@ const Master = () => {
       console.error(err);
       alert('Erro ao transferir vínculo: ' + (err.message || 'Verifique sua conexão.'));
     }
+  };
+
+  const handleSaveExerciseVideo = async (newVideoUrl) => {
+    if (!editingVideoExercise) return;
+    if (viewingStudent) {
+      const currentWorkout = workoutsByStudent[viewingStudent.id] || {};
+      const exercisesList = (currentWorkout.exercises && currentWorkout.exercises.length > 0)
+        ? currentWorkout.exercises
+        : [];
+      
+      const updatedExs = exercisesList.map(ex => 
+        (ex.id === editingVideoExercise.id || ex.name?.trim().toLowerCase() === editingVideoExercise.name?.trim().toLowerCase())
+          ? { ...ex, video_oficial_url: newVideoUrl, videoUrl: newVideoUrl }
+          : ex
+      );
+      
+      await updateWorkoutByProfessor(viewingStudent.id, { 
+        ...currentWorkout,
+        exercises: updatedExs, 
+        updatedAt: new Date().toISOString()
+      });
+    }
+    setEditingVideoExercise(null);
   };
 
   // Handler de Pré-Cadastro pelo Master (Aluno, Professor ou Academia)
@@ -1014,7 +1023,7 @@ const Master = () => {
             {viewingStudent && (
               <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)', position: 'relative' }}>
-                  <button onClick={() => { setViewingStudent(null); setActiveModalTab('medidas'); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px' }}>X</button>
+                  <button onClick={() => { setViewingStudent(null); setShowMedidas(false); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px' }}>X</button>
                   
                   <h3 style={{ marginTop: 0, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <User size={20} color="var(--primary-color)" /> CRM do Aluno (Visão Master)

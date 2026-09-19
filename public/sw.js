@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fit-seven-pwa-v1';
+const CACHE_NAME = 'fit-seven-pwa-v4';
 const ASSETS_TO_CACHE = [
   '/fit-seven/',
   '/fit-seven/index.html',
