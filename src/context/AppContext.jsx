@@ -658,12 +658,15 @@ export const AppProvider = ({ children }) => {
       historico_pagamentos: gerarHistoricoPagamentos(userData.dia_vencimento, [])
     };
 
-    // Professores e academias não pertencem a um tenant (evita violação de FK)
-    // Apenas alunos têm tenant_id preenchido (apontando para o tenant real no banco)
+    // Para qualquer role, usamos o tenantId passado — professores e academias
+    // já terão seu tenant criado antes de chegar aqui (via preRegisterUser).
+    // O campo tenant_id NO banco é NOT NULL + FK para tenants.
     const roleFinal = userData.role || 'aluno';
-    const dbTenantId = (roleFinal === 'professor' || roleFinal === 'estabelecimento' || roleFinal === 'academia')
-      ? null
-      : (tenantId || null);
+    const dbTenantId = tenantId || null;
+
+    if (!dbTenantId) {
+      throw new Error(`tenant_id é obrigatório no banco. Role: ${roleFinal}. Verifique o fluxo de cadastro.`);
+    }
 
     const { error } = await supabase.from('users').insert({
       id,
@@ -1167,16 +1170,53 @@ export const AppProvider = ({ children }) => {
     }
 
     const role = userData.role || 'aluno';
+    let tenantId;
+    let nomeVinculado = '';
 
-    // Alunos ficam vinculados ao prof/academia que os cadastrou (tenantId = id do inviter)
-    // Professores e academias ficam com tenantId null para não violar a FK da tabela tenants
-    const tenantId = (role === 'professor' || role === 'estabelecimento' || role === 'academia')
-      ? null
-      : (userData.tenantId || inviterObj?.id || null);
+    if (role === 'professor') {
+      // Professores precisam de um tenant próprio na tabela tenants (exigência de NOT NULL FK)
+      // Criamos automaticamente um tenant para esse professor
+      const profTenantId = `t${Date.now()}`;
+      const safeName = (userData.name || 'professor').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      const subdomain = `prof-${safeName}-${profTenantId.slice(-6)}`;
 
-    const nomeVinculado = (role === 'aluno')
-      ? (inviterObj?.name || '')
-      : '';
+      const { error: tenantErr } = await supabase.from('tenants').insert({
+        id: profTenantId,
+        nome: userData.name || 'Professor',
+        limite_alunos: parseInt(userData.limiteAlunos) || 10,
+        plano: userData.plano || 'Básico',
+        subdomain
+      });
+      if (tenantErr) throw new Error(`Erro ao criar tenant do professor: ${tenantErr.message}`);
+
+      tenantId = profTenantId;
+
+    } else if (role === 'estabelecimento' || role === 'academia') {
+      // Academias: criar tenant também
+      const gymTenantId = `t${Date.now()}`;
+      const safeName = (userData.name || 'academia').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      const subdomain = `gym-${safeName}-${gymTenantId.slice(-6)}`;
+
+      const { error: tenantErr } = await supabase.from('tenants').insert({
+        id: gymTenantId,
+        nome: userData.name || 'Academia',
+        limite_alunos: parseInt(userData.limiteAlunos) || 10,
+        plano: userData.plano || 'Básico',
+        subdomain
+      });
+      if (tenantErr) throw new Error(`Erro ao criar tenant da academia: ${tenantErr.message}`);
+
+      tenantId = gymTenantId;
+
+    } else {
+      // Alunos: ficam vinculados ao inviter (professor ou academia que os cadastrou)
+      tenantId = userData.tenantId || inviterObj?.tenantId || inviterObj?.id || null;
+      nomeVinculado = inviterObj?.name || '';
+    }
 
     const newUser = await addUser({
       ...userData,
@@ -1190,6 +1230,9 @@ export const AppProvider = ({ children }) => {
       primeiroAcesso: true,
       nomeProfessorVinculado: nomeVinculado
     });
+
+    // Recarregar dados após criar tenant + user
+    await refreshData();
 
     return newUser;
   };
