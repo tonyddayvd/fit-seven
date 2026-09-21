@@ -2260,13 +2260,25 @@ const Professor = () => {
                         />
                       </div>
                     </div>
-                    <div style={{ marginTop: '12px' }}>
-                      <label style={styles.formLabel}>Rotina e Histórico do Aluno</label>
+                    <div style={{ marginTop: '16px' }}>
+                      <div style={{
+                        padding: '12px',
+                        backgroundColor: 'rgba(139, 92, 246, 0.08)',
+                        borderLeft: '4px solid var(--primary)',
+                        borderRadius: '4px',
+                        fontSize: '0.85rem',
+                        lineHeight: '1.4',
+                        marginBottom: '8px',
+                        color: 'var(--text-primary)'
+                      }}>
+                        Quanto maiores forem os detalhes sobre a rotina (horários de sono, se trabalha sentado ou em pé, nível de atividade diária, restrições de tempo), melhor! É fundamental também descrever detalhadamente o objetivo principal, dificuldades e focos específicos do aluno (ex: foco no aumento de glúteos/bumbum, pernas, braços, definição abdominal, etc.), pois quanto mais detalhes, mais preciso e personalizado será o treino montado por você e pela IA.
+                      </div>
+                      <label style={styles.formLabel}>Rotina, Histórico, Objetivos & Focos do Aluno</label>
                       <textarea
-                        placeholder="Ex: Trabalha em escritório, relata pouco tempo disponível, treina 4x na semana..."
+                        placeholder="Ex: Trabalha em escritório, relata pouco tempo disponível, treina 4x na semana. Foco prioritário em glúteos e pernas, dificuldade em ombros/braços..."
                         value={evalFormData.descricaoRotina}
                         onChange={(e) => handleEvalInputChange('descricaoRotina', e.target.value)}
-                        style={{ ...styles.inputField, minHeight: '70px', resize: 'vertical' }}
+                        style={{ ...styles.inputField, minHeight: '85px', resize: 'vertical' }}
                       />
                     </div>
                   </div>

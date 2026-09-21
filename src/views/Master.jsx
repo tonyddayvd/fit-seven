@@ -1280,7 +1280,7 @@ Lesões ou Limitações: ${data.lesoes}
 Preferências de exercício: ${data.preferencias}
 Restrições Alimentares: ${data.restriçõesAlimentares}
 Preferências Alimentares: ${data.preferenciasAlimentares}
-Descrição da Rotina Diária: ${data.descricaoRotina}
+Descrição da Rotina Diária, Objetivos e Focos Específicos: ${data.descricaoRotina || 'Não informado'}
 
 [ANEXOS E EXAMES DO ALUNO]:
 - Nome do Laudo/Bioimpedância enviado: ${data.laudoFile || 'Nenhum arquivo anexado'}

@@ -2406,16 +2406,16 @@ const Aluno = () => {
                               marginBottom: '8px',
                               color: 'var(--text-primary)'
                             }}>
-                              Quanto maiores forem os detalhes sobre a sua rotina (horários de sono, se trabalha sentado ou em pé, nível de atividade diária, restrições de tempo), mais preciso e bem elaborado será o seu plano de treino e dieta.
+                              Quanto maiores forem os detalhes sobre a sua rotina (horários de sono, se trabalha sentado ou em pé, nível de atividade diária, restrições de tempo), melhor! É fundamental também descrever com suas palavras e detalhadamente o seu objetivo principal, suas dificuldades e focos específicos (ex: foco no aumento de glúteos/bumbum, pernas, braços, definição abdominal, etc.), pois quanto mais detalhes, mais preciso e personalizado será o treino montado pelo professor e pela IA.
                             </div>
-                            <label style={styles.formLabel}>Descreva a sua Rotina Diária</label>
+                            <label style={styles.formLabel}>Descreva a sua Rotina Diária, Objetivos & Focos</label>
                             <textarea
-                              placeholder="Ex: Trabalho das 8h às 18h sentado, durmo 7h por noite, tenho 1h livre para treinar..."
+                              placeholder="Ex: Trabalho das 8h às 18h sentado, durmo 7h por noite, tenho 1h livre. Meu maior objetivo e foco é aumento de glúteos e pernas, tenho dificuldade para desenvolver braços..."
                               value={formData.descricaoRotina}
                               onChange={(e) => handleInputChange('descricaoRotina', e.target.value)}
                               style={{
                                 ...styles.inputField,
-                                minHeight: '80px',
+                                minHeight: '90px',
                                 resize: 'vertical',
                                 width: '100%',
                                 padding: '10px',
