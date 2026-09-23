@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import ExerciseVideoManagerModal from '../components/ExerciseVideoManagerModal';
 import { formatPhone } from '../utils/validators';
+import { formatVideoEmbedUrl } from '../utils/videoService';
 
 const TABLES_SCHEMA = [
   { 
@@ -115,7 +116,9 @@ const Master = () => {
     updateWorkoutByProfessor,
     preRegisterUser,
     generateWhatsAppInvite,
-    getDirectInviteUrl
+    getDirectInviteUrl,
+    tutorialCircunferenciasVideoUrl,
+    saveTutorialCircunferenciasVideo
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('kpis_crud'); // 'kpis_crud', 'pending_approvals', 'db_auditor'
@@ -153,6 +156,59 @@ const Master = () => {
   const [createdInviteModal, setCreatedInviteModal] = useState(null); // { user, inviteUrl, whatsAppUrl }
   const [copiedInviteUrl, setCopiedInviteUrl] = useState(false);
   const [isSubmittingPreReg, setIsSubmittingPreReg] = useState(false);
+
+  // Gestão Master do Vídeo Tutorial de Circunferências
+  const [tutorialVideoInputMaster, setTutorialVideoInputMaster] = useState(tutorialCircunferenciasVideoUrl || '');
+  const [isUploadingMasterVideo, setIsUploadingMasterVideo] = useState(false);
+
+  React.useEffect(() => {
+    if (tutorialCircunferenciasVideoUrl) {
+      setTutorialVideoInputMaster(tutorialCircunferenciasVideoUrl);
+    }
+  }, [tutorialCircunferenciasVideoUrl]);
+
+  const handleSaveMasterVideoLink = async (e) => {
+    if (e) e.preventDefault();
+    if (!tutorialVideoInputMaster.trim()) return;
+    const formatted = formatVideoEmbedUrl ? formatVideoEmbedUrl(tutorialVideoInputMaster.trim()) : tutorialVideoInputMaster.trim();
+    if (saveTutorialCircunferenciasVideo) {
+      await saveTutorialCircunferenciasVideo(formatted);
+    }
+    alert('Vídeo tutorial de circunferências salvo com sucesso para todos os alunos!');
+  };
+
+  const handleMasterVideoFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 35 * 1024 * 1024) {
+      alert('O vídeo selecionado é muito grande. Para melhor desempenho, utilize vídeos de até 35MB ou informe um link do YouTube.');
+    }
+    setIsUploadingMasterVideo(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result;
+      if (saveTutorialCircunferenciasVideo) {
+        await saveTutorialCircunferenciasVideo(base64);
+      }
+      setIsUploadingMasterVideo(false);
+      alert('Arquivo de vídeo tutorial enviado e publicado com sucesso para todos os alunos!');
+    };
+    reader.onerror = () => {
+      alert('Erro ao carregar o arquivo de vídeo.');
+      setIsUploadingMasterVideo(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveMasterVideo = async () => {
+    if (window.confirm('Deseja realmente remover o vídeo tutorial de circunferências?')) {
+      if (saveTutorialCircunferenciasVideo) {
+        await saveTutorialCircunferenciasVideo('');
+      }
+      setTutorialVideoInputMaster('');
+      alert('Vídeo tutorial removido.');
+    }
+  };
 
   // Estados dos formulários CRUD
   const [showForm, setShowForm] = useState(null); // 'tenant', 'user', null
@@ -642,6 +698,12 @@ const Master = () => {
               >
                 Administradores (Master)
               </button>
+              <button 
+                onClick={() => { setActiveSubTab('tutorial_video'); setShowForm(null); }} 
+                style={{ ...styles.crudTab, ...(activeSubTab === 'tutorial_video' ? styles.crudTabActive : {}), color: activeSubTab === 'tutorial_video' ? '#ffffff' : '#c084fc', borderBottomColor: activeSubTab === 'tutorial_video' ? '#c084fc' : 'transparent' }}
+              >
+                📹 Tutorial de Medidas
+              </button>
             </div>
 
             {/* FORMULÁRIO DE ACADEMIAS */}
@@ -1016,6 +1078,157 @@ const Master = () => {
                     })}
                   </tbody>
                 </table></div>
+              </div>
+            )}
+
+            {/* PAINEL DE GESTÃO DO VÍDEO TUTORIAL DE MEDIDAS (CIRCUNFERÊNCIAS) */}
+            {activeSubTab === 'tutorial_video' && !showForm && (
+              <div className="animate-fade-in" style={{ padding: '10px 0' }}>
+                <div style={{
+                  padding: '24px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  maxWidth: '700px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <Video size={22} color="var(--primary)" />
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', fontWeight: '700' }}>
+                      Vídeo Tutorial de Circunferências (Exclusivo Master)
+                    </h3>
+                  </div>
+                  
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 20px 0' }}>
+                    Este vídeo tutorial ensina os alunos a tirarem suas próprias medidas de circunferências corporais (pescoço, braços, peitoral, abdômen, coxas e panturrilhas) com precisão. O vídeo fica visível no formulário de avaliação física de <strong>todos os alunos</strong>, mas <strong>não é exibido na tela do professor</strong>.
+                  </p>
+
+                  {/* PREVIEW DO VÍDEO ATUAL */}
+                  {tutorialCircunferenciasVideoUrl ? (
+                    <div style={{ marginBottom: '24px', padding: '16px', borderRadius: '10px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--status-success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <CheckCircle2 size={16} /> Vídeo Tutorial Ativo
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleRemoveMasterVideo}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                            color: '#ef4444',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            fontSize: '0.78rem',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Trash2 size={14} /> Remover Vídeo
+                        </button>
+                      </div>
+
+                      <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)', backgroundColor: '#000' }}>
+                        {tutorialCircunferenciasVideoUrl.startsWith('data:video') || tutorialCircunferenciasVideoUrl.startsWith('blob:') ? (
+                          <video 
+                            src={tutorialCircunferenciasVideoUrl} 
+                            controls 
+                            playsInline
+                            style={{ width: '100%', maxHeight: '300px', display: 'block' }}
+                          />
+                        ) : (
+                          <iframe
+                            src={formatVideoEmbedUrl(tutorialCircunferenciasVideoUrl)}
+                            title="Vídeo Tutorial de Circunferências"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            style={{ width: '100%', height: '260px', border: 'none', display: 'block' }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '16px', borderRadius: '10px', backgroundColor: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.25)', marginBottom: '20px' }}>
+                      <span style={{ fontSize: '0.85rem', color: '#eab308', fontWeight: '600' }}>
+                        ⚠️ Nenhum vídeo tutorial publicado no momento. Use as opções abaixo para subir um arquivo ou colar um link.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* OPÇÃO 1: UPLOAD DE ARQUIVO */}
+                  <div style={{
+                    padding: '20px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--bg-tertiary)',
+                    border: '1px dashed var(--border-color)',
+                    marginBottom: '16px',
+                    textAlign: 'center'
+                  }}>
+                    <Upload size={32} style={{ color: 'var(--primary)', marginBottom: '8px' }} />
+                    <div style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-primary)' }}>
+                      Upload Direto de Arquivo de Vídeo
+                    </div>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 14px' }}>
+                      Envie um arquivo MP4/WebM gravado pelo seu celular ou computador (recomendado até 35MB).
+                    </p>
+                    
+                    <label style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 20px',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--primary)',
+                      color: '#fff',
+                      fontWeight: '700',
+                      fontSize: '0.85rem',
+                      cursor: isUploadingMasterVideo ? 'wait' : 'pointer'
+                    }}>
+                      <Upload size={16} />
+                      {isUploadingMasterVideo ? 'Processando e publicando vídeo...' : 'Selecionar e Enviar Vídeo'}
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={handleMasterVideoFileUpload}
+                        disabled={isUploadingMasterVideo}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  </div>
+
+                  {/* OPÇÃO 2: LINK DO YOUTUBE OU EXTERNO */}
+                  <form onSubmit={handleSaveMasterVideoLink} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                      Ou Salve um Link do YouTube:
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="url"
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        value={tutorialVideoInputMaster}
+                        onChange={(e) => setTutorialVideoInputMaster(e.target.value)}
+                        style={{
+                          flex: 1,
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-tertiary)',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.85rem'
+                        }}
+                      />
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        style={{ padding: '10px 18px', fontWeight: '700', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                      >
+                        Salvar Vídeo
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             )}
 

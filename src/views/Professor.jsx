@@ -2330,6 +2330,24 @@ const Professor = () => {
                 </div>
                 {activeAccordion === 'circunferencias' && (
                   <div style={styles.accordionContent}>
+
+                    {/* ── ALERTA TÉCNICO: MEDIR OS DOIS LADOS (ASSIMETRIA) ── */}
+                    <div style={{
+                      padding: '12px 14px',
+                      backgroundColor: 'rgba(234, 179, 8, 0.09)',
+                      borderLeft: '4px solid #eab308',
+                      borderRadius: '8px',
+                      marginBottom: '16px',
+                      fontSize: '0.83rem',
+                      lineHeight: '1.45',
+                      color: 'var(--text-primary)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', color: '#eab308', marginBottom: '4px' }}>
+                        <AlertTriangle size={16} /> Atenção à Assimetria: Meça os dois lados separadamente!
+                      </div>
+                      Lembre-se de registrar a medida real de cada lado (braço, coxa superior/inferior, panturrilha). Dificilmente as circunferências do lado direito e esquerdo são idênticas. A precisão nessas medidas bilaterais é fundamental para calibrar correções de assimetria muscular no treino e na IA.
+                    </div>
+
                     <div style={styles.gridMedidas}>
                       <div style={styles.inputGroup}>
                         <label style={styles.formLabel}>Pescoço (cm)</label>

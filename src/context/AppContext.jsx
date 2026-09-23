@@ -285,6 +285,11 @@ export const AppProvider = ({ children }) => {
   const [bugReports, setBugReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Vídeo Tutorial de Circunferências (Definido pelo Master para todos os alunos)
+  const [tutorialCircunferenciasVideoUrl, setTutorialCircunferenciasVideoUrl] = useState(() => {
+    return localStorage.getItem('fitseven-tutorial-circunferencias-video') || '';
+  });
+
   // Sistema de Notificações Inteligentes
   const [notifications, setNotifications] = useState(() => {
     const saved = localStorage.getItem('fitseven-notifications');
@@ -544,6 +549,18 @@ export const AppProvider = ({ children }) => {
       const mergedBugs = Array.from(allBugsMap.values()).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       setBugReports(mergedBugs);
       localStorage.setItem('fitseven-bug-reports', JSON.stringify(mergedBugs));
+
+      // 6. Carregar Configuração Global do Vídeo Tutorial de Circunferências
+      const { data: tutorialConfigData } = await supabase
+        .from('avaliacoes')
+        .select('medidas')
+        .eq('id', 'config_tutorial_circunferencias')
+        .maybeSingle();
+
+      if (tutorialConfigData?.medidas?.videoUrl) {
+        setTutorialCircunferenciasVideoUrl(tutorialConfigData.medidas.videoUrl);
+        localStorage.setItem('fitseven-tutorial-circunferencias-video', tutorialConfigData.medidas.videoUrl);
+      }
 
     } catch (err) {
       console.error('Erro ao sincronizar com o Supabase:', err);
@@ -1664,6 +1681,28 @@ export const AppProvider = ({ children }) => {
     localStorage.setItem('fitseven-bug-reports', JSON.stringify(updated));
   };
 
+  const saveTutorialCircunferenciasVideo = async (videoUrl) => {
+    const finalUrl = (videoUrl || '').trim();
+    setTutorialCircunferenciasVideoUrl(finalUrl);
+    localStorage.setItem('fitseven-tutorial-circunferencias-video', finalUrl);
+
+    try {
+      await supabase.from('avaliacoes').upsert({
+        id: 'config_tutorial_circunferencias',
+        tenant_id: 'master',
+        user_id: user?.id || 'u8',
+        medidas: {
+          _type: 'app_config',
+          configKey: 'tutorial_circunferencias',
+          videoUrl: finalUrl,
+          updatedAt: new Date().toISOString()
+        }
+      });
+    } catch (e) {
+      console.error('Erro ao persistir vídeo tutorial no Supabase:', e);
+    }
+  };
+
   const updateStudentExercises = async (newExercises, finishedSplitsArray = null) => {
     if (!user) return;
     const currentData = workoutsByStudent[user.id] || { exercises: DEFAULT_WORKOUTS, isVip: false, vipHtml: '', finishedSplits: [] };
@@ -1837,7 +1876,9 @@ export const AppProvider = ({ children }) => {
       createNotification,
       markNotificationAsRead,
       getNotificationsForUser,
-      getUnreadNotificationsForUser
+      getUnreadNotificationsForUser,
+      tutorialCircunferenciasVideoUrl,
+      saveTutorialCircunferenciasVideo
     }}>
       {children}
     </AppContext.Provider>

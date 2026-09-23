@@ -164,7 +164,9 @@ const Aluno = () => {
     notifications,
     markNotificationAsRead,
     getUnreadNotificationsForUser,
-    changePassword
+    changePassword,
+    tutorialCircunferenciasVideoUrl,
+    saveTutorialCircunferenciasVideo
   } = useApp();
   
   const [showMedalModal, setShowMedalModal] = useState(false);
@@ -247,6 +249,59 @@ const Aluno = () => {
     navigator.clipboard.writeText(pixKey);
     setCopiedPixProfAluno(true);
     setTimeout(() => setCopiedPixProfAluno(false), 2500);
+  };
+
+  // Gestão do Vídeo Tutorial de Circunferências (Apenas para o Administrador/Master)
+  const isMasterUser = user?.role === 'master' || user?.id === 'u8' || user?.cpf === '069.977.434-98';
+  const [showTutorialVideoModal, setShowTutorialVideoModal] = useState(false);
+  const [tutorialVideoInputUrl, setTutorialVideoInputUrl] = useState('');
+  const [isUploadingTutorialVideo, setIsUploadingTutorialVideo] = useState(false);
+  const [isPlayingTutorialVideo, setIsPlayingTutorialVideo] = useState(false);
+
+  const handleTutorialVideoFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 35 * 1024 * 1024) {
+      alert('O vídeo selecionado é muito grande. Para melhor desempenho, utilize vídeos de até 35MB ou cole um link do YouTube.');
+    }
+    setIsUploadingTutorialVideo(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Video = reader.result;
+      if (saveTutorialCircunferenciasVideo) {
+        await saveTutorialCircunferenciasVideo(base64Video);
+      }
+      setIsUploadingTutorialVideo(false);
+      setShowTutorialVideoModal(false);
+      alert('Vídeo tutorial de circunferências atualizado com sucesso!');
+    };
+    reader.onerror = () => {
+      alert('Erro ao carregar o arquivo de vídeo.');
+      setIsUploadingTutorialVideo(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveTutorialVideoLink = async (e) => {
+    e.preventDefault();
+    if (!tutorialVideoInputUrl.trim()) return;
+    const formattedUrl = formatVideoEmbedUrl(tutorialVideoInputUrl.trim());
+    if (saveTutorialCircunferenciasVideo) {
+      await saveTutorialCircunferenciasVideo(formattedUrl);
+    }
+    setShowTutorialVideoModal(false);
+    setTutorialVideoInputUrl('');
+    alert('Link do vídeo tutorial salvo com sucesso!');
+  };
+
+  const handleRemoveTutorialVideo = async () => {
+    if (window.confirm('Deseja remover o vídeo tutorial de circunferências?')) {
+      if (saveTutorialCircunferenciasVideo) {
+        await saveTutorialCircunferenciasVideo('');
+      }
+      setShowTutorialVideoModal(false);
+      setIsPlayingTutorialVideo(false);
+    }
   };
 
   const handleSaveFirstAccessPassword = async (e) => {
@@ -2475,6 +2530,127 @@ const Aluno = () => {
                       
                       {activeAccordion === 'circunferencias' && (
                         <div style={styles.accordionContent}>
+
+                          {/* ── CARD TUTORIAL DE COMO TIRAR MEDIDAS ── */}
+                          <div style={{
+                            padding: '14px',
+                            backgroundColor: 'rgba(139, 92, 246, 0.08)',
+                            border: '1px solid rgba(139, 92, 246, 0.25)',
+                            borderLeft: '4px solid var(--primary)',
+                            borderRadius: '10px',
+                            marginBottom: '16px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Video size={18} color="var(--primary)" />
+                                <span style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                                  Vídeo Tutorial: Como tirar suas medidas
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                {tutorialCircunferenciasVideoUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsPlayingTutorialVideo(!isPlayingTutorialVideo)}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      padding: '6px 12px',
+                                      borderRadius: '6px',
+                                      backgroundColor: isPlayingTutorialVideo ? 'rgba(239, 68, 68, 0.15)' : 'var(--primary)',
+                                      color: isPlayingTutorialVideo ? '#ef4444' : '#fff',
+                                      border: isPlayingTutorialVideo ? '1px solid #ef4444' : 'none',
+                                      fontSize: '0.78rem',
+                                      fontWeight: '700',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    <Play size={13} /> {isPlayingTutorialVideo ? 'Fechar Vídeo' : 'Assistir Tutorial'}
+                                  </button>
+                                )}
+
+                                {/* Opção exclusiva do Administrador Master para configurar / alterar vídeo */}
+                                {isMasterUser && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setTutorialVideoInputUrl(tutorialCircunferenciasVideoUrl || '');
+                                      setShowTutorialVideoModal(true);
+                                    }}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      padding: '6px 10px',
+                                      borderRadius: '6px',
+                                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                      border: '1px dashed var(--primary)',
+                                      color: 'var(--text-primary)',
+                                      fontSize: '0.75rem',
+                                      cursor: 'pointer',
+                                      fontWeight: '600'
+                                    }}
+                                    title="Configuração exclusiva do Administrador Master"
+                                  >
+                                    <Upload size={13} /> {tutorialCircunferenciasVideoUrl ? 'Alterar Vídeo' : 'Upar Vídeo Tutorial'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                              Caso você não tenha um personal trainer presencial ou fita métrica profissional em casa, este vídeo ensina técnicas práticas e precisas para você medir cada parte do seu corpo com segurança.
+                            </p>
+
+                            {/* Player de Vídeo embutido */}
+                            {isPlayingTutorialVideo && tutorialCircunferenciasVideoUrl && (
+                              <div style={{ marginTop: '12px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)', backgroundColor: '#000' }}>
+                                {tutorialCircunferenciasVideoUrl.startsWith('data:video') || tutorialCircunferenciasVideoUrl.startsWith('blob:') ? (
+                                  <video 
+                                    src={tutorialCircunferenciasVideoUrl} 
+                                    controls 
+                                    autoPlay 
+                                    playsInline
+                                    style={{ width: '100%', maxHeight: '280px', display: 'block' }}
+                                  />
+                                ) : (
+                                  <iframe
+                                    src={tutorialCircunferenciasVideoUrl}
+                                    title="Tutorial de Circunferências"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                    style={{ width: '100%', height: '240px', border: 'none', display: 'block' }}
+                                  />
+                                )}
+                              </div>
+                            )}
+
+                            {!tutorialCircunferenciasVideoUrl && isMasterUser && (
+                              <div style={{ marginTop: '8px', fontSize: '0.74rem', color: 'var(--accent-primary)' }}>
+                                💡 <em>Como Administrador Master, clique em <strong>"Upar Vídeo Tutorial"</strong> acima para publicar o vídeo para todos os alunos.</em>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* ── ALERTA OBRIGATÓRIO: MEDIR OS DOIS LADOS (ASSIMETRIA) ── */}
+                          <div style={{
+                            padding: '12px 14px',
+                            backgroundColor: 'rgba(234, 179, 8, 0.09)',
+                            borderLeft: '4px solid #eab308',
+                            borderRadius: '8px',
+                            marginBottom: '16px',
+                            fontSize: '0.83rem',
+                            lineHeight: '1.45',
+                            color: 'var(--text-primary)'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', color: '#eab308', marginBottom: '4px' }}>
+                              <AlertTriangle size={16} /> Importante: Meça sempre os dois lados separadamente!
+                            </div>
+                            Nosso corpo naturalmente possui <strong>assimetrias musculares</strong>. A circunferência do seu lado direito (braço, coxa, panturrilha) <strong>dificilmente será igual à do lado esquerdo</strong>. Nunca repita o mesmo valor nos dois lados sem medir de fato ambos: registrar a medida real de cada lado é essencial para que o professor e a IA detectem desequilíbrios de força e corrijam a sua simetria nos treinos.
+                          </div>
+
                           <div style={styles.gridMedidas}>
                             <div style={styles.inputGroup}>
                               <label style={styles.formLabel}>Pescoço (cm) *</label>
@@ -4288,6 +4464,131 @@ const Aluno = () => {
         </div>
       </nav>
       
+      {/* MODAL EXCLUSIVO DO MASTER PARA UPLOAD E CONFIGURAÇÃO DO VÍDEO TUTORIAL */}
+      {showTutorialVideoModal && isMasterUser && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.modalCard, maxWidth: '520px' }} className="glass animate-fade-in">
+            <div style={styles.modalHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Video size={20} color="var(--primary)" />
+                <h3 style={styles.modalTitle}>Vídeo Tutorial de Medidas</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowTutorialVideoModal(false)} 
+                style={styles.closeModalBtn}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: '12px 0 16px', lineHeight: '1.4' }}>
+              Como <strong>Administrador Master</strong>, você pode fazer upload de um vídeo direto do seu dispositivo ou colar um link do YouTube. Este vídeo será exibido para todos os alunos no formulário de circunferências.
+            </p>
+
+            {/* OPÇÃO 1: UPLOAD DE ARQUIVO */}
+            <div style={{
+              padding: '16px',
+              borderRadius: '10px',
+              backgroundColor: 'var(--bg-secondary)',
+              border: '1px dashed var(--border-color)',
+              marginBottom: '16px',
+              textAlign: 'center'
+            }}>
+              <Upload size={28} style={{ color: 'var(--primary)', marginBottom: '8px' }} />
+              <div style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '4px' }}>
+                Fazer Upload de Arquivo de Vídeo
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 12px' }}>
+                Selecione um vídeo MP4 do seu celular ou computador (até 35MB).
+              </p>
+              
+              <label style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 18px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--primary)',
+                color: '#fff',
+                fontWeight: '700',
+                fontSize: '0.82rem',
+                cursor: isUploadingTutorialVideo ? 'wait' : 'pointer'
+              }}>
+                <Upload size={16} />
+                {isUploadingTutorialVideo ? 'Enviando e salvando vídeo...' : 'Selecionar Arquivo de Vídeo'}
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleTutorialVideoFileUpload}
+                  disabled={isUploadingTutorialVideo}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+
+            {/* OPÇÃO 2: LINK DO YOUTUBE / VÍDEO EXTERNO */}
+            <form onSubmit={handleSaveTutorialVideoLink} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                Ou cole o Link do Vídeo (YouTube, etc.):
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="url"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  value={tutorialVideoInputUrl}
+                  onChange={(e) => setTutorialVideoInputUrl(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem'
+                  }}
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ padding: '10px 16px', fontWeight: '700', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                >
+                  Salvar Link
+                </button>
+              </div>
+            </form>
+
+            {/* Ação para Remover o Vídeo Atual */}
+            {tutorialCircunferenciasVideoUrl && (
+              <div style={{ marginTop: '20px', paddingTop: '14px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--status-success)' }}>
+                  ✅ Já existe um vídeo tutorial configurado.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleRemoveTutorialVideo}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                    color: '#ef4444',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Trash2 size={13} /> Remover Vídeo
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <MedalComposer 
         isOpen={showMedalModal} 
         onClose={() => setShowMedalModal(false)} 
