@@ -29,7 +29,9 @@ import {
   Sparkles,
   Copy,
   CheckCircle2,
-  Smartphone
+  Smartphone,
+  Video,
+  Upload
 } from 'lucide-react';
 import ExerciseVideoManagerModal from '../components/ExerciseVideoManagerModal';
 import { formatPhone } from '../utils/validators';
