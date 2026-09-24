@@ -141,25 +141,40 @@ export const DEFAULT_USERS = [
 ];
 
 export const DEFAULT_WORKOUTS = [
-  // Treino A (Peito)
-  { id: 'ex1', split: 'A', name: 'Supino Reto com Barra', category: 'Peito', load: '30kg cada lado', reps: '4 séries de 10', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/sqOw2Y6u9Xs', video_personalizado_url: '' },
-  { id: 'ex2', split: 'A', name: 'Crossover na Polia Média', category: 'Peito', load: '15kg cada lado', reps: '3 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/l5MhN6l3s88', video_personalizado_url: '' },
+  // Treino A (Peitoral & Tríceps - Foco Empurrar) - 5 Exercícios
+  { id: 'ex_a1', split: 'A', name: 'Supino Reto com Barra', category: 'Peito', load: '20kg cada lado', reps: '4 séries de 10-12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/sqOw2Y6u9Xs', video_personalizado_url: '' },
+  { id: 'ex_a2', split: 'A', name: 'Supino Inclinado com Halteres', category: 'Peito', load: '16kg cada halter', reps: '4 séries de 10', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/Z1K3JaoK9dM', video_personalizado_url: '' },
+  { id: 'ex_a3', split: 'A', name: 'Crossover na Polia Média', category: 'Peito', load: '15kg cada lado', reps: '3 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/l5MhN6l3s88', video_personalizado_url: '' },
+  { id: 'ex_a4', split: 'A', name: 'Tríceps na Polia com Corda', category: 'Tríceps', load: '20kg total', reps: '4 séries de 12-15', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/G6g1gG95wA0', video_personalizado_url: '' },
+  { id: 'ex_a5', split: 'A', name: 'Tríceps Testa com Halter', category: 'Tríceps', load: '10kg cada', reps: '3 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/HlJ_nKpxJg8', video_personalizado_url: '' },
   
-  // Treino B (Costas)
-  { id: 'ex3', split: 'B', name: 'Puxada Alta na Polia', category: 'Costas', load: '45kg total', reps: '4 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/H6x4yY9_u2w', video_personalizado_url: '' },
-  { id: 'ex4', split: 'B', name: 'Remada Curvada Pronada', category: 'Costas', load: '20kg cada lado', reps: '4 séries de 8', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/H5_p5r8K9H8', video_personalizado_url: '' },
+  // Treino B (Costas & Bíceps - Foco Puxar) - 5 Exercícios
+  { id: 'ex_b1', split: 'B', name: 'Puxada Alta na Polia (Pronada)', category: 'Costas', load: '45kg total', reps: '4 séries de 10-12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/H6x4yY9_u2w', video_personalizado_url: '' },
+  { id: 'ex_b2', split: 'B', name: 'Remada Curvada com Barra', category: 'Costas', load: '20kg cada lado', reps: '4 séries de 8-10', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/H5_p5r8K9H8', video_personalizado_url: '' },
+  { id: 'ex_b3', split: 'B', name: 'Remada Baixa com Triângulo', category: 'Costas', load: '40kg total', reps: '4 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/H6x4yY9_u2w', video_personalizado_url: '' },
+  { id: 'ex_b4', split: 'B', name: 'Rosca Direta com Barra W', category: 'Bíceps', load: '10kg cada lado', reps: '3 séries de 10-12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/ly7TepL4pco', video_personalizado_url: '' },
+  { id: 'ex_b5', split: 'B', name: 'Rosca Martelo Alternada', category: 'Bíceps', load: '12kg cada halter', reps: '3 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/HlJ_nKpxJg8', video_personalizado_url: '' },
   
-  // Treino C (Pernas)
-  { id: 'ex5', split: 'C', name: 'Agachamento Livre', category: 'Pernas', load: '20kg cada lado', reps: '4 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/Vn83S-A-9yU', video_personalizado_url: '' },
-  { id: 'ex6', split: 'C', name: 'Leg Press 45 Graus', category: 'Pernas', load: '160kg', reps: '4 séries de 10', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/vO-FwS1YhNA', video_personalizado_url: '' },
+  // Treino C (Membros Inferiores / Pernas Completas) - 5 Exercícios
+  { id: 'ex_c1', split: 'C', name: 'Agachamento Livre com Barra', category: 'Pernas', load: '20kg cada lado', reps: '4 séries de 10-12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/Vn83S-A-9yU', video_personalizado_url: '' },
+  { id: 'ex_c2', split: 'C', name: 'Leg Press 45 Graus', category: 'Pernas', load: '140kg total', reps: '4 séries de 10-12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/vO-FwS1YhNA', video_personalizado_url: '' },
+  { id: 'ex_c3', split: 'C', name: 'Cadeira Extensora', category: 'Pernas', load: '40kg total', reps: '3 séries de 12-15', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/U3l0rV3D70w', video_personalizado_url: '' },
+  { id: 'ex_c4', split: 'C', name: 'Mesa Flexora (Posterior)', category: 'Pernas', load: '35kg total', reps: '4 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/U3l0rV3D70w', video_personalizado_url: '' },
+  { id: 'ex_c5', split: 'C', name: 'Gêmeos / Panturrilha em Pé', category: 'Pernas', load: '50kg total', reps: '4 séries de 15-20', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/U3l0rV3D70w', video_personalizado_url: '' },
   
-  // Treino D (Braços)
-  { id: 'ex7', split: 'D', name: 'Rosca Direta com Barra W', category: 'Bíceps', load: '10kg cada lado', reps: '3 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/ly7TepL4pco', video_personalizado_url: '' },
-  { id: 'ex8', split: 'D', name: 'Tríceps Testa com Halter', category: 'Tríceps', load: '12kg cada', reps: '3 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/HlJ_nKpxJg8', video_personalizado_url: '' },
+  // Treino D (Ombros, Trapézio & Abdômen) - 5 Exercícios
+  { id: 'ex_d1', split: 'D', name: 'Desenvolvimento com Halteres', category: 'Ombros', load: '14kg cada halter', reps: '4 séries de 10-12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/Z1K3JaoK9dM', video_personalizado_url: '' },
+  { id: 'ex_d2', split: 'D', name: 'Elevação Lateral com Halteres', category: 'Ombros', load: '8kg cada halter', reps: '4 séries de 12-15', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/l5MhN6l3s88', video_personalizado_url: '' },
+  { id: 'ex_d3', split: 'D', name: 'Crucifixo Invertido com Halteres', category: 'Ombros', load: '7kg cada halter', reps: '4 séries de 15', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/H5_p5r8K9H8', video_personalizado_url: '' },
+  { id: 'ex_d4', split: 'D', name: 'Abdominal Supra no Solo', category: 'Abdômen / Core', load: 'Peso Corporal', reps: '4 séries de 20', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk', video_personalizado_url: '' },
+  { id: 'ex_d5', split: 'D', name: 'Prancha Frontal Isométrica', category: 'Abdômen / Core', load: 'Peso Corporal', reps: '4 séries de 45-60s', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk', video_personalizado_url: '' },
   
-  // Treino E (Cardio / Core)
-  { id: 'ex9', split: 'E', name: 'Corrida na Esteira', category: 'Cardio', load: 'Velocidade 7/11', reps: '15 minutos', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/sqOw2Y6u9Xs', video_personalizado_url: '' },
-  { id: 'ex10', split: 'E', name: 'Burpee Completo', category: 'Cardio', load: 'Peso Corporal', reps: '4 séries de 45s', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk', video_personalizado_url: '' }
+  // Treino E (Glúteos, Funcional & Cardio) - 5 Exercícios
+  { id: 'ex_e1', split: 'E', name: 'Elevação Pélvica com Barra', category: 'Pernas', load: '30kg cada lado', reps: '4 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/vO-FwS1YhNA', video_personalizado_url: '' },
+  { id: 'ex_e2', split: 'E', name: 'Passada / Afundo Caminhando', category: 'Pernas', load: '10kg cada halter', reps: '3 séries de 20 passos', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/6Tz_kO08_iM', video_personalizado_url: '' },
+  { id: 'ex_e3', split: 'E', name: 'Stiff com Halteres', category: 'Pernas', load: '16kg cada halter', reps: '4 séries de 10-12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/Vn83S-A-9yU', video_personalizado_url: '' },
+  { id: 'ex_e4', split: 'E', name: 'Burpee Completo com Salto', category: 'Cardio / Funcional', load: 'Peso Corporal', reps: '4 séries de 45s', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk', video_personalizado_url: '' },
+  { id: 'ex_e5', split: 'E', name: 'Corrida Intervalada na Esteira', category: 'Cardio / Funcional', load: 'Velocidade 7/11 km/h', reps: '15-20 minutos', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/sqOw2Y6u9Xs', video_personalizado_url: '' }
 ];
 
 const AI_EXERCISE_POOL = {

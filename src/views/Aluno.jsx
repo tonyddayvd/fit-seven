@@ -183,6 +183,15 @@ const Aluno = () => {
   const [firstAccessError, setFirstAccessError] = useState('');
   const [isSavingFirstPass, setIsSavingFirstPass] = useState(false);
 
+  // Pop-up / Tutorial de Boas-Vindas (Primeira Apresentação do App)
+  const [showWelcomeTourModal, setShowWelcomeTourModal] = useState(() => {
+    if (!user?.id) return false;
+    // Se ainda está pendente o primeiro acesso de senha, espera a senha ser definida
+    if (user?.primeiroAcesso === true || user?.password === '123') return false;
+    const tourKey = `fitseven_welcome_tour_seen_${user.id}`;
+    return !localStorage.getItem(tourKey);
+  });
+
   // Localiza o professor do aluno
   const myProfessor = useMemo(() => {
     if (!usersList || usersList.length === 0 || !user) return null;
@@ -320,11 +329,24 @@ const Aluno = () => {
     try {
       await changePassword(user.id, firstAccessPassword);
       setShowFirstAccessModal(false);
-      alert('Sua nova senha foi definida com sucesso! Bem-vindo ao Fit Seven.');
+      const tourKey = `fitseven_welcome_tour_seen_${user?.id}`;
+      if (!localStorage.getItem(tourKey)) {
+        setShowWelcomeTourModal(true);
+      }
     } catch (err) {
       setFirstAccessError(err.message || 'Erro ao definir nova senha.');
     } finally {
       setIsSavingFirstPass(false);
+    }
+  };
+
+  const handleCloseWelcomeTour = (goToMedidas = false) => {
+    if (user?.id) {
+      localStorage.setItem(`fitseven_welcome_tour_seen_${user.id}`, 'true');
+    }
+    setShowWelcomeTourModal(false);
+    if (goToMedidas) {
+      setActiveTab('medidas');
     }
   };
 
@@ -1800,6 +1822,185 @@ const Aluno = () => {
         </div>
       )}
 
+      {/* ── MODAL / POP-UP DE BOAS-VINDAS E APRESENTAÇÃO DO SISTEMA (TOUR GUIADO) ── */}
+      {showWelcomeTourModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.88)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '16px'
+        }} className="animate-fade-in">
+          <div style={{
+            width: '100%',
+            maxWidth: '520px',
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: '24px',
+            border: '2px solid rgba(139, 92, 246, 0.4)',
+            padding: '28px 24px',
+            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(139, 92, 246, 0.25)',
+            position: 'relative',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }} className="glass">
+            
+            {/* Cabeçalho */}
+            <div style={{ textAlign: 'center', marginBottom: '22px' }}>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(59, 130, 246, 0.2) 100%)',
+                border: '2px solid var(--primary)',
+                marginBottom: '14px',
+                boxShadow: '0 0 20px rgba(139, 92, 246, 0.4)'
+              }}>
+                <Sparkles size={32} color="var(--primary)" />
+              </div>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                Bem-vindo ao Fit Seven! 🚀
+              </h2>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+                Olá, <strong>{user?.name || 'Atleta'}</strong>! Preparamos uma experiência incrível para sua evolução física. Veja como dar seus primeiros passos:
+              </p>
+            </div>
+
+            {/* Passo 1: Tela de Treinos */}
+            <div style={{
+              backgroundColor: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '16px',
+              padding: '16px',
+              marginBottom: '14px',
+              display: 'flex',
+              gap: '14px',
+              alignItems: 'flex-start'
+            }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <Dumbbell size={22} color="#10b981" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: '800', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                    1. Tela Atual
+                  </span>
+                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>Seus Treinos Diários</strong>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
+                  Você já está na sua tela principal de treinos! Os seus exercícios do dia estão logo abaixo. Basta seguir a lista, assistir aos vídeos de execução e ir marcando cada exercício como <strong>concluído</strong>.
+                </p>
+              </div>
+            </div>
+
+            {/* Passo 2: Área de Medidas e Treino da IA / Personal */}
+            <div style={{
+              backgroundColor: 'rgba(139, 92, 246, 0.08)',
+              border: '1px solid rgba(139, 92, 246, 0.35)',
+              borderRadius: '16px',
+              padding: '16px',
+              marginBottom: '20px',
+              display: 'flex',
+              gap: '14px',
+              alignItems: 'flex-start'
+            }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                border: '1px solid rgba(139, 92, 246, 0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <Ruler size={22} color="var(--primary)" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: '800', backgroundColor: 'rgba(139, 92, 246, 0.25)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                    2. Treino 100% Personalizado
+                  </span>
+                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>Área de Medidas & Avaliação</strong>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
+                  Para ter um treino exclusivo montado sob medida pelo seu <strong>Personal Trainer</strong> ou pela nossa <strong>Inteligência Artificial</strong>, acesse a aba <strong style={{ color: 'var(--primary)' }}>"Medidas"</strong> no menu inferior e preencha sua avaliação corporal com fotos e objetivos!
+                </p>
+              </div>
+            </div>
+
+            {/* Botões de Ação */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => handleCloseWelcomeTour(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--primary)',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '0.92rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(139, 92, 246, 0.4)'
+                }}
+              >
+                <Ruler size={18} /> Ir para a Área de Medidas Agora
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCloseWelcomeTour(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  backgroundColor: 'transparent',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-primary)',
+                  fontWeight: '700',
+                  fontSize: '0.86rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <Dumbbell size={16} /> Entendi! Quero ver meus treinos agora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── BANNER DE SOLICITAÇÃO DE VÍNCULO PENDENTE (SE HOUVER) ── */}
       {user?.statusVinculo === 'pendente_aprovacao' && (
         <div style={{
@@ -1844,7 +2045,26 @@ const Aluno = () => {
                 </label>
               </div>
               <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Olá, atleta</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Olá, atleta</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowWelcomeTourModal(true)}
+                    title="Ver apresentação e tutorial do app"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      color: 'var(--primary)',
+                      opacity: 0.8
+                    }}
+                  >
+                    <HelpCircle size={14} />
+                  </button>
+                </div>
                 <strong style={{ fontSize: '1.05rem', color: 'var(--text-primary)' }}>{user?.name || 'Aluno'}</strong>
               </div>
             </div>
