@@ -284,11 +284,45 @@ export const getDefaultWorkouts = (genderOrUser) => {
 };
 
 /**
+ * Detecta se a ficha salva no banco é o antigo mock genérico (ex: 10 exercícios com apenas 2 por split),
+ * sem que a IA ou o Personal tenham de fato gerado um programa estruturado.
+ */
+export const isLegacyMockWorkout = (studentData) => {
+  if (!studentData) return true;
+  if (!studentData.exercises || !Array.isArray(studentData.exercises) || studentData.exercises.length === 0) {
+    return true;
+  }
+  
+  // Se contiver os IDs antigos do template mock ('ex1' a 'ex10')
+  const hasLegacyMockIds = studentData.exercises.some(e => /^ex([1-9]|10)$/.test(e.id));
+  if (hasLegacyMockIds) return true;
+
+  // Se tiver menos de 4 exercícios no Split A e não possuir documento VIP real
+  const splitACount = studentData.exercises.filter(e => (e.split || 'A').toUpperCase() === 'A').length;
+  const hasRealVipDoc = Boolean(
+    studentData.vipHtml &&
+    typeof studentData.vipHtml === 'string' &&
+    studentData.vipHtml.trim().length > 300 &&
+    (
+      studentData.vipHtml.includes('<!DOCTYPE') ||
+      studentData.vipHtml.includes('<html') ||
+      studentData.vipHtml.includes('id="treino"')
+    )
+  );
+
+  if (splitACount < 4 && !hasRealVipDoc) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
  * Resolve e entrega a ficha de treino para qualquer aluno:
  * 1. Aluno BÁSICO (!isVip): sempre entrega a grade padrão (5 por dia) conforme gênero (homem ou mulher).
  * 2. Aluno VIP (isVip): 
  *    - Se JÁ tiver treino montado (seja pela IA ou pelo personal): entrega a ficha VIP montada.
- *    - Se AINDA NÃO tiver treino montado (nem pela IA nem pelo personal): entrega a grade padrão (5 por dia) conforme gênero (homem ou mulher).
+ *    - Se AINDA NÃO tiver treino montado (nem pela IA nem pelo personal, ou apenas mock antigo): entrega a grade padrão completa (5 por dia) conforme gênero (homem ou mulher).
  */
 export const resolveStudentWorkout = (studentUser, studentData) => {
   if (!studentUser) {
@@ -307,7 +341,7 @@ export const resolveStudentWorkout = (studentUser, studentData) => {
   const defaultWorkouts = getDefaultWorkouts(gender);
   const isVip = Boolean(studentUser.isVip || studentData?.isVip);
 
-  // REGRA 1: Aluno marcado como BÁSICO
+  // REGRA 1: Aluno marcado como BÁSICO -> Sempre recebe a grade padrão de 5 por split conforme o gênero
   if (!isVip) {
     return {
       isVip: false,
@@ -321,18 +355,16 @@ export const resolveStudentWorkout = (studentUser, studentData) => {
   }
 
   // REGRA 2: Aluno marcado como VIP
-  // Verifica se o aluno já possui treino customizado estruturado montado pela IA ou Personal:
-  const hasCustomExercises = Boolean(
-    studentData?.exercises && 
-    Array.isArray(studentData.exercises) && 
-    studentData.exercises.length > 0
-  );
+  // Verifica se o aluno realmente possui treino customizado estruturado montado pela IA ou Personal:
+  const isMock = isLegacyMockWorkout(studentData);
 
-  const hasVipHtml = Boolean(
+  const hasRealVipHtml = Boolean(
     studentData?.vipHtml && 
     typeof studentData.vipHtml === 'string' && 
-    studentData.vipHtml.trim().length > 100 &&
+    studentData.vipHtml.trim().length > 300 &&
     (
+      studentData.vipHtml.includes('<!DOCTYPE') ||
+      studentData.vipHtml.includes('<html') ||
       studentData.vipHtml.includes('exercise-main') || 
       studentData.vipHtml.includes('exercise-title') || 
       studentData.vipHtml.includes('class="day') || 
@@ -341,12 +373,19 @@ export const resolveStudentWorkout = (studentUser, studentData) => {
     )
   );
 
-  if (hasCustomExercises || hasVipHtml) {
-    // Aluno VIP com treino montado!
+  const hasCustomExercises = Boolean(
+    !isMock &&
+    studentData?.exercises && 
+    Array.isArray(studentData.exercises) && 
+    studentData.exercises.length >= 15 // Pelo menos 3 a 5 exercícios por dia
+  );
+
+  if (hasRealVipHtml || hasCustomExercises) {
+    // Aluno VIP com treino real montado sob medida pela IA ou Personal!
     return {
       isVip: true,
       hasCustomWorkout: true,
-      exercises: hasCustomExercises ? studentData.exercises : defaultWorkouts,
+      exercises: (!isMock && hasCustomExercises) ? studentData.exercises : defaultWorkouts,
       vipHtml: studentData?.vipHtml || '',
       finishedSplits: studentData?.finishedSplits || [],
       status: studentData?.status || 'published',
@@ -354,8 +393,8 @@ export const resolveStudentWorkout = (studentUser, studentData) => {
     };
   }
 
-  // REGRA 3: Aluno VIP que AINDA NÃO TEM treino montado nem pela IA nem pelo Personal:
-  // Entrega o treino padrão correspondente ao seu gênero (homem ou mulher)
+  // REGRA 3: Aluno VIP que AINDA NÃO TEM treino montado nem pela IA nem pelo Personal (ex: Risia Kely, etc.):
+  // Entrega o treino padrão completo de 5 exercícios diários (25 no total) voltado para o seu gênero!
   return {
     isVip: true,
     hasCustomWorkout: false,
