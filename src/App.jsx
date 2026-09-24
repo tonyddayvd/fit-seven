@@ -150,7 +150,7 @@ const styles = {
     flexDirection: 'column',
   },
   mainContent: {
-    padding: '8px 16px 100px 16px',
+    padding: '8px 16px 140px 16px',
     flex: 1,
   },
   errorState: {

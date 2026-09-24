@@ -166,7 +166,8 @@ const Aluno = () => {
     getUnreadNotificationsForUser,
     changePassword,
     tutorialCircunferenciasVideoUrl,
-    saveTutorialCircunferenciasVideo
+    saveTutorialCircunferenciasVideo,
+    originalUser
   } = useApp();
   
   const [showMedalModal, setShowMedalModal] = useState(false);
@@ -184,13 +185,20 @@ const Aluno = () => {
   const [isSavingFirstPass, setIsSavingFirstPass] = useState(false);
 
   // Pop-up / Tutorial de Boas-Vindas (Primeira Apresentação do App)
+  const isMasterImpersonating = Boolean(originalUser && originalUser.role === 'master');
   const [showWelcomeTourModal, setShowWelcomeTourModal] = useState(() => {
     if (!user?.id) return false;
+    // Se for o Master inspecionando/visualizando, não bloqueia e permite ver o tour sem marcar como lido para o aluno real
+    const tourKey = `fitseven_welcome_tour_seen_${user.id}`;
+    if (localStorage.getItem(tourKey)) return false;
     // Se ainda está pendente o primeiro acesso de senha, espera a senha ser definida
     if (user?.primeiroAcesso === true || user?.password === '123') return false;
-    const tourKey = `fitseven_welcome_tour_seen_${user.id}`;
-    return !localStorage.getItem(tourKey);
+    return true;
   });
+  const [dontShowTourAgain, setDontShowTourAgain] = useState(false);
+
+  // Checkbox e controle de 'Não exibir novamente' para Pop-up de Notificação do Professor
+  const [dontShowNotifAgain, setDontShowNotifAgain] = useState(false);
 
   // Localiza o professor do aluno
   const myProfessor = useMemo(() => {
@@ -211,15 +219,29 @@ const Aluno = () => {
   }, [user, notifications, getUnreadNotificationsForUser]);
 
   // Dispara o Pop-up de Notificação quando houver novo vídeo ou mensagem
+  // IMPORTANTE: Só abre se o Pop-up de Boas-Vindas / Tour NÃO estiver aberto (evita sobreposição)
   useEffect(() => {
-    if (unreadNotifs.length > 0 && !activePopupNotif) {
-      setActivePopupNotif(unreadNotifs[0]);
+    if (showWelcomeTourModal || showFirstAccessModal) {
+      return;
     }
-  }, [unreadNotifs]);
+    if (unreadNotifs.length > 0 && !activePopupNotif) {
+      // Verifica se o usuário marcou para não exibir essa notificação específica novamente
+      const dismissedKey = `fitseven_notif_dismissed_${user?.id}_${unreadNotifs[0].id}`;
+      if (!localStorage.getItem(dismissedKey)) {
+        setActivePopupNotif(unreadNotifs[0]);
+        setDontShowNotifAgain(false);
+      }
+    }
+  }, [unreadNotifs, showWelcomeTourModal, showFirstAccessModal]);
 
   const handleOpenNotifAction = (notif) => {
     if (!notif) return;
-    if (markNotificationAsRead) markNotificationAsRead(notif.id, user.id);
+    if (dontShowNotifAgain && user?.id) {
+      localStorage.setItem(`fitseven_notif_dismissed_${user.id}_${notif.id}`, 'true');
+    }
+    if (!isMasterImpersonating && markNotificationAsRead) {
+      markNotificationAsRead(notif.id, user.id);
+    }
     setActivePopupNotif(null);
     if (notif.actionType === 'open_professor_modal' || notif.type === 'video_incentivo' || notif.type === 'video_apresentacao') {
       setShowProfessorModal(true);
@@ -230,7 +252,12 @@ const Aluno = () => {
 
   const handleDismissNotif = (notif) => {
     if (!notif) return;
-    if (markNotificationAsRead) markNotificationAsRead(notif.id, user.id);
+    if (dontShowNotifAgain && user?.id) {
+      localStorage.setItem(`fitseven_notif_dismissed_${user.id}_${notif.id}`, 'true');
+    }
+    if (!isMasterImpersonating && markNotificationAsRead) {
+      markNotificationAsRead(notif.id, user.id);
+    }
     setActivePopupNotif(null);
   };
 
@@ -341,8 +368,13 @@ const Aluno = () => {
   };
 
   const handleCloseWelcomeTour = (goToMedidas = false) => {
+    // Se o usuário marcou a caixa "Não exibir novamente" (ou se não for Master visualizando e optou por não ver mais)
     if (user?.id) {
-      localStorage.setItem(`fitseven_welcome_tour_seen_${user.id}`, 'true');
+      if (dontShowTourAgain || !isMasterImpersonating) {
+        if (dontShowTourAgain) {
+          localStorage.setItem(`fitseven_welcome_tour_seen_${user.id}`, 'true');
+        }
+      }
     }
     setShowWelcomeTourModal(false);
     if (goToMedidas) {
@@ -1685,6 +1717,26 @@ const Aluno = () => {
                   Ver depois
                 </button>
               </div>
+
+              {/* Caixa de seleção: Não exibir novamente */}
+              <label style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginTop: '10px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                fontSize: '0.76rem',
+                color: 'var(--text-muted)'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={dontShowNotifAgain}
+                  onChange={(e) => setDontShowNotifAgain(e.target.checked)}
+                  style={{ accentColor: '#f59e0b', cursor: 'pointer', width: '15px', height: '15px' }}
+                />
+                <span>Não exibir este aviso novamente</span>
+              </label>
             </div>
           </div>
         </div>
@@ -1830,48 +1882,72 @@ const Aluno = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.88)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 99999,
-          padding: '16px'
+          zIndex: 1000001,
+          padding: '16px 16px 90px 16px'
         }} className="animate-fade-in">
           <div style={{
             width: '100%',
             maxWidth: '520px',
             backgroundColor: 'var(--bg-secondary)',
             borderRadius: '24px',
-            border: '2px solid rgba(139, 92, 246, 0.4)',
-            padding: '28px 24px',
+            border: '2px solid rgba(139, 92, 246, 0.45)',
+            padding: '24px 22px',
             boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(139, 92, 246, 0.25)',
             position: 'relative',
-            maxHeight: '90vh',
+            maxHeight: '85vh',
             overflowY: 'auto'
           }} className="glass">
             
+            {/* Botão de Fechar no Topo */}
+            <button
+              type="button"
+              onClick={() => handleCloseWelcomeTour(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-muted)',
+                cursor: 'pointer'
+              }}
+              title="Fechar apresentação"
+            >
+              <X size={18} />
+            </button>
+
             {/* Cabeçalho */}
-            <div style={{ textAlign: 'center', marginBottom: '22px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '20px', marginTop: '4px' }}>
               <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '64px',
-                height: '64px',
+                width: '60px',
+                height: '60px',
                 borderRadius: '50%',
                 background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(59, 130, 246, 0.2) 100%)',
                 border: '2px solid var(--primary)',
-                marginBottom: '14px',
+                marginBottom: '12px',
                 boxShadow: '0 0 20px rgba(139, 92, 246, 0.4)'
               }}>
-                <Sparkles size={32} color="var(--primary)" />
+                <Sparkles size={30} color="var(--primary)" />
               </div>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
                 Bem-vindo ao Fit Seven! 🚀
               </h2>
-              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+              <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
                 Olá, <strong>{user?.name || 'Atleta'}</strong>! Preparamos uma experiência incrível para sua evolução física. Veja como dar seus primeiros passos:
               </p>
             </div>
@@ -1881,15 +1957,15 @@ const Aluno = () => {
               backgroundColor: 'var(--bg-tertiary)',
               border: '1px solid var(--border-color)',
               borderRadius: '16px',
-              padding: '16px',
-              marginBottom: '14px',
+              padding: '14px',
+              marginBottom: '12px',
               display: 'flex',
-              gap: '14px',
+              gap: '12px',
               alignItems: 'flex-start'
             }}>
               <div style={{
-                width: '42px',
-                height: '42px',
+                width: '40px',
+                height: '40px',
                 borderRadius: '12px',
                 backgroundColor: 'rgba(16, 185, 129, 0.15)',
                 border: '1px solid rgba(16, 185, 129, 0.3)',
@@ -1898,16 +1974,16 @@ const Aluno = () => {
                 justifyContent: 'center',
                 flexShrink: 0
               }}>
-                <Dumbbell size={22} color="#10b981" />
+                <Dumbbell size={20} color="#10b981" />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: '800', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: '800', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
                     1. Tela Atual
                   </span>
-                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>Seus Treinos Diários</strong>
+                  <strong style={{ fontSize: '0.92rem', color: 'var(--text-primary)' }}>Seus Treinos Diários</strong>
                 </div>
-                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
                   Você já está na sua tela principal de treinos! Os seus exercícios do dia estão logo abaixo. Basta seguir a lista, assistir aos vídeos de execução e ir marcando cada exercício como <strong>concluído</strong>.
                 </p>
               </div>
@@ -1918,15 +1994,15 @@ const Aluno = () => {
               backgroundColor: 'rgba(139, 92, 246, 0.08)',
               border: '1px solid rgba(139, 92, 246, 0.35)',
               borderRadius: '16px',
-              padding: '16px',
-              marginBottom: '20px',
+              padding: '14px',
+              marginBottom: '16px',
               display: 'flex',
-              gap: '14px',
+              gap: '12px',
               alignItems: 'flex-start'
             }}>
               <div style={{
-                width: '42px',
-                height: '42px',
+                width: '40px',
+                height: '40px',
                 borderRadius: '12px',
                 backgroundColor: 'rgba(139, 92, 246, 0.2)',
                 border: '1px solid rgba(139, 92, 246, 0.5)',
@@ -1935,20 +2011,41 @@ const Aluno = () => {
                 justifyContent: 'center',
                 flexShrink: 0
               }}>
-                <Ruler size={22} color="var(--primary)" />
+                <Ruler size={20} color="var(--primary)" />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: '800', backgroundColor: 'rgba(139, 92, 246, 0.25)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: '800', backgroundColor: 'rgba(139, 92, 246, 0.25)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
                     2. Treino 100% Personalizado
                   </span>
-                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>Área de Medidas & Avaliação</strong>
+                  <strong style={{ fontSize: '0.92rem', color: 'var(--text-primary)' }}>Área de Medidas & Avaliação</strong>
                 </div>
-                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
                   Para ter um treino exclusivo montado sob medida pelo seu <strong>Personal Trainer</strong> ou pela nossa <strong>Inteligência Artificial</strong>, acesse a aba <strong style={{ color: 'var(--primary)' }}>"Medidas"</strong> no menu inferior e preencha sua avaliação corporal com fotos e objetivos!
                 </p>
               </div>
             </div>
+
+            {/* Caixa de Seleção: Não exibir novamente */}
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              marginBottom: '16px',
+              cursor: 'pointer',
+              userSelect: 'none',
+              fontSize: '0.82rem',
+              color: 'var(--text-secondary)'
+            }}>
+              <input
+                type="checkbox"
+                checked={dontShowTourAgain}
+                onChange={(e) => setDontShowTourAgain(e.target.checked)}
+                style={{ accentColor: 'var(--primary)', cursor: 'pointer', width: '16px', height: '16px' }}
+              />
+              <span>Não exibir esta apresentação novamente</span>
+            </label>
 
             {/* Botões de Ação */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1961,12 +2058,12 @@ const Aluno = () => {
                   justifyContent: 'center',
                   gap: '8px',
                   width: '100%',
-                  padding: '14px',
+                  padding: '13px',
                   borderRadius: '12px',
                   backgroundColor: 'var(--primary)',
                   color: '#ffffff',
                   fontWeight: '800',
-                  fontSize: '0.92rem',
+                  fontSize: '0.9rem',
                   border: 'none',
                   cursor: 'pointer',
                   boxShadow: '0 4px 15px rgba(139, 92, 246, 0.4)'
@@ -1984,13 +2081,13 @@ const Aluno = () => {
                   justifyContent: 'center',
                   gap: '8px',
                   width: '100%',
-                  padding: '12px',
+                  padding: '11px',
                   borderRadius: '12px',
                   backgroundColor: 'transparent',
                   border: '1px solid var(--border-color)',
                   color: 'var(--text-primary)',
                   fontWeight: '700',
-                  fontSize: '0.86rem',
+                  fontSize: '0.85rem',
                   cursor: 'pointer'
                 }}
               >
@@ -5754,7 +5851,7 @@ const styles = {
     borderTop: '1px solid var(--border-color)',
     boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.1)',
     padding: '12px 16px',
-    zIndex: 999999,
+    zIndex: 1000,
   },
   scrollWrapper: {
     display: 'flex',
