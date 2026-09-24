@@ -82,7 +82,8 @@ export const DEFAULT_USERS = [
     tenantId: 't1', 
     password: '123', 
     isVip: true,
-    cpf: '123.456.789-00'
+    cpf: '123.456.789-00',
+    sexoBiologico: 'masculino'
   },
   { 
     id: 'u1', 
@@ -127,6 +128,7 @@ export const DEFAULT_USERS = [
     tenantId: 't2', 
     password: '123', 
     isVip: true,
+    sexoBiologico: 'feminino',
     telefone: '21999998888',
     whatsapp: '21999998888',
     cpf: '456.789.123-44',
@@ -140,7 +142,7 @@ export const DEFAULT_USERS = [
   }
 ];
 
-export const DEFAULT_WORKOUTS = [
+export const DEFAULT_WORKOUTS_MASCULINO = [
   // Treino A (Peitoral & Tríceps - Foco Empurrar) - 5 Exercícios
   { id: 'ex_a1', split: 'A', name: 'Supino Reto com Barra', category: 'Peito', load: '20kg cada lado', reps: '4 séries de 10-12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/sqOw2Y6u9Xs', video_personalizado_url: '' },
   { id: 'ex_a2', split: 'A', name: 'Supino Inclinado com Halteres', category: 'Peito', load: '16kg cada halter', reps: '4 séries de 10', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/Z1K3JaoK9dM', video_personalizado_url: '' },
@@ -176,6 +178,88 @@ export const DEFAULT_WORKOUTS = [
   { id: 'ex_e4', split: 'E', name: 'Burpee Completo com Salto', category: 'Cardio / Funcional', load: 'Peso Corporal', reps: '4 séries de 45s', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk', video_personalizado_url: '' },
   { id: 'ex_e5', split: 'E', name: 'Corrida Intervalada na Esteira', category: 'Cardio / Funcional', load: 'Velocidade 7/11 km/h', reps: '15-20 minutos', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/sqOw2Y6u9Xs', video_personalizado_url: '' }
 ];
+
+export const DEFAULT_WORKOUTS_FEMININO = [
+  // Treino A (Membros Inferiores - Foco Quadríceps & Panturrilhas) - 5 Exercícios
+  { id: 'ex_fa1', split: 'A', name: 'Agachamento Livre ou no Smith', category: 'Pernas', load: '10kg a 15kg cada lado', reps: '4 séries de 10-12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/Vn83S-A-9yU', video_personalizado_url: '' },
+  { id: 'ex_fa2', split: 'A', name: 'Leg Press 45° Pés Baixos', category: 'Pernas', load: '80kg a 100kg total', reps: '4 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/vO-FwS1YhNA', video_personalizado_url: '' },
+  { id: 'ex_fa3', split: 'A', name: 'Cadeira Extensora com Isometria', category: 'Pernas', load: '25kg a 35kg total', reps: '4 séries de 12-15', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/U3l0rV3D70w', video_personalizado_url: '' },
+  { id: 'ex_fa4', split: 'A', name: 'Passada / Afundo com Halteres', category: 'Pernas', load: '6kg a 8kg cada halter', reps: '3 séries de 12-15 cada perna', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/6Tz_kO08_iM', video_personalizado_url: '' },
+  { id: 'ex_fa5', split: 'A', name: 'Panturrilha em Pé na Máquina', category: 'Pernas', load: '35kg total', reps: '4 séries de 15-20', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/U3l0rV3D70w', video_personalizado_url: '' },
+
+  // Treino B (Membros Superiores Delineados - Costas, Ombros & Tríceps) - 5 Exercícios
+  { id: 'ex_fb1', split: 'B', name: 'Puxada Alta com Pegada Neutra ou Aberta', category: 'Costas', load: '30kg total', reps: '4 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/H6x4yY9_u2w', video_personalizado_url: '' },
+  { id: 'ex_fb2', split: 'B', name: 'Remada Baixa com Triângulo', category: 'Costas', load: '25kg total', reps: '4 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/H6x4yY9_u2w', video_personalizado_url: '' },
+  { id: 'ex_fb3', split: 'B', name: 'Elevação Lateral com Halteres', category: 'Ombros', load: '4kg a 6kg cada halter', reps: '4 séries de 12-15', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/l5MhN6l3s88', video_personalizado_url: '' },
+  { id: 'ex_fb4', split: 'B', name: 'Desenvolvimento com Halteres', category: 'Ombros', load: '6kg a 8kg cada halter', reps: '3 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/Z1K3JaoK9dM', video_personalizado_url: '' },
+  { id: 'ex_fb5', split: 'B', name: 'Tríceps na Polia com Corda', category: 'Tríceps', load: '15kg total', reps: '4 séries de 12-15', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/G6g1gG95wA0', video_personalizado_url: '' },
+
+  // Treino C (Glúteos & Posterior de Coxa - Foco Bumbum e Posterior) - 5 Exercícios
+  { id: 'ex_fc1', split: 'C', name: 'Elevação Pélvica com Barra (2s Pico)', category: 'Glúteos', load: '20kg a 30kg cada lado', reps: '4 séries de 10-12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/vO-FwS1YhNA', video_personalizado_url: '' },
+  { id: 'ex_fc2', split: 'C', name: 'Stiff com Halteres ou Barra', category: 'Posterior / Glúteos', load: '10kg a 14kg cada halter', reps: '4 séries de 10-12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/Vn83S-A-9yU', video_personalizado_url: '' },
+  { id: 'ex_fc3', split: 'C', name: 'Mesa Flexora ou Cadeira Flexora', category: 'Posterior', load: '25kg a 35kg total', reps: '4 séries de 12', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/U3l0rV3D70w', video_personalizado_url: '' },
+  { id: 'ex_fc4', split: 'C', name: 'Glúteo na Polia / Coice com Caneleira', category: 'Glúteos', load: '15kg a 20kg', reps: '4 séries de 12-15 cada perna', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/vO-FwS1YhNA', video_personalizado_url: '' },
+  { id: 'ex_fc5', split: 'C', name: 'Cadeira Abdutora Tronco Inclinado', category: 'Glúteos', load: '35kg a 45kg', reps: '4 séries de 15-20', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/U3l0rV3D70w', video_personalizado_url: '' },
+
+  // Treino D (Core, Abdômen Delineado & Cintura Fina) - 5 Exercícios
+  { id: 'ex_fd1', split: 'D', name: 'Abdominal Supra com Pernas Elevadas', category: 'Abdômen / Core', load: 'Peso Corporal', reps: '4 séries de 20', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk', video_personalizado_url: '' },
+  { id: 'ex_fd2', split: 'D', name: 'Abdominal Infra no Solo ou Banco', category: 'Abdômen / Core', load: 'Peso Corporal', reps: '4 séries de 15', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk', video_personalizado_url: '' },
+  { id: 'ex_fd3', split: 'D', name: 'Prancha Frontal Isométrica', category: 'Abdômen / Core', load: 'Peso Corporal', reps: '4 séries de 45-60s', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk', video_personalizado_url: '' },
+  { id: 'ex_fd4', split: 'D', name: 'Prancha Lateral com Apoio de Cotovelo', category: 'Abdômen / Core', load: 'Peso Corporal', reps: '3 séries de 30-40s cada lado', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk', video_personalizado_url: '' },
+  { id: 'ex_fd5', split: 'D', name: 'Vácuo Abdominal (Stomach Vacuum)', category: 'Abdômen / Cintura', load: 'Respiração / Core', reps: '3 séries de 30s retenção', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk', video_personalizado_url: '' },
+
+  // Treino E (Glúteo Metabólico, Funcional & Queima Calórica) - 5 Exercícios
+  { id: 'ex_fe1', split: 'E', name: 'Agachamento Búlgaro com Halteres', category: 'Glúteos / Pernas', load: '6kg a 8kg cada halter', reps: '3 séries de 10-12 cada perna', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/6Tz_kO08_iM', video_personalizado_url: '' },
+  { id: 'ex_fe2', split: 'E', name: 'Cadeira Abdutora Drop-set', category: 'Glúteos', load: '40kg / 25kg', reps: '4 séries de 12 + 12 reps', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/U3l0rV3D70w', video_personalizado_url: '' },
+  { id: 'ex_fe3', split: 'E', name: 'Elevação Pélvica Unilateral', category: 'Glúteos', load: 'Peso Corporal / Anilha 5kg', reps: '3 séries de 12 cada lado', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/vO-FwS1YhNA', video_personalizado_url: '' },
+  { id: 'ex_fe4', split: 'E', name: 'Mountain Climbers / Alpinista', category: 'Cardio / Funcional', load: 'Peso Corporal', reps: '4 séries de 40s', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/0pkjOk0EiAk', video_personalizado_url: '' },
+  { id: 'ex_fe5', split: 'E', name: 'Caminhada Inclinada na Esteira / HIT', category: 'Cardio / Funcional', load: 'Inclinação 6-10%', reps: '20 minutos (vel 5.5-6.5 km/h)', status: 'pendente', video_oficial_url: 'https://www.youtube.com/embed/sqOw2Y6u9Xs', video_personalizado_url: '' }
+];
+
+export const DEFAULT_WORKOUTS = DEFAULT_WORKOUTS_MASCULINO;
+
+export const getStudentGender = (user) => {
+  if (!user) return 'masculino';
+  if (user.sexoBiologico) return user.sexoBiologico.toLowerCase();
+  if (user.sexo) return user.sexo.toLowerCase();
+  if (user.gender) return user.gender.toLowerCase();
+  
+  // Verifica rascunhos ou última avaliação salva no localStorage
+  try {
+    if (typeof window !== 'undefined' && window.localStorage && user.id) {
+      const draft = window.localStorage.getItem(`fitseven-draft-eval-${user.id}`);
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        if (parsed.sexoBiologico) return parsed.sexoBiologico.toLowerCase();
+      }
+      const lastEval = window.localStorage.getItem(`fitseven-last-eval-data-${user.id}`);
+      if (lastEval) {
+        const parsed = JSON.parse(lastEval);
+        if (parsed.sexoBiologico) return parsed.sexoBiologico.toLowerCase();
+      }
+    }
+  } catch (e) {
+    // ignora erros de parsing
+  }
+
+  // Heurística por nome caso o cadastro inicial ainda não tenha definido o sexo
+  const nameLower = (user.name || '').toLowerCase();
+  const feminineKeywords = ['mariana', 'maria', 'ana', 'carol', 'carolina', 'juliana', 'patricia', 'beatriz', 'fernanda', 'camila', 'leticia', 'aline', 'amanda', 'larissa', 'aluna', 'mulher', 'feminino'];
+  if (feminineKeywords.some(kw => nameLower.includes(kw))) {
+    return 'feminino';
+  }
+  return 'masculino';
+};
+
+export const getDefaultWorkouts = (genderOrUser) => {
+  let gender = 'masculino';
+  if (typeof genderOrUser === 'string') {
+    gender = genderOrUser.toLowerCase();
+  } else if (genderOrUser && typeof genderOrUser === 'object') {
+    gender = getStudentGender(genderOrUser);
+  }
+  return gender === 'feminino' ? DEFAULT_WORKOUTS_FEMININO : DEFAULT_WORKOUTS_MASCULINO;
+};
 
 const AI_EXERCISE_POOL = {
   hipertrofia: {
@@ -1646,11 +1730,12 @@ export const AppProvider = ({ children }) => {
   const activeTenant = tenants[Object.keys(tenants).find(k => tenants[k].id === activeTenantId)] || { name: 'Fit Seven Platform', subdomain: 'system' };
 
   const studentData = workoutsByStudent[user?.id];
-  const currentStudentExercises = (studentData && Array.isArray(studentData)) 
+  const defaultWorkoutsForUser = getDefaultWorkouts(user);
+  const currentStudentExercises = (studentData && Array.isArray(studentData) && studentData.length > 0) 
     ? studentData 
-    : (studentData && studentData.exercises) 
+    : (studentData && studentData.exercises && Array.isArray(studentData.exercises) && studentData.exercises.length > 0) 
       ? studentData.exercises 
-      : DEFAULT_WORKOUTS;
+      : defaultWorkoutsForUser;
 
   const reportBug = async (bugData) => {
     const bugId = `bug_${Date.now()}`;
@@ -1893,7 +1978,9 @@ export const AppProvider = ({ children }) => {
       getNotificationsForUser,
       getUnreadNotificationsForUser,
       tutorialCircunferenciasVideoUrl,
-      saveTutorialCircunferenciasVideo
+      saveTutorialCircunferenciasVideo,
+      getDefaultWorkouts,
+      getStudentGender
     }}>
       {children}
     </AppContext.Provider>

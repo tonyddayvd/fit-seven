@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, getDefaultWorkouts } from '../context/AppContext';
 import { 
   Dumbbell, 
   Ruler, 
@@ -683,16 +683,21 @@ const Aluno = () => {
       } catch (err) {
         console.warn('[VIP Parser] Erro:', err);
       }
-    } else {
-      // Fallback: exercícios do banco (não-VIP ou parser sem resultado)
-      const enrichedFree = (currentStudentExercises || []).map(ex => ({
-        ...ex,
-        video_personalizado_url: getSavedCustomVideo(user?.id, ex) || ex.video_personalizado_url || '',
-        video_oficial_url: ex.video_oficial_url || getDefaultOfficialVideo(ex.name)
-      }));
-      setExercises(loadExercises(enrichedFree));
     }
-  }, [currentStudentExercises, workoutsByStudent, user?.id]);
+
+    // Fallback garantido: exercícios do banco ou padrão diferenciados por gênero do aluno (nunca vazio)
+    const baseExercises = (currentStudentExercises && currentStudentExercises.length > 0)
+      ? currentStudentExercises
+      : getDefaultWorkouts(user);
+
+    const enrichedFree = (baseExercises || []).map(ex => ({
+      ...ex,
+      video_personalizado_url: getSavedCustomVideo(user?.id, ex) || ex.video_personalizado_url || '',
+      video_oficial_url: ex.video_oficial_url || getDefaultOfficialVideo(ex.name)
+    }));
+    console.log(`[Aluno Workout] Carregando ${enrichedFree.length} exercícios padrão/básicos para gênero:`, user?.sexoBiologico || 'padrão');
+    setExercises(loadExercises(enrichedFree));
+  }, [currentStudentExercises, workoutsByStudent, user?.id, user?.sexoBiologico]);
 
   // Estados dos recursos interativos
   const [activeVideoEx, setActiveVideoEx] = useState(null);
