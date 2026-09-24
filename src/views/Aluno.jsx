@@ -1107,14 +1107,13 @@ const Aluno = () => {
     return { reps: repsNum, sets: setsNum };
   };
 
-  // Identifica se o exercício é de Isometria (Pranchas), Peso Corporal (Abdominais, Calistenia) ou Cardio
+  // Identifica se o exercício é de Isometria (Pranchas estáticas), Peso Corporal (Abdominais, Calistenia) ou Cardio
   const getExerciseTypeInfo = (ex) => {
     if (!ex) return { type: 'weight', isTimeBased: false, isBodyweight: false, targetSeconds: 30, labelSets: 'Séries Reais Realizadas', labelLoad: 'Carga Utilizada (kg)', placeholderLoad: 'Ex: 25' };
 
     const name = (ex.name || '').toLowerCase();
     const category = (ex.category || '').toLowerCase();
-    const reps = (ex.reps || '').toLowerCase();
-    const load = (ex.load || '').toLowerCase();
+    const repsRaw = (ex.reps || '').toLowerCase();
 
     // 1. Cardio
     if (category === 'cardio' || name.includes('esteira') || name.includes('bicicleta') || name.includes('elíptico') || name.includes('bike') || name.includes('cardio') || name.includes('caminhada') || name.includes('corrida') || name.includes('pular corda')) {
@@ -1130,28 +1129,23 @@ const Aluno = () => {
       };
     }
 
-    // 2. Isometria / Tempo (Prancha, Plank, Ponte, Wall Sit, Vácuo, Alongamento, etc.)
-    const isIsometricKeywords = [
-      'isometria', 'prancha', 'plank', 'ponte', 'wall sit', 'hollow', 'vácuo', 'vacuum', 
-      'alongamento', 'mobilidade', 'flexibilidade'
-    ];
-    const hasTimePattern = /\b(\d+)\s*(?:seg|segundos|s|min|minutos)\b/i.test(reps);
-    const isIsometric = isIsometricKeywords.some(k => name.includes(k) || reps.includes(k) || load.includes(k)) || hasTimePattern;
+    // 2. Isometria Estática Pura (Prancha, Plank, Ponte Isométrica, Wall Sit, Vácuo / Stomach Vacuum)
+    // OBS: Exercícios normais com repetições (ex: 4 séries de 10-12) NUNCA devem ser isometria
+    const isometricNameKeywords = ['prancha', 'plank', 'wall sit', 'vácuo', 'vacuum', 'isometria'];
+    const hasIsometricName = isometricNameKeywords.some(k => name.includes(k));
 
-    if (isIsometric) {
-      const defaultRepsSets = getExRepsAndSets(ex);
-      let seconds = defaultRepsSets.reps || 30;
+    // Remove prefixo de séries (ex: '4 séries de ', '4x ') para não confundir '4 séries' com '4 segundos'
+    const repsWithoutSets = repsRaw.replace(/^\s*\d+\s*s[eé]ries?\s*(?:de\s*)?/i, '').replace(/^\s*\d+\s*x\s*/i, '');
+    const secMatch = repsWithoutSets.match(/(\d+)(?:\s*-\s*(\d+))?\s*(?:seg|segundos|s\b|s\s*reten)/i);
+    const minMatch = repsWithoutSets.match(/(\d+)\s*(?:min|minutos)\b/i);
 
-      // Procura especificamente por padrões explícitos de segundos / minutos na string de reps
-      const secMatch = reps.match(/(\d+)\s*(?:seg|segundos|s\b)/i);
-      const minMatch = reps.match(/(\d+)\s*(?:min|minutos|m\b)/i);
-
+    if (hasIsometricName || (secMatch && !repsRaw.includes('rep') && (name.includes('ponte') || name.includes('hollow')))) {
+      let seconds = 30;
       if (secMatch) {
-        seconds = parseInt(secMatch[1], 10) || seconds;
+        // Se houver faixa ex: 45-60s, pega o limite superior
+        seconds = parseInt(secMatch[2] || secMatch[1], 10) || 30;
       } else if (minMatch) {
         seconds = (parseInt(minMatch[1], 10) || 1) * 60;
-      } else if (reps.includes('min')) {
-        seconds = (defaultRepsSets.reps || 1) * 60;
       }
 
       return {
@@ -1165,34 +1159,36 @@ const Aluno = () => {
       };
     }
 
-    // 3. Peso Corporal / Calistenia / Sem Carga Obrigatória
+    // 3. Peso Corporal / Calistenia / Sem Carga Obrigatória (baseado em repetições, cadência de 3s/rep)
     const isBodyweightKeywords = [
-      'peso corporal', 'peso do corpo', 'corpo livre', 'calistenia', 'próprio peso', 'livre', 'sem carga', 'corporal',
+      'peso corporal', 'peso do corpo', 'corpo livre', 'calistenia', 'próprio peso', 'sem carga',
       'abdominal', 'crunch', 'infra', 'supra', 'elevação de pernas', 'perdigueiro', 'superman', 
       'flexão de braço', 'flexão solo', 'flexões', 'burpee', 'polichinelo', 'mountain climber', 'escalador', 'barra fixa', 'paralelas'
     ];
-    const isBodyweight = isBodyweightKeywords.some(k => name.includes(k) || load.includes(k) || reps.includes(k));
+    const isBodyweight = isBodyweightKeywords.some(k => name.includes(k) || (ex.load || '').toLowerCase().includes(k));
+
+    const defaultRepsSets = getExRepsAndSets(ex);
+    const repsCount = defaultRepsSets.reps || 10;
+    const calculatedCadenceSeconds = repsCount * 3;
 
     if (isBodyweight) {
-      const defaultRepsSets = getExRepsAndSets(ex);
       return {
         type: 'peso_corporal',
         isTimeBased: false,
         isBodyweight: true,
-        targetSeconds: defaultRepsSets.reps * 3,
+        targetSeconds: calculatedCadenceSeconds,
         labelSets: 'Séries Realizadas',
         labelLoad: 'Carga Adicional (Opcional)',
         placeholderLoad: 'Peso Corporal (0 kg)'
       };
     }
 
-    // 4. Convencional com pesos (Musculação)
-    const defaultRepsSets = getExRepsAndSets(ex);
+    // 4. Convencional com pesos (Musculação padrão: agachamento, leg press, supino, puxada, etc.)
     return {
       type: 'weight',
       isTimeBased: false,
       isBodyweight: false,
-      targetSeconds: defaultRepsSets.reps * 3,
+      targetSeconds: calculatedCadenceSeconds,
       labelSets: 'Séries Reais Realizadas',
       labelLoad: 'Carga Utilizada (kg)',
       placeholderLoad: 'Ex: 25'
