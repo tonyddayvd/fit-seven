@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useApp, DEFAULT_WORKOUTS } from '../context/AppContext';
+import { useApp, DEFAULT_WORKOUTS, resolveStudentWorkout, getDefaultWorkouts, getStudentGender } from '../context/AppContext';
 import { 
   Dumbbell, 
   PlusCircle, 
@@ -630,10 +630,8 @@ const Professor = () => {
     // Se estiver visualizando o CRM do Aluno
     if (viewingStudent) {
       const currentWorkout = workoutsByStudent[viewingStudent.id] || {};
-      
-      let exercisesList = (currentWorkout.exercises && currentWorkout.exercises.length > 0)
-        ? currentWorkout.exercises
-        : DEFAULT_WORKOUTS;
+      const resolved = resolveStudentWorkout(viewingStudent, currentWorkout);
+      const exercisesList = resolved.exercises;
       
       const updatedExs = exercisesList.map(ex => 
         (ex.id === editingVideoExercise.id || ex.name.trim().toLowerCase() === editingVideoExercise.name.trim().toLowerCase())
@@ -655,27 +653,31 @@ const Professor = () => {
   // Quando o selectedStudent mudar, carrega seus exercícios e calcula as divisões reais
   useEffect(() => {
     if (selectedStudent) {
+      const studentObj = usersList.find(u => u.id === selectedStudent);
       const studentWorkout = workoutsByStudent[selectedStudent];
-      if (studentWorkout && studentWorkout.exercises && studentWorkout.exercises.length > 0) {
-        setStudentExercises(studentWorkout.exercises);
-        const splitsFound = Array.from(new Set(studentWorkout.exercises.map(e => e.split || 'A'))).filter(Boolean).sort();
+      const resolved = resolveStudentWorkout(studentObj, studentWorkout);
+
+      if (resolved.exercises && resolved.exercises.length > 0) {
+        setStudentExercises(resolved.exercises);
+        const splitsFound = Array.from(new Set(resolved.exercises.map(e => e.split || 'A'))).filter(Boolean).sort();
         if (splitsFound.length > 0) {
           setAvailableSplits(splitsFound);
           if (!splitsFound.includes(prescribeSplit)) {
             setPrescribeSplit(splitsFound[0]);
           }
         } else {
-          setAvailableSplits(['A', 'B', 'C']);
+          setAvailableSplits(['A', 'B', 'C', 'D', 'E']);
           setPrescribeSplit('A');
         }
       } else {
-        setStudentExercises(DEFAULT_WORKOUTS);
-        const defaultSplits = Array.from(new Set(DEFAULT_WORKOUTS.map(e => e.split || 'A'))).filter(Boolean).sort();
-        setAvailableSplits(defaultSplits.length > 0 ? defaultSplits : ['A', 'B', 'C']);
+        const fallbackWorkouts = getDefaultWorkouts(studentObj);
+        setStudentExercises(fallbackWorkouts);
+        const defaultSplits = Array.from(new Set(fallbackWorkouts.map(e => e.split || 'A'))).filter(Boolean).sort();
+        setAvailableSplits(defaultSplits.length > 0 ? defaultSplits : ['A', 'B', 'C', 'D', 'E']);
         setPrescribeSplit('A');
       }
     }
-  }, [selectedStudent, workoutsByStudent]);
+  }, [selectedStudent, workoutsByStudent, usersList]);
 
   // Se o professor abrir a aba de prescrição e nenhum aluno estiver selecionado, seleciona o primeiro
   useEffect(() => {
@@ -2031,14 +2033,27 @@ const Professor = () => {
                 {crmTab === 'treinos' && (
                   <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
                     {(() => {
-                      const studentWorkout = workoutsByStudent[viewingStudent.id] || { exercises: DEFAULT_WORKOUTS };
-                      const exList = studentWorkout.exercises || DEFAULT_WORKOUTS;
+                      const studentWorkout = workoutsByStudent[viewingStudent.id];
+                      const resolved = resolveStudentWorkout(viewingStudent, studentWorkout);
+                      const exList = resolved.exercises;
                       return (
                         <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                              Total de Exercícios: <strong>{exList.length}</strong>
-                            </span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                Total de Exercícios: <strong>{exList.length}</strong>
+                              </span>
+                              <span style={{
+                                fontSize: '0.72rem',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontWeight: '600',
+                                background: resolved.isVip ? (resolved.hasCustomWorkout ? 'rgba(34,197,94,0.15)' : 'rgba(59,130,246,0.15)') : 'rgba(255,255,255,0.08)',
+                                color: resolved.isVip ? (resolved.hasCustomWorkout ? '#22c55e' : '#60a5fa') : 'var(--text-secondary)'
+                              }}>
+                                {resolved.isVip ? (resolved.hasCustomWorkout ? '👑 VIP (Personalizado)' : '⭐ VIP (Grade Padrão)') : `⚡ Básico (${resolved.source.includes('feminino') ? 'Feminino' : 'Masculino'})`}
+                              </span>
+                            </div>
                             <button 
                               onClick={() => handleStartPrescription(viewingStudent.id)}
                               style={{ ...styles.actionBtn, background: 'var(--primary)', color: '#fff' }}

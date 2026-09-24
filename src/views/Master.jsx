@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, resolveStudentWorkout } from '../context/AppContext';
 import { 
   ShieldAlert, 
   Database, 
@@ -377,9 +377,8 @@ const Master = () => {
     if (!editingVideoExercise) return;
     if (viewingStudent) {
       const currentWorkout = workoutsByStudent[viewingStudent.id] || {};
-      const exercisesList = (currentWorkout.exercises && currentWorkout.exercises.length > 0)
-        ? currentWorkout.exercises
-        : [];
+      const resolved = resolveStudentWorkout(viewingStudent, currentWorkout);
+      const exercisesList = resolved.exercises;
       
       const updatedExs = exercisesList.map(ex => 
         (ex.id === editingVideoExercise.id || ex.name?.trim().toLowerCase() === editingVideoExercise.name?.trim().toLowerCase())

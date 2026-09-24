@@ -242,12 +242,34 @@ export const getStudentGender = (user) => {
     // ignora erros de parsing
   }
 
-  // Heurística por nome caso o cadastro inicial ainda não tenha definido o sexo
-  const nameLower = (user.name || '').toLowerCase();
-  const feminineKeywords = ['mariana', 'maria', 'ana', 'carol', 'carolina', 'juliana', 'patricia', 'beatriz', 'fernanda', 'camila', 'leticia', 'aline', 'amanda', 'larissa', 'aluna', 'mulher', 'feminino'];
-  if (feminineKeywords.some(kw => nameLower.includes(kw))) {
+  // Heurística de gênero ampla e precisa por nome (especialmente para a base cadastrada e novos registros)
+  const nameLower = (user.name || '').toLowerCase().trim();
+  const feminineNames = [
+    'mayara', 'juliana', 'mariana', 'lisiane', 'risia', 'cleo', 'cléo', 'neidjane', 'thatyanne', 
+    'maria', 'ana', 'carol', 'carolina', 'patricia', 'beatriz', 'fernanda', 'camila', 'leticia', 
+    'aline', 'amanda', 'larissa', 'aluna', 'mulher', 'feminino', 'alice', 'danny', 'vanessa', 
+    'jessica', 'gabriela', 'bruna', 'daniela', 'danielle', 'renata', 'priscila', 'elaine', 
+    'cristiane', 'alessandra', 'luciana', 'simone', 'tatiana', 'thais', 'thaís', 'debora', 'débora', 
+    'michele', 'michelle', 'sabrina', 'roberta', 'valeria', 'valéria', 'monica', 'mônica', 
+    'fatima', 'fátima', 'lucia', 'lúcia', 'paula', 'claudia', 'cláudia', 'marcia', 'márcia', 
+    'adriana', 'andrea', 'andréa', 'rosana', 'silvia', 'sílvia', 'regina', 'viviane', 'kelly', 
+    'kely', 'denise', 'sueli', 'teresa', 'tereza', 'cleide', 'sonia', 'sônia', 'vitoria', 'vitória', 
+    'luana', 'natalia', 'natália', 'rafaela', 'isabela', 'isabella', 'lorena', 'helena', 'sophia', 
+    'sofia', 'clara', 'laura', 'giovanna', 'manuela', 'manuella', 'isadora', 'livia', 'lívia', 
+    'melissa', 'cecilia', 'cecília', 'nicole', 'yasmin', 'yasminne'
+  ];
+
+  if (feminineNames.some(kw => nameLower.includes(kw))) {
     return 'feminino';
   }
+
+  // Regra padrão de terminação do primeiro nome em 'a' (com exceções masculinas comuns)
+  const firstName = nameLower.split(' ')[0] || '';
+  const maleEndsWithA = ['lucas', 'nicolas', 'matias', 'jonas', 'elias', 'dimas', 'barnabe', 'joshua', 'isaac'];
+  if (firstName.endsWith('a') && !maleEndsWithA.includes(firstName)) {
+    return 'feminino';
+  }
+
   return 'masculino';
 };
 
@@ -259,6 +281,90 @@ export const getDefaultWorkouts = (genderOrUser) => {
     gender = getStudentGender(genderOrUser);
   }
   return gender === 'feminino' ? DEFAULT_WORKOUTS_FEMININO : DEFAULT_WORKOUTS_MASCULINO;
+};
+
+/**
+ * Resolve e entrega a ficha de treino para qualquer aluno:
+ * 1. Aluno BÁSICO (!isVip): sempre entrega a grade padrão (5 por dia) conforme gênero (homem ou mulher).
+ * 2. Aluno VIP (isVip): 
+ *    - Se JÁ tiver treino montado (seja pela IA ou pelo personal): entrega a ficha VIP montada.
+ *    - Se AINDA NÃO tiver treino montado (nem pela IA nem pelo personal): entrega a grade padrão (5 por dia) conforme gênero (homem ou mulher).
+ */
+export const resolveStudentWorkout = (studentUser, studentData) => {
+  if (!studentUser) {
+    return {
+      isVip: false,
+      hasCustomWorkout: false,
+      exercises: DEFAULT_WORKOUTS_MASCULINO,
+      vipHtml: '',
+      finishedSplits: [],
+      status: 'published',
+      source: 'padrao_masculino'
+    };
+  }
+
+  const gender = getStudentGender(studentUser);
+  const defaultWorkouts = getDefaultWorkouts(gender);
+  const isVip = Boolean(studentUser.isVip || studentData?.isVip);
+
+  // REGRA 1: Aluno marcado como BÁSICO
+  if (!isVip) {
+    return {
+      isVip: false,
+      hasCustomWorkout: false,
+      exercises: defaultWorkouts,
+      vipHtml: '',
+      finishedSplits: studentData?.finishedSplits || [],
+      status: studentData?.status || 'published',
+      source: gender === 'feminino' ? 'padrao_feminino_basico' : 'padrao_masculino_basico'
+    };
+  }
+
+  // REGRA 2: Aluno marcado como VIP
+  // Verifica se o aluno já possui treino customizado estruturado montado pela IA ou Personal:
+  const hasCustomExercises = Boolean(
+    studentData?.exercises && 
+    Array.isArray(studentData.exercises) && 
+    studentData.exercises.length > 0
+  );
+
+  const hasVipHtml = Boolean(
+    studentData?.vipHtml && 
+    typeof studentData.vipHtml === 'string' && 
+    studentData.vipHtml.trim().length > 100 &&
+    (
+      studentData.vipHtml.includes('exercise-main') || 
+      studentData.vipHtml.includes('exercise-title') || 
+      studentData.vipHtml.includes('class="day') || 
+      studentData.vipHtml.includes('class="ex-') ||
+      studentData.vipHtml.includes('id="treino"')
+    )
+  );
+
+  if (hasCustomExercises || hasVipHtml) {
+    // Aluno VIP com treino montado!
+    return {
+      isVip: true,
+      hasCustomWorkout: true,
+      exercises: hasCustomExercises ? studentData.exercises : defaultWorkouts,
+      vipHtml: studentData?.vipHtml || '',
+      finishedSplits: studentData?.finishedSplits || [],
+      status: studentData?.status || 'published',
+      source: 'vip_custom_montado'
+    };
+  }
+
+  // REGRA 3: Aluno VIP que AINDA NÃO TEM treino montado nem pela IA nem pelo Personal:
+  // Entrega o treino padrão correspondente ao seu gênero (homem ou mulher)
+  return {
+    isVip: true,
+    hasCustomWorkout: false,
+    exercises: defaultWorkouts,
+    vipHtml: '',
+    finishedSplits: studentData?.finishedSplits || [],
+    status: studentData?.status || 'published',
+    source: gender === 'feminino' ? 'padrao_feminino_vip_aguardando' : 'padrao_masculino_vip_aguardando'
+  };
 };
 
 const AI_EXERCISE_POOL = {
@@ -363,9 +469,9 @@ export const AppProvider = ({ children }) => {
   const [workoutsByStudent, setWorkoutsByStudent] = useState(() => {
     const saved = localStorage.getItem('fitseven-workouts');
     const defaultMap = {
-      'u1784223991987': { exercises: DEFAULT_WORKOUTS, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' },
-      'u3': { exercises: DEFAULT_WORKOUTS, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' },
-      'u6': { exercises: DEFAULT_WORKOUTS, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' }
+      'u1784223991987': { exercises: DEFAULT_WORKOUTS_MASCULINO, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' },
+      'u3': { exercises: DEFAULT_WORKOUTS_MASCULINO, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' },
+      'u6': { exercises: DEFAULT_WORKOUTS_FEMININO, isVip: true, vipHtml: '', finishedSplits: [], weekId: getCurrentWeekId(), status: 'published' }
     };
     if (saved) {
       try {
@@ -620,7 +726,12 @@ export const AppProvider = ({ children }) => {
             treinosMap[tr.user_id] = { exercises: [], finishedSplits: [], isVip: true, vipHtml: tr.html_content, weekId: getCurrentWeekId() };
           }
         });
-        setWorkoutsByStudent(treinosMap);
+
+        // Garante que todos os alunos conhecidos tenham entrada resolvida em workoutsByStudent
+        setWorkoutsByStudent(prev => {
+          const updated = { ...prev, ...treinosMap };
+          return updated;
+        });
       }
 
       // 5. Carregar Bug Reports (Mesclando Nuvem e LocalStorage)
@@ -1019,7 +1130,7 @@ export const AppProvider = ({ children }) => {
     if (userErr) throw userErr;
 
     // Sincronizar com os treinos na tabela treinos_html
-    const currentWorkoutData = workoutsByStudent[userId] || { exercises: DEFAULT_WORKOUTS, isVip: false, vipHtml: '' };
+    const currentWorkoutData = workoutsByStudent[userId] || resolveStudentWorkout(userObj, null);
     const updatedWorkout = {
       ...currentWorkoutData,
       isVip: isNowVip,
@@ -1730,12 +1841,8 @@ export const AppProvider = ({ children }) => {
   const activeTenant = tenants[Object.keys(tenants).find(k => tenants[k].id === activeTenantId)] || { name: 'Fit Seven Platform', subdomain: 'system' };
 
   const studentData = workoutsByStudent[user?.id];
-  const defaultWorkoutsForUser = getDefaultWorkouts(user);
-  const currentStudentExercises = (studentData && Array.isArray(studentData) && studentData.length > 0) 
-    ? studentData 
-    : (studentData && studentData.exercises && Array.isArray(studentData.exercises) && studentData.exercises.length > 0) 
-      ? studentData.exercises 
-      : defaultWorkoutsForUser;
+  const resolvedStudentWorkout = resolveStudentWorkout(user, studentData);
+  const currentStudentExercises = resolvedStudentWorkout.exercises;
 
   const reportBug = async (bugData) => {
     const bugId = `bug_${Date.now()}`;
@@ -1805,7 +1912,7 @@ export const AppProvider = ({ children }) => {
 
   const updateStudentExercises = async (newExercises, finishedSplitsArray = null) => {
     if (!user) return;
-    const currentData = workoutsByStudent[user.id] || { exercises: DEFAULT_WORKOUTS, isVip: false, vipHtml: '', finishedSplits: [] };
+    const currentData = workoutsByStudent[user.id] || resolveStudentWorkout(user, null);
     const updatedWorkout = {
       ...currentData,
       exercises: newExercises,
@@ -1980,7 +2087,8 @@ export const AppProvider = ({ children }) => {
       tutorialCircunferenciasVideoUrl,
       saveTutorialCircunferenciasVideo,
       getDefaultWorkouts,
-      getStudentGender
+      getStudentGender,
+      resolveStudentWorkout
     }}>
       {children}
     </AppContext.Provider>

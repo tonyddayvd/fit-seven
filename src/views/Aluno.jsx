@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useApp, getDefaultWorkouts } from '../context/AppContext';
+import { useApp, getDefaultWorkouts, getStudentGender, resolveStudentWorkout } from '../context/AppContext';
 import { 
   Dumbbell, 
   Ruler, 
@@ -494,7 +494,8 @@ const Aluno = () => {
     };
 
     const studentData = workoutsByStudent?.[user?.id];
-    const hasVipHtml = studentData?.isVip && studentData?.vipHtml;
+    const resolvedWorkout = resolveStudentWorkout(user, studentData);
+    const hasVipHtml = resolvedWorkout.isVip && resolvedWorkout.hasCustomWorkout && studentData?.vipHtml;
 
     if (hasVipHtml) {
       try {
@@ -685,9 +686,10 @@ const Aluno = () => {
       }
     }
 
-    // Fallback garantido: exercícios do banco ou padrão diferenciados por gênero do aluno (nunca vazio)
-    const baseExercises = (currentStudentExercises && currentStudentExercises.length > 0)
-      ? currentStudentExercises
+    // Fallback garantido: entrega plano padrão calibrado por gênero (homem ou mulher)
+    // Para alunos BÁSICOS ou alunos VIP que ainda não têm treino montado nem pela IA nem pelo Personal
+    const baseExercises = (resolvedWorkout.exercises && resolvedWorkout.exercises.length > 0)
+      ? resolvedWorkout.exercises
       : getDefaultWorkouts(user);
 
     const enrichedFree = (baseExercises || []).map(ex => ({
@@ -695,9 +697,9 @@ const Aluno = () => {
       video_personalizado_url: getSavedCustomVideo(user?.id, ex) || ex.video_personalizado_url || '',
       video_oficial_url: ex.video_oficial_url || getDefaultOfficialVideo(ex.name)
     }));
-    console.log(`[Aluno Workout] Carregando ${enrichedFree.length} exercícios padrão/básicos para gênero:`, user?.sexoBiologico || 'padrão');
+    console.log(`[Aluno Workout] Entregando ${enrichedFree.length} exercícios (${resolvedWorkout.source}) para gênero:`, getStudentGender(user));
     setExercises(loadExercises(enrichedFree));
-  }, [currentStudentExercises, workoutsByStudent, user?.id, user?.sexoBiologico]);
+  }, [currentStudentExercises, workoutsByStudent, user?.id, user?.sexoBiologico, user?.isVip]);
 
   // Estados dos recursos interativos
   const [activeVideoEx, setActiveVideoEx] = useState(null);
@@ -2249,52 +2251,103 @@ const Aluno = () => {
             {/* 1. ABA DE TREINOS */}
             {activeTab === 'treinos' && (
               <div style={{ width: '100%' }}>
-                {/* Banner VIP dourado + botão de download — aparece quando aluno é VIP com HTML salvo */}
-                {workoutsByStudent?.[user?.id]?.isVip && workoutsByStudent?.[user?.id]?.vipHtml && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '10px',
-                    padding: '10px 14px',
-                    marginBottom: '16px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'linear-gradient(135deg, rgba(234,179,8,0.12), rgba(234,179,8,0.04))',
-                    border: '1px solid rgba(234,179,8,0.35)'
-                  }} className="animate-fade-in">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '1.2rem' }}>👑</span>
-                      <div>
-                        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#eab308' }}>Programa VIP Homologado & Ativo</div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Este treino foi montado sob medida por nossa IA e revisado/autorizado de forma personalizada pela nossa equipe técnica de profissionais de educação física.</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const vipHtmlContent = workoutsByStudent[user.id].vipHtml;
-                        const nome = `Programa VIP - ${user.name || 'Aluno'}`;
-                        openHtmlAsPdf(vipHtmlContent, nome);
-                      }}
-                      style={{
-                        padding: '8px 14px',
-                        fontSize: '0.8rem',
-                        fontWeight: '700',
-                        backgroundColor: 'rgba(234,179,8,0.15)',
-                        color: '#eab308',
-                        border: '1px solid rgba(234,179,8,0.4)',
-                        borderRadius: 'var(--radius-sm)',
-                        cursor: 'pointer',
+                {/* Banner de Status do Treino: VIP homologado, VIP aguardando IA/Personal, ou Básico */}
+                {(() => {
+                  const studentData = workoutsByStudent?.[user?.id];
+                  const resolved = resolveStudentWorkout(user, studentData);
+
+                  if (resolved.isVip && resolved.hasCustomWorkout && studentData?.vipHtml) {
+                    return (
+                      <div style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      <Download size={14} /> Salvar como PDF
-                    </button>
-                  </div>
-                )}
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '10px',
+                        padding: '10px 14px',
+                        marginBottom: '16px',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'linear-gradient(135deg, rgba(234,179,8,0.12), rgba(234,179,8,0.04))',
+                        border: '1px solid rgba(234,179,8,0.35)'
+                      }} className="animate-fade-in">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '1.2rem' }}>👑</span>
+                          <div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#eab308' }}>Programa VIP Homologado & Ativo</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Este treino foi montado sob medida por nossa IA e revisado/autorizado de forma personalizada pela nossa equipe técnica de profissionais de educação física.</div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const vipHtmlContent = studentData.vipHtml;
+                            const nome = `Programa VIP - ${user.name || 'Aluno'}`;
+                            openHtmlAsPdf(vipHtmlContent, nome);
+                          }}
+                          style={{
+                            padding: '8px 14px',
+                            fontSize: '0.8rem',
+                            fontWeight: '700',
+                            backgroundColor: 'rgba(234,179,8,0.15)',
+                            color: '#eab308',
+                            border: '1px solid rgba(234,179,8,0.4)',
+                            borderRadius: 'var(--radius-sm)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <Download size={14} /> Salvar como PDF
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  if (resolved.isVip && !resolved.hasCustomWorkout) {
+                    return (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '10px',
+                        padding: '10px 14px',
+                        marginBottom: '16px',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(234,179,8,0.06))',
+                        border: '1px solid rgba(59,130,246,0.35)'
+                      }} className="animate-fade-in">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '1.2rem' }}>⭐</span>
+                          <div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#60a5fa' }}>Plano VIP Ativo • Grade Padrão Disponível</div>
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Você já pode treinar normalmente com a grade padrão completa (5 exercícios diários). Sua ficha personalizada exclusiva está sendo montada pela IA e pelo seu Personal Trainer.</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Plano Básico
+                  return (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '8px 12px',
+                      marginBottom: '16px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      <span style={{ fontSize: '1.1rem' }}>⚡</span>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        <strong style={{ color: 'var(--text-primary)' }}>Plano Básico Ativo:</strong> Grade padrão completa com 5 exercícios diários gratuitos adaptados para o seu perfil.
+                      </div>
+                    </div>
+                  );
+                })()}
                 {workoutSessionFinished ? (
                   /* Tela Conclusão */
                   <div style={styles.resultCard} className="animate-fade-in">
